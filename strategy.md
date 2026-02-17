@@ -140,112 +140,155 @@ const position = useSelector(state => state.game.position);
 
 ### 3.2 Client-Server Responsibility Split
 
-This is a **hybrid architecture** where game logic runs on **both** client and server, but for different purposes.
+This is a **server-authoritative architecture** where the server runs the game and clients only send inputs and render state.
 
-#### Server Responsibilities (Authority)
+#### Server Responsibilities (Full Authority)
 
-The server is the **single source of truth** for:
+The server is the **single source of truth** for **everything**:
 
 1. **Game Management**
    - Room creation/deletion
    - Player join/leave validation
    - Host assignment
 
-2. **Piece Distribution**
-   - Generates THE piece sequence (7-bag randomizer)
-   - All players get the same sequence
-   - Prevents cheating (can't manipulate pieces)
+2. **Game Execution** (The Core!)
+   - Runs the game loop for ALL players
+   - Applies gravity (piece movement down)
+   - Processes player inputs (move, rotate, drop)
+   - Performs collision detection
+   - Handles piece locking
+   - Detects and clears completed lines
+   - Calculates scores
+   - Manages piece sequence (7-bag randomizer)
+   - Applies penalty lines
 
-3. **Penalty System**
-   - Receives line clear notifications
-   - Calculates penalty (n-1)
-   - Broadcasts to other players
+3. **State Broadcasting**
+   - Sends complete game state to all players
+   - Ensures perfect synchronization
+   - No possibility of desync
 
 4. **Win Condition**
    - Tracks player elimination
    - Determines winner
    - Ends game when ≤1 player alive
 
-5. **Anti-Cheat**
-   - Validates player actions (optional)
-   - Rate limiting
-   - Ensures game state consistency
+5. **Anti-Cheat (Built-in)**
+   - Server validates all actions
+   - Impossible to cheat (no client-side logic)
+   - Rate limiting on inputs
 
-**Server Does NOT**:
-- Run the game loop (no piece gravity, no collisions)
-- Render anything
-- Handle keyboard input
+#### Client Responsibilities (View + Input Only)
 
-#### Client Responsibilities (Game Execution)
+Clients are **thin clients** that only:
 
-Each client runs its **own independent game loop**:
+1. **Input Capture**
+   - Listen for keyboard events
+   - Send input events to server immediately
+   - No local game logic execution
 
-1. **Game Loop** (60 FPS via `requestAnimationFrame`)
-   ```
-   Every frame:
-   - Apply gravity (move piece down based on timer)
-   - Handle keyboard input
-   - Check collisions
-   - Render current state
-   ```
+2. **State Rendering**
+   - Receive game state from server
+   - Update Redux store with server state
+   - Render current state:
+     - Game board (from server)
+     - Current piece position (from server)
+     - Ghost piece (calculated from server state)
+     - Next pieces queue (from server)
+     - Opponent spectrums (from server)
+     - Scores (from server)
 
-2. **Pure Game Logic** (Client-side calculations)
-   - Piece movement (left, right, down)
-   - Rotation with wall kicks
-   - Collision detection (walls, floor, other pieces)
-   - Line clearing
-   - Score calculation
-   - Board manipulation
-
-3. **Rendering**
-   - Game board (CSS Grid)
-   - Current piece
-   - Ghost piece (preview)
-   - Next pieces queue
-   - Opponent spectrums
-
-4. **Input Handling**
-   - Keyboard events
-   - Touch controls (optional)
-   - Immediate UI response (no network delay)
+3. **UI/UX**
+   - Display lobby/waiting room
+   - Show game over/winner screens
+   - Handle animations (optional, cosmetic only)
 
 **Why This Architecture?**
 
-| Aspect | Reason |
-|--------|--------|
-| **Responsiveness** | No input lag - moves happen instantly |
-| **Scalability** | Server doesn't run 60 FPS loop per player |
-| **Bandwidth** | Only send events (line clears, game over), not every frame |
-| **Offline Play** | Solo mode works even if server lags |
-| **Fairness** | Server controls piece sequence and penalties |
+| Aspect | Benefit |
+|--------|---------|
+| **Perfect Sync** | All players see identical state at same time |
+| **Anti-Cheat** | Impossible to manipulate game state |
+| **No Desync** | Single source of truth eliminates bugs |
+| **Fair Play** | Server enforces all rules consistently |
+| **Simplified Client** | Less client-side complexity |
+| **Easier Debugging** | Game logic only in one place |
+
+**Trade-offs Accepted**:
+
+| Trade-off | Impact | Mitigation |
+|-----------|--------|-----------|
+| Input Lag | ~10-50ms depending on network | Acceptable for turn-based nature of Tetris |
+| Server Load | Must run game loop per player | Tetris is lightweight, easily scalable |
+| Bandwidth | More frequent state updates | Still minimal (~60 updates/sec × small state) |
 
 #### Communication Flow Example
 
-**Line Clear Scenario**:
+**Player Input → State Update**:
 ```
 Client Side:
-1. Piece locks on board (client detects)
-2. Check for complete lines (pure function)
-3. Found 3 complete lines
-4. Clear lines locally (update Redux)
-5. Emit 'lines_cleared' { count: 3 } to server
-6. Update local score (immediate feedback)
+1. Player presses ArrowLeft
+2. Capture keyboard event
+3. Emit 'player_input' { action: 'MOVE_LEFT' } to server
+4. Wait for server response (no local changes)
 
-Server Side:
-1. Receive 'lines_cleared' { count: 3 }
-2. Calculate penalty: 3 - 1 = 2
-3. Update player score in Game class
-4. Broadcast 'penalty_lines' { count: 2, fromPlayer: 'Alice' } 
-   to all other players in room
+Server Side (Game Loop running at 60 FPS):
+1. Receive 'player_input' { action: 'MOVE_LEFT', playerId: 'abc' }
+2. Queue input for next game tick
+3. Game tick processes:
+   - Apply gravity (move piece down if time elapsed)
+   - Process queued input (move left)
+   - Check collision for move left
+   - If valid: update piece position
+   - If invalid: ignore input
+4. After tick completes:
+   - Broadcast 'game_state_update' to all players in room
+   
+Game State Update Payload:
+{
+  timestamp: 1234567890,
+  players: {
+    'abc': {
+      board: number[][],           // 10x20 grid
+      currentPiece: { type, rotation, x, y },
+      nextPieces: [type, type, ...],
+      score: 1200,
+      linesCleared: 5,
+      isAlive: true
+    },
+    'def': { /* ... */ }
+  }
+}
 
-Other Clients:
-1. Receive 'penalty_lines' { count: 2 }
-2. Add to pendingPenalty in Redux
-3. Next piece lock: insert 2 garbage lines at bottom
-4. Update local board state
+All Clients:
+1. Receive 'game_state_update'
+2. Update Redux store with new state
+3. React re-renders components with new state
+4. User sees updated position
 ```
 
-**Key Insight**: Each client is **authoritative** for its own gameplay, but the server is **authoritative** for multiplayer coordination.
+**Line Clear Scenario**:
+```
+Server Side (During Game Tick):
+1. Detect piece has hit bottom (collision)
+2. Lock piece to board
+3. Check for completed lines
+4. Found 3 complete lines
+5. Clear lines from board
+6. Calculate score bonus (500 points)
+7. Calculate penalty: 3 - 1 = 2 lines
+8. Add 2 penalty lines to OTHER players' boards
+9. Broadcast updated state to all clients
+
+Clients:
+1. Receive state with:
+   - Updated board (lines removed)
+   - New score
+   - Opponent boards now have 2 penalty lines
+2. Render new state
+3. (Optional) Trigger line clear animation based on state diff
+```
+
+**Key Insight**: The server is a **game engine** that clients connect to as "thin terminals". Clients are purely for input and display.
 
 ---
 
@@ -738,7 +781,9 @@ red-tetris/
 │   │   │   └── Game.ts
 │   │   ├── managers/
 │   │   │   ├── GameManager.ts       # Manages multiple concurrent games
-│   │   │   └── RoomManager.ts       # Room/lobby management
+│   │   │   ├── RoomManager.ts       # Room/lobby management
+│   │   │   ├── MatchmakingQueue.ts  # ⭐ Bonus: Matchmaking system
+│   │   │   └── LeaderboardManager.ts # ⭐ Bonus: In-memory leaderboards
 │   │   ├── pieces/
 │   │   │   └── TetrominoFactory.ts  # 7 Tetris piece definitions
 │   │   ├── socket/
@@ -756,7 +801,9 @@ red-tetris/
 │       │   └── Game.test.ts
 │       ├── managers/
 │       │   ├── GameManager.test.ts
-│       │   └── RoomManager.test.ts
+│       │   ├── RoomManager.test.ts
+│       │   ├── MatchmakingQueue.test.ts  # ⭐
+│       │   └── LeaderboardManager.test.ts # ⭐
 │       └── socket/
 │           └── handlers.test.ts
 │
@@ -767,6 +814,16 @@ red-tetris/
 │   ├── vite.config.ts               # Vite for bundling
 │   ├── jest.config.js
 │   ├── index.html
+│   ├── public/                      # ⭐ Bonus: Static assets
+│   │   └── sounds/                  # ⭐ Audio files
+│   │       ├── move.mp3
+│   │       ├── rotate.mp3
+│   │       ├── land.mp3
+│   │       ├── line_clear.mp3
+│   │       ├── tetris.mp3
+│   │       ├── game_over.mp3
+│   │       └── music/
+│   │           └── gameplay.mp3
 │   ├── src/
 │   │   ├── main.tsx                 # Entry point
 │   │   ├── App.tsx                  # Router setup
@@ -783,14 +840,23 @@ red-tetris/
 │   │   │   │   └── NextPiece.tsx
 │   │   │   ├── Lobby/
 │   │   │   │   ├── LobbyView.tsx
-│   │   │   │   └── PlayerList.tsx
+│   │   │   │   ├── PlayerList.tsx
+│   │   │   │   ├── SettingsPanel.tsx # ⭐ Bonus: Game settings
+│   │   │   │   └── ModeSelector.tsx  # ⭐ Bonus: Mode selection
+│   │   │   ├── Matchmaking/         # ⭐ Bonus: Matchmaking
+│   │   │   │   └── MatchmakingView.tsx
+│   │   │   ├── Leaderboard/         # ⭐ Bonus: Leaderboards
+│   │   │   │   └── LeaderboardView.tsx
 │   │   │   └── UI/
 │   │   │       ├── Button.tsx
-│   │   │       └── Modal.tsx
+│   │   │       ├── Modal.tsx
+│   │   │       └── AudioSettings.tsx # ⭐ Bonus: Audio controls
 │   │   ├── hooks/                   # Custom React hooks
 │   │   │   ├── useSocket.ts
 │   │   │   ├── useGameControls.ts
 │   │   │   └── useGameLoop.ts
+│   │   ├── audio/                   # ⭐ Bonus: Audio system
+│   │   │   └── AudioManager.ts
 │   │   ├── store/                   # Redux store
 │   │   │   ├── index.ts
 │   │   │   ├── slices/
@@ -818,7 +884,11 @@ red-tetris/
 │   └── tests/
 │       ├── components/
 │       │   ├── Board.test.tsx
-│       │   └── GameView.test.tsx
+│       │   ├── GameView.test.tsx
+│       │   ├── SettingsPanel.test.tsx   # ⭐
+│       │   └── MatchmakingView.test.tsx # ⭐
+│       ├── audio/                       # ⭐
+│       │   └── AudioManager.test.ts
 │       ├── store/
 │       │   ├── gameSlice.test.ts
 │       │   └── socketMiddleware.test.ts
@@ -862,7 +932,9 @@ red-tetris/
 │   │   │   └── Game.ts
 │   │   ├── managers/
 │   │   │   ├── GameManager.ts       # Manages multiple concurrent games
-│   │   │   └── RoomManager.ts       # Room/lobby management
+│   │   │   ├── RoomManager.ts       # Room/lobby management
+│   │   │   ├── MatchmakingQueue.ts  # ⭐ Bonus: Matchmaking system
+│   │   │   └── LeaderboardManager.ts # ⭐ Bonus: In-memory leaderboards
 │   │   ├── pieces/
 │   │   │   └── TetrominoFactory.ts  # 7 Tetris piece definitions
 │   │   ├── socket/
@@ -880,7 +952,9 @@ red-tetris/
 │       │   └── Game.test.ts
 │       ├── managers/
 │       │   ├── GameManager.test.ts
-│       │   └── RoomManager.test.ts
+│       │   ├── RoomManager.test.ts
+│       │   ├── MatchmakingQueue.test.ts  # ⭐
+│       │   └── LeaderboardManager.test.ts # ⭐
 │       └── socket/
 │           └── handlers.test.ts
 │
@@ -891,6 +965,16 @@ red-tetris/
 │   ├── vite.config.ts               # Vite for bundling
 │   ├── jest.config.js
 │   ├── index.html
+│   ├── public/                      # ⭐ Bonus: Static assets
+│   │   └── sounds/                  # ⭐ Audio files
+│   │       ├── move.mp3
+│   │       ├── rotate.mp3
+│   │       ├── land.mp3
+│   │       ├── line_clear.mp3
+│   │       ├── tetris.mp3
+│   │       ├── game_over.mp3
+│   │       └── music/
+│   │           └── gameplay.mp3
 │   ├── src/
 │   │   ├── main.tsx                 # Entry point
 │   │   ├── App.tsx                  # Router setup
@@ -907,14 +991,23 @@ red-tetris/
 │   │   │   │   └── NextPiece.tsx
 │   │   │   ├── Lobby/
 │   │   │   │   ├── LobbyView.tsx
-│   │   │   │   └── PlayerList.tsx
+│   │   │   │   ├── PlayerList.tsx
+│   │   │   │   ├── SettingsPanel.tsx # ⭐ Bonus: Game settings
+│   │   │   │   └── ModeSelector.tsx  # ⭐ Bonus: Mode selection
+│   │   │   ├── Matchmaking/         # ⭐ Bonus: Matchmaking
+│   │   │   │   └── MatchmakingView.tsx
+│   │   │   ├── Leaderboard/         # ⭐ Bonus: Leaderboards
+│   │   │   │   └── LeaderboardView.tsx
 │   │   │   └── UI/
 │   │   │       ├── Button.tsx
-│   │   │       └── Modal.tsx
+│   │   │       ├── Modal.tsx
+│   │   │       └── AudioSettings.tsx # ⭐ Bonus: Audio controls
 │   │   ├── hooks/                   # Custom React hooks
 │   │   │   ├── useSocket.ts
 │   │   │   ├── useGameControls.ts
 │   │   │   └── useGameLoop.ts
+│   │   ├── audio/                   # ⭐ Bonus: Audio system
+│   │   │   └── AudioManager.ts
 │   │   ├── store/                   # Redux store
 │   │   │   ├── index.ts
 │   │   │   ├── slices/
@@ -942,7 +1035,11 @@ red-tetris/
 │   └── tests/
 │       ├── components/
 │       │   ├── Board.test.tsx
-│       │   └── GameView.test.tsx
+│       │   ├── GameView.test.tsx
+│       │   ├── SettingsPanel.test.tsx   # ⭐
+│       │   └── MatchmakingView.test.tsx # ⭐
+│       ├── audio/                       # ⭐
+│       │   └── AudioManager.test.ts
 │       ├── store/
 │       │   ├── gameSlice.test.ts
 │       │   └── socketMiddleware.test.ts
@@ -963,42 +1060,6 @@ red-tetris/
 ---
 
 ## 5. Technology Stack
-
-### Backend
-
-| Technology | Purpose | Version |
-|------------|---------|---------|
-| Node.js | Runtime | 20.x LTS |
-| TypeScript | Type safety | 5.x |
-| Express | HTTP server | 4.x |
-| Socket.io | WebSocket communication | 4.x |
-| Jest | Testing | 29.x |
-
-### Frontend
-
-| Technology | Purpose | Version |
-|------------|---------|---------|
-| React | UI framework | 18.x |
-| TypeScript | Type safety | 5.x |
-| Vite | Build tool / bundler | 5.x |
-| Redux Toolkit | State management | 2.x |
-| Socket.io-client | WebSocket client | 4.x |
-| React Router | URL routing | 6.x |
-| Jest | Testing | 29.x |
-| React Testing Library | Component testing | 14.x |
-
-### DevOps
-
-| Technology | Purpose |
-|------------|---------|
-| Docker | Containerization |
-| Docker Compose | Multi-container orchestration |
-| ESLint | Code linting |
-| Prettier | Code formatting |
-
----
-
-## 6. Core Game Mechanics
 
 ### Backend
 
@@ -1054,8 +1115,8 @@ const createEmptyBoard = (): Board =>
 
 ```
 I-piece (cyan):     O-piece (yellow):   T-piece (purple):
-████                ██                   █
-                    ██                  ███
+████                ██                     █
+                                          ███
 
 S-piece (green):    Z-piece (red):      L-piece (orange):
  ██                 ██                  █
@@ -1188,11 +1249,14 @@ const calculateSpectrum = (board: Board): number[] => {
 | `join_room` | `{ room: string, playerName: string }` | Join or create a room |
 | `leave_room` | `{ room: string }` | Leave current room |
 | `start_game` | `{ room: string }` | Host starts the game |
-| `player_action` | `{ action: ActionType, data?: any }` | Game action (move, rotate, drop) |
-| `request_piece` | `{ room: string }` | Request next piece |
-| `lines_cleared` | `{ room: string, count: number }` | Report cleared lines |
+| `player_input` | `{ action: ActionType, data?: any }` | Game action (move, rotate, drop) |
 | `game_over` | `{ room: string }` | Report player elimination |
 | `restart_game` | `{ room: string }` | Host restarts game |
+| **`join_matchmaking`** ⭐ | `{ playerName: string }` | Join matchmaking queue |
+| **`leave_matchmaking`** ⭐ | - | Leave matchmaking queue |
+| **`update_settings`** ⭐ | `{ room: string, settings: Partial<GameSettings> }` | Host updates game settings |
+| **`get_leaderboard`** ⭐ | `{ mode?: string, limit?: number }` | Request leaderboard data |
+| **`get_player_stats`** ⭐ | `{ playerName: string, mode?: string }` | Request player statistics |
 
 ### 7.2 Server → Client Events
 
@@ -1203,13 +1267,18 @@ const calculateSpectrum = (board: Board): number[] => {
 | `player_joined` | `{ player: Player }` | New player joined |
 | `player_left` | `{ playerId: string }` | Player left room |
 | `game_starting` | `{ countdown: number }` | Game starting countdown |
-| `game_started` | `{ pieces: Piece[] }` | Game started with initial pieces |
-| `new_piece` | `{ piece: Piece, index: number }` | Next piece in sequence |
+| `game_started` | `{ pieces: Piece[], settings: GameSettings }` | Game started with config |
+| `game_state_update` | `{ players: { [id]: PlayerState } }` | Full game state broadcast |
 | `spectrum_update` | `{ playerId: string, spectrum: number[] }` | Opponent board update |
 | `penalty_lines` | `{ count: number, fromPlayer: string }` | Receive penalty lines |
 | `player_eliminated` | `{ playerId: string }` | Player lost |
 | `game_finished` | `{ winner: Player, rankings: Player[] }` | Game ended |
 | `error` | `{ code: string, message: string }` | Error occurred |
+| **`matchmaking_joined`** ⭐ | `{ queueSize: number, estimatedWait: number }` | Successfully joined queue |
+| **`matchmaking_left`** ⭐ | - | Successfully left queue |
+| **`match_found`** ⭐ | `{ roomName: string, opponent: string }` | Match found, redirect |
+| **`settings_updated`** ⭐ | `{ settings: GameSettings }` | Settings changed by host |
+| **`leaderboard_updated`** ⭐ | `{ topScores: LeaderboardEntry[] }` | Leaderboard changed |
 
 ### 7.3 Action Types
 
@@ -1219,7 +1288,8 @@ enum ActionType {
   MOVE_RIGHT = 'move_right',
   ROTATE = 'rotate',
   SOFT_DROP = 'soft_drop',
-  HARD_DROP = 'hard_drop'
+  HARD_DROP = 'hard_drop',
+  HOLD = 'hold'           // ⭐ Bonus: Hold piece
 }
 ```
 
@@ -1436,14 +1506,16 @@ class Game {
   private players: Map<string, Player>;
   private pieceSequence: Piece[];
   private hostId: string | null;
+  private settings: GameSettings;
 
-  constructor(roomName: string) {
+  constructor(roomName: string, settings?: Partial<GameSettings>) {
     this.id = generateUUID();
     this.roomName = roomName;
     this.state = GameState.WAITING;
     this.players = new Map();
     this.pieceSequence = [];
     this.hostId = null;
+    this.settings = { ...DEFAULT_SETTINGS, ...settings };
   }
 
   public addPlayer(player: Player): boolean {
@@ -1491,6 +1563,26 @@ class Game {
     this.players.forEach(player => player.reset());
     
     return true;
+  }
+
+  public updateSettings(settings: Partial<GameSettings>): boolean {
+    // Only allow updates in WAITING state
+    if (this.state !== GameState.WAITING) return false;
+    
+    // Validate settings
+    if (settings.boardWidth && (settings.boardWidth < 8 || settings.boardWidth > 12)) {
+      return false;
+    }
+    if (settings.boardHeight && (settings.boardHeight < 15 || settings.boardHeight > 25)) {
+      return false;
+    }
+    
+    this.settings = { ...this.settings, ...settings };
+    return true;
+  }
+
+  public getSettings(): GameSettings {
+    return { ...this.settings };
   }
 
   public getPiece(index: number): Piece {
@@ -1544,6 +1636,27 @@ class Game {
     if (alivePlayers.length <= 1) {
       this.state = GameState.FINISHED;
     }
+  }
+
+  public finishGame(): void {
+    this.state = GameState.FINISHED;
+    
+    // Add all players to leaderboard
+    this.players.forEach(player => {
+      leaderboardManager.addEntry({
+        playerName: player.name,
+        score: player.score,
+        linesCleared: player.linesCleared,
+        mode: this.settings.mode,
+        timestamp: Date.now(),
+        gameTime: (Date.now() - this.startTime) / 1000
+      });
+    });
+    
+    // Emit updated leaderboard
+    io.to(this.roomName).emit('leaderboard_updated', {
+      topScores: leaderboardManager.getTopScores(10)
+    });
   }
 
   public getWinner(): Player | null {
@@ -1920,6 +2033,18 @@ VITE_SERVER_URL=http://localhost:8080
   - Game deletion
   - Cleanup of empty games
 
+- `MatchmakingQueue.test.ts` ⭐
+  - Player joining/leaving queue
+  - Automatic matchmaking
+  - FIFO order
+  - Queue size and wait time estimation
+
+- `LeaderboardManager.test.ts` ⭐
+  - Adding entries
+  - Top scores retrieval
+  - Player best and rank retrieval
+  - Clearing leaderboard
+
 **Socket Handler Tests** (`server/tests/socket/`):
 - `handlers.test.ts`
   - Join room handling
@@ -1995,6 +2120,16 @@ VITE_SERVER_URL=http://localhost:8080
   - Player list display
   - Start button (host only)
   - Waiting state
+
+- `SettingsPanel.test.tsx` ⭐
+  - Renders settings options
+  - Host can change settings
+  - Updates state and emits socket event
+
+- `MatchmakingView.test.tsx` ⭐
+  - Joins and leaves queue
+  - Displays queue status
+  - Navigates on match found
 
 ### 12.3 Jest Configuration
 
@@ -2218,6 +2353,51 @@ npm run test:watch
 - Complete documentation
 - Production-ready build
 
+### Phase 9: Bonus Features Implementation (Days 22-25) ⭐
+
+**Day 22: Audio System & Game Modes**
+- [ ] Implement AudioManager class
+- [ ] Add sound files (SFX + music)
+- [ ] Integrate audio with game events
+- [ ] Create audio settings UI
+- [ ] Implement game mode system
+- [ ] Add invisible mode logic
+- [ ] Add sprint/ultra mode logic
+- [ ] Create mode selector UI
+
+**Day 23: Settings Panel & Matchmaking**
+- [ ] Implement GameSettings interface
+- [ ] Add settings validation server-side
+- [ ] Build SettingsPanel component
+- [ ] Implement MatchmakingQueue class
+- [ ] Add matchmaking socket events
+- [ ] Build MatchmakingView component
+- [ ] Test matchmaking flow
+
+**Day 24: Leaderboards & Polish**
+- [ ] Implement LeaderboardManager class
+- [ ] Add leaderboard socket events
+- [ ] Build LeaderboardView component
+- [ ] Add leaderboard to game over screen
+- [ ] Polish UI transitions
+- [ ] Add visual feedback for mode-specific features
+- [ ] Test all bonus features together
+
+**Day 25: Final Integration & Testing**
+- [ ] End-to-end testing of all features
+- [ ] Performance optimization
+- [ ] Bug fixes
+- [ ] Documentation updates
+- [ ] Final polish
+
+**Deliverables:**
+- Fully functional matchmaking system
+- Host-configurable game settings
+- In-memory leaderboards
+- Complete audio system with immersive sound design
+- Multiple game modes (classic, invisible, sprint, ultra, gravity, master)
+- Polished user experience
+
 ---
 
 ## 14. Constraints Compliance
@@ -2246,129 +2426,392 @@ npm run test:watch
 
 ## 15. Bonus Features
 
-*To be implemented if time permits:*
+> **Note**: These features go beyond the mandatory requirements and will be implemented after the core functionality is complete and tested (≥70% coverage achieved).
 
-### 15.1 Scoring System
-- Points for soft drops (1 per cell)
-- Points for hard drops (2 per cell)
-- Line clear points: 100/300/500/800
-- Combo multipliers
-- T-spin detection and bonus
+### Bonus Features Overview
 
-### 15.2 Enhanced UI
-- Hold piece functionality
-- Next piece queue (3-5 pieces)
-- Line clear animations
-- Sound effects
-- Music
+| Feature | Priority | Complexity | Description |
+|---------|----------|------------|-------------|
+| **Audio System** | High | Medium | Complete sound design with SFX and music |
+| **Game Modes** | High | Medium | Multiple game modes (invisible, sprint, ultra, etc.) |
+| **Settings Panel** | High | Low | Host-configurable game parameters |
+| **Matchmaking** | Medium | Medium | Automatic player pairing system |
+| **Leaderboards** | Medium | Low | In-memory high score tracking |
 
-### 15.3 Game Modes
-- Sprint: Clear 40 lines fastest
-- Ultra: Highest score in 2 minutes
-- Battle: Last player standing (current)
-
-### 15.4 Persistence
-- High scores (requires database)
-- Player statistics
-- Match history
-
-### 15.5 FRP Exploration
-- RxJS for event streams
-- Reactive game loop
+**Benefits of These Bonuses**:
+- **Audio System**: Significantly enhances player immersion and feedback
+- **Game Modes**: Increases replay value and variety
+- **Settings Panel**: Allows customization for different skill levels
+- **Matchmaking**: Improves user experience for solo players
+- **Leaderboards**: Adds competitive element and motivation
 
 ---
 
-## Appendix A: Piece Definitions
+### 15.1 Matchmaking System ⭐
 
-```typescript
-const PIECES = {
-  I: {
-    shape: [
-      [0, 0, 0, 0],
-      [1, 1, 1, 1],
-      [0, 0, 0, 0],
-      [0, 0, 0, 0]
-    ],
-    color: 1 // cyan
-  },
-  O: {
-    shape: [
-      [1, 1],
-      [1, 1]
-    ],
-    color: 2 // yellow
-  },
-  T: {
-    shape: [
-      [0, 1, 0],
-      [1, 1, 1],
-      [0, 0, 0]
-    ],
-    color: 3 // purple
-  },
-  S: {
-    shape: [
-      [0, 1, 1],
-      [1, 1, 0],
-      [0, 0, 0]
-    ],
-    color: 4 // green
-  },
-  Z: {
-    shape: [
-      [1, 1, 0],
-      [0, 1, 1],
-      [0, 0, 0]
-    ],
-    color: 5 // red
-  },
-  L: {
-    shape: [
-      [0, 0, 1],
-      [1, 1, 1],
-      [0, 0, 0]
-    ],
-    color: 6 // orange
-  },
-  J: {
-    shape: [
-      [1, 0, 0],
-      [1, 1, 1],
-      [0, 0, 0]
-    ],
-    color: 7 // blue
-  }
-};
+#### Overview
+A basic matchmaking system that automatically pairs players together without requiring them to share a room URL.
+
+#### Architecture
+
+**Server-Side Components**:
+- **MatchmakingQueue Class**: Manages queued players and matching logic
+  - Stores player info: socketId, playerName, joinedAt timestamp
+  - Implements FIFO (First In, First Out) matching algorithm
+  - Runs matching check every 2 seconds when queue has ≥2 players
+  - Generates unique room names for matched pairs
+  - Removes players from queue after successful match
+
+**Matching Algorithm**:
+```
+Every 2 seconds (if queue.size >= 2):
+  1. Take first 2 players from queue (FIFO)
+  2. Generate unique room name: "match_<timestamp>_<random>"
+  3. Remove both players from queue
+  4. Create new game room
+  5. Emit 'match_found' to both players with room name and opponent info
+  6. Players auto-redirect to game room
 ```
 
----
+**Socket Events**:
+- **Client → Server**:
+  - `join_matchmaking` { playerName } - Add player to queue
+  - `leave_matchmaking` - Remove player from queue
+  
+- **Server → Client**:
+  - `matchmaking_joined` { queueSize, estimatedWait } - Confirmation + queue stats
+  - `match_found` { roomName, opponent } - Match found, redirect
+  - `matchmaking_left` - Confirmation of queue exit
 
-## Appendix B: Color Scheme
+**Client UI**:
+- Route: `/matchmaking`
+- Shows "Find Opponent" button when not in queue
+- While queued: displays searching status, queue size, estimated wait time
+- Cancel button to leave queue
+- Auto-navigates to game room on match found
 
-| Piece | Color | Hex Code |
-|-------|-------|----------|
-| I | Cyan | #00FFFF |
-| O | Yellow | #FFFF00 |
-| T | Purple | #800080 |
-| S | Green | #00FF00 |
-| Z | Red | #FF0000 |
-| L | Orange | #FFA500 |
-| J | Blue | #0000FF |
-| Empty | Dark Gray | #1a1a1a |
-| Ghost | Light Gray | #404040 |
-| Penalty | Gray | #808080 |
-
----
-
-## Appendix C: Useful Resources
-
-- [Tetris Guideline](https://tetris.wiki/Tetris_Guideline)
-- [Super Rotation System](https://tetris.wiki/Super_Rotation_System)
-- [Socket.io Documentation](https://socket.io/docs/v4/)
-- [Redux Toolkit](https://redux-toolkit.js.org/)
-- [Vite Documentation](https://vitejs.dev/)
-- [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/)
+**Edge Cases**:
+- Player disconnects while in queue → auto-removed via socket disconnect handler
+- Queue becomes empty → stop matching interval (save resources)
+- Single player in queue → wait for second player (no timeout)
 
 ---
 
-*This document is a living specification. Update as implementation progresses.*
+### 15.2 Game Settings Panel ⭐
+
+#### Overview
+Host can customize game parameters before starting the game.
+
+#### Settings Schema
+
+**Configurable Parameters**:
+
+| Setting | Type | Default | Range/Options | Description |
+|---------|------|---------|---------------|-------------|
+| `dropSpeed` | number | 1000 | 200-2000ms | Piece fall interval |
+| `dropSpeedIncrease` | number | 50 | 10-100ms | Speed increase per level |
+| `boardWidth` | number | 10 | 8-12 | Number of columns |
+| `boardHeight` | number | 20 | 15-25 | Number of rows |
+| `mode` | enum | classic | classic/invisible/sprint/ultra/gravity/master | Game mode |
+| `maxPlayers` | number | 4 | 2-8 | Max room capacity |
+| `enableGhostPiece` | boolean | true | - | Show/hide ghost piece |
+| `enableHold` | boolean | false | - | Allow hold piece feature |
+| `nextPieceCount` | number | 3 | 1-5 | Preview queue length |
+
+#### Server Implementation
+
+**Game Class Extensions**:
+- Store `settings: GameSettings` object
+- `updateSettings(settings)` method:
+  - Only allowed in WAITING state
+  - Validates all settings against allowed ranges
+  - Returns success/failure
+  - Broadcasts changes to all players in room
+
+**Validation Rules**:
+- Board dimensions must stay within 8-12 width, 15-25 height
+- Drop speed between 200-2000ms
+- Only host can modify settings
+- Settings locked once game starts
+
+**Socket Events**:
+- **Client → Server**: `update_settings` { room, settings }
+  - Server validates host status
+  - Server validates game state (must be WAITING)
+  - Server validates setting values
+  - Server broadcasts update or error
+  
+- **Server → Client**: `settings_updated` { settings }
+  - All players receive updated settings
+  - Non-hosts see read-only display
+
+#### Client UI
+
+**SettingsPanel Component**:
+- Conditional rendering: host sees controls, others see read-only display
+- Setting controls:
+  - **Dropdowns**: mode selection
+  - **Range sliders**: speeds, dimensions with live value display
+  - **Checkboxes**: boolean toggles (ghost piece, hold)
+- Real-time socket emission on change
+- Visual feedback for invalid values
+
+**Integration**:
+- Rendered in LobbyView before game starts
+- Hidden once game state changes to PLAYING
+- Settings persist for duration of game session
+
+---
+
+### 15.3 Leaderboards (In-Memory) ⭐
+
+#### Overview
+Track high scores during runtime (non-persistent, lost on server restart).
+
+#### Architecture
+
+**LeaderboardManager Class**:
+- Maintains array of `LeaderboardEntry` objects
+- Max 100 entries (memory limit)
+- Entries contain: playerName, score, linesCleared, mode, timestamp, gameTime
+- Sorted by score (descending) after each addition
+
+**Core Methods**:
+- `addEntry(entry)`: Add new entry, sort, trim to max size
+- `getTopScores(limit, mode?)`: Return top N entries, optionally filtered by mode
+- `getPlayerBest(playerName, mode?)`: Return player's highest score
+- `getPlayerRank(playerName, mode?)`: Return player's rank (1-based index)
+- `clear()`: Reset all entries
+
+**Data Flow**:
+```
+Game Ends:
+  1. Server extracts player stats (score, lines, time, mode)
+  2. leaderboardManager.addEntry() for each player
+  3. Server emits 'leaderboard_updated' with top 10 to room
+  4. Clients update local display
+
+Client Request:
+  1. Client emits 'get_leaderboard' { mode?, limit? }
+  2. Server responds with filtered/sorted entries
+  3. Client displays in table format
+```
+
+**Socket Events**:
+- **Client → Server**:
+  - `get_leaderboard` { mode?, limit? } - Request leaderboard data
+  - `get_player_stats` { playerName, mode? } - Request specific player stats
+  
+- **Server → Client**:
+  - `leaderboard_updated` { topScores[] } - Broadcast after game ends
+  - Callback responses for `get_leaderboard` and `get_player_stats`
+
+#### Client UI
+
+**LeaderboardView Component**:
+- Route: `/leaderboard`
+- Mode filter buttons (All, Classic, Sprint, Ultra, etc.)
+- Table display:
+  - Rank (#1, #2, etc.)
+  - Player name
+  - Score (formatted with commas)
+  - Lines cleared
+  - Game time (mm:ss format)
+- Auto-refresh on `leaderboard_updated` event
+- Shows player's personal best and rank highlighted
+
+**Integration Points**:
+- Displayed in game over screen (top 5)
+- Accessible from main menu
+- Updated in real-time for active viewers
+
+---
+
+### 15.4 Sound Design & Audio System ⭐
+
+#### Overview
+Immersive audio experience with sound effects, music, and dynamic audio feedback.
+
+#### Audio Assets Structure
+
+**Sound Effects (12+ files)**:
+- **Movement**: `move.mp3`, `rotate.mp3`, `land.mp3`, `hard_drop.mp3`
+- **Line Clears**: `line_clear.mp3` (1-3 lines), `tetris.mp3` (4 lines)
+- **Game Events**: `level_up.mp3`, `game_over.mp3`, `countdown.mp3`
+- **Gameplay**: `tick.mp3` (piece auto-drop), `hold.mp3`
+- **Multiplayer**: `penalty.mp3` (received penalty lines)
+
+**Music Tracks**:
+- `gameplay.mp3` - Background music during game (looped)
+- `menu.mp3` - Main menu ambiance (optional)
+- `game_over.mp3` - End game theme (optional)
+
+**File Location**: `client/public/sounds/`
+
+#### AudioManager Class (Client-Side)
+
+**Responsibilities**:
+- Load and cache all audio files on initialization
+- Play SFX with automatic reset (currentTime = 0) for rapid replay
+- Manage background music with loop
+- Separate volume controls for SFX and music (0.0-1.0)
+- Mute/unmute toggle
+- Handle browser autoplay restrictions
+
+**Key Methods**:
+- `play(soundName)`: Play SFX immediately
+- `playMusic()`: Start background music loop
+- `stopMusic()`: Stop and reset music
+- `setSFXVolume(vol)`: Adjust all SFX volume
+- `setMusicVolume(vol)`: Adjust music volume
+- `toggleMute()`: Mute/unmute all audio
+
+#### Integration Points
+
+**Game Events → Audio Triggers**:
+- Piece move (left/right) → play('move')
+- Piece rotate → play('rotate')
+- Piece lock → play('land')
+- Hard drop → play('hardDrop')
+- Line clear (1-3) → play('lineClear')
+- Line clear (4) → play('tetris') [special sound]
+- Level up → play('levelUp')
+- Game over → stopMusic() + play('gameOver')
+- Penalty received → play('penaltyReceived')
+- Piece tick (gravity) → play('tick') [subtle, low volume]
+
+**Game State → Music**:
+- Enter PLAYING → playMusic()
+- Enter GAME_OVER/FINISHED → stopMusic()
+- Pause → music.pause() (resume on unpause)
+
+#### Technical Considerations
+
+**Browser Restrictions**:
+- Audio playback requires user interaction (first click/keypress)
+- Solution: Initialize AudioManager after first user input
+- Show audio icon/prompt if muted by browser policy
+
+**Performance**:
+- Use HTML5 Audio API (lightweight, no library needed)
+- Pre-load all sounds on game load (prevent lag)
+- Avoid creating new Audio() instances per play (reuse cached)
+
+**Sound Design Tips**:
+- Keep tick sound subtle (low volume, soft)
+- Make tetris (4-line) sound distinct and rewarding
+- Use short SFX (<500ms) for responsiveness
+- Background music should be non-intrusive (ambient)
+
+---
+
+### 15.5 Alternative Game Modes ⭐
+
+#### Overview
+Multiple game modes with unique mechanics and win conditions.
+
+#### Game Modes Specification
+
+| Mode | Description | Win Condition | Special Mechanic |
+|------|-------------|---------------|------------------|
+| **Classic** | Standard multiplayer | Last player alive | Penalty lines on line clear |
+| **Invisible** | Pieces disappear after landing | Last player alive | Locked pieces not rendered |
+| **Sprint** | Race mode | First to clear 40 lines | No penalty lines |
+| **Ultra** | Score attack | Highest score in 2 minutes | Time limit enforced |
+| **High Gravity** | Fast falling | Last player alive | 3x drop speed |
+| **Master (20G)** | Instant drop | Last player alive | Pieces drop instantly (no gravity) |
+
+#### Mode Configuration
+
+**ModeConfig Interface**:
+Each mode defines:
+- `name`: Display name
+- `description`: Short explanation
+- `dropSpeed`: Base fall speed in ms (0 for instant)
+- `instantDrop`: Boolean for 20G mode
+- `invisiblePieces`: Boolean for invisible mode
+- `timeLimit`: Seconds (for Ultra)
+- `lineGoal`: Target lines (for Sprint)
+- `gravityMultiplier`: Speed multiplier
+
+#### Server-Side Implementation
+
+**Game Class Integration**:
+- Store selected mode and mode config
+- On game start:
+  - Load mode config
+  - Set up mode-specific timers (timeLimit)
+  - Configure drop speed and mechanics
+- During gameplay:
+  - Check mode-specific win conditions (line goal, time limit)
+  - Apply mode-specific rules (instant drop, invisible)
+  
+**Win Condition Checks**:
+```
+After each piece lock:
+  - Sprint: if player.linesCleared >= 40 → end game, player wins
+  - Ultra: timer expires → end game, highest score wins
+  - Classic/Invisible/Gravity/Master: check elimination → last alive wins
+```
+
+**Timer Management**:
+- Ultra mode: `setTimeout(endGame, 120000)` on game start
+- Broadcast remaining time to clients every 5 seconds
+
+#### Client-Side Implementation
+
+**Invisible Mode Rendering**:
+- Track which cells are "locked" vs current piece
+- Render current piece normally
+- Render locked cells as empty (value = 0)
+- Ghost piece still visible (helps gameplay)
+
+**20G Mode (Master)**:
+- Skip gravity timer
+- Piece moves to bottom immediately on spawn
+- Player can only rotate/move horizontally before lock
+- Extremely challenging
+
+**Sprint Mode Display**:
+- Show progress: "Lines: 25/40"
+- No opponent spectrums (solo mode)
+- Timer shows elapsed time
+
+**Ultra Mode Display**:
+- Countdown timer: "Time: 1:45"
+- Focus on score maximization
+- Speed doesn't increase (consistent pacing)
+
+#### Mode Selection UI
+
+**ModeSelector Component**:
+- Grid of mode cards (2x3 or 3x2 layout)
+- Each card shows:
+  - Mode name (large)
+  - Description (1-2 lines)
+  - Icon/badge for special features (⏱ for time, 🎯 for goal)
+- Selected mode highlighted
+- Click to select (host only)
+- Emits 'update_settings' on selection
+
+**Visual Indicators**:
+- Time-based modes: Clock icon ⏱
+- Goal-based modes: Target icon 🎯
+- Challenge modes: Star icon ⭐
+
+---
+
+### 15.6 Additional Bonus Ideas
+
+*Quick mentions for potential future additions:*
+
+- **Hold Piece Functionality**: Press 'C' to swap current piece with held piece
+- **T-Spin Detection**: Award bonus points for T-spin line clears
+- **Combo System**: Consecutive line clears multiply score
+- **Particle Effects**: Visual effects for line clears (CSS animations)
+- **Replay System**: Save and watch game replays
+- **Spectator Mode**: Watch ongoing games without playing
+- **Chat System**: In-game text chat between players
+- **Custom Skins**: Different visual themes for pieces and boards
+
+---
