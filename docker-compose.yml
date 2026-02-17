@@ -7,11 +7,20 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
-      - /app/node_modules
+      - ./backend/node_modules:/app/node_modules
     networks:
       - red-tetris
     environment:
       - NODE_ENV=development
+
+  frontend:
+    container_name: red-tetris-frontend
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - ./frontend/node_modules:/app/node_modules
 
 networks:
   red-tetris:
