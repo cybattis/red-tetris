@@ -12,7 +12,7 @@ app.use(express.json());
 app.use(express.static(join(__dirname, '../../frontend/dist')));
 
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
+  res.json({ status: __dirname });
 });
 
 // Fallback to index.html for SPA routing
