@@ -9,7 +9,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 app.use(express.json());
 
 // Serve static files from frontend dist
-app.use(express.static(join(__dirname, '../../frontend/dist')));
+app.use(express.static(join(__dirname, '/public')));
 
 app.get('/health', (req, res) => {
   res.json({ status: __dirname });
@@ -17,7 +17,7 @@ app.get('/health', (req, res) => {
 
 // Fallback to index.html for SPA routing
 app.get('*', (req, res) => {
-  res.sendFile(join(__dirname, '../../frontend/dist/index.html'));
+  res.sendFile(join(__dirname, '/public/index.html'));
 });
 
 app.listen(PORT, () => {

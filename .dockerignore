@@ -1,9 +1,14 @@
 node_modules
 
+.idea
 .vscode
 .env
-README.md
+*.md
 .gitignore
 .git
 dist
 npm-debug.log
+
+Dockerfile
+.dockerignore
+docker-compose.yml

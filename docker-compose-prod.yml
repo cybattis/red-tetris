@@ -1,0 +1,15 @@
+
+services:
+  red-tetris:
+    container_name: red-tetris-prod
+    build: .
+    ports:
+      - "8000:8000"
+    networks:
+      - red-tetris
+    environment:
+      - NODE_ENV=Production
+
+networks:
+  red-tetris:
+    driver: bridge
