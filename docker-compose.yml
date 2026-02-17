@@ -1,0 +1,18 @@
+
+services:
+  backend:
+    container_name: red-tetris-backend
+    build: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    networks:
+      - red-tetris
+    environment:
+      - NODE_ENV=development
+
+networks:
+  red-tetris:
+
