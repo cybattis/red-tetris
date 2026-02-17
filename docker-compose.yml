@@ -21,7 +21,15 @@ services:
     volumes:
       - ./frontend:/app
       - ./frontend/node_modules:/app/node_modules
+    networks:
+      - red-tetris
+    environment:
+      - NODE_ENV=development
+      - VITE_SERVER_URL=http://localhost:8000
+    depends_on:
+      - backend
 
 networks:
   red-tetris:
+    driver: bridge
 
