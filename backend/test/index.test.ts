@@ -1,9 +1,8 @@
-import * as request from 'supertest';
-import { io as Client, Socket } from 'socket.io-client';
+// @ts-ignore
+import request from 'supertest';
 import { server, app } from '../src/server.js';
 
 describe('Server Integration Tests', () => {
-  let clientSocket: Socket;
   let port: number;
 
   beforeAll((done) => {
@@ -18,9 +17,6 @@ describe('Server Integration Tests', () => {
   });
 
   afterAll((done) => {
-    if (clientSocket && clientSocket.connected) {
-      clientSocket.disconnect();
-    }
     server.close(done);
   });
 

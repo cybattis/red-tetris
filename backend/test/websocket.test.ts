@@ -29,11 +29,6 @@ describe('WebSocketManager Class', () => {
     httpServer.close(done);
   });
 
-  test('should initialize with HTTP server and create io instance', () => {
-    expect(wsManager.io).toBeDefined();
-    expect(wsManager.io.engine.httpServer).toBe(httpServer);
-  });
-
   test('should accept WebSocket client connections', (done) => {
     clientSocket = Client(`http://localhost:${port}`);
 

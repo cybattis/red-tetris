@@ -18,11 +18,15 @@ export class Piece {
   }
 
   public getNextRotation(action: 'left' | 'right') {
+    if (action !== 'left' && action !== 'right') {
+      throw new Error('Invalid rotation action');
+    }
+
     const rows = this.shape.length;
     const cols = this.shape[0].length;
 
     const newShape: number[][] = Array.from({ length: cols }, () =>
-      Array(rows).fill(0),
+      new Array(rows).fill(0),
     );
 
     for (let r = 0; r < rows; r++) {

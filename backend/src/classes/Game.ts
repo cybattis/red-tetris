@@ -1,3 +1,6 @@
+import { Piece } from './Piece';
+import { PieceName } from '../types/piece';
+
 interface GameSettings {
   width: number;
   height: number;
@@ -7,22 +10,34 @@ export class Game {
   private readonly _id: string;
   private readonly _width: number;
   private readonly _height: number;
-  private _board: number[][];
-  private _nextPiece: number[][];
-  private _currentPiece: number[][];
-  private _score: number;
-  private _linesCleared: number;
-  private _level: number;
-  private _gameOver: boolean;
+  private readonly _board: number[][];
+  private readonly _seed: number;
+  private readonly _pieces: PieceName[] = [];
+  private readonly _nextPieces: PieceName[];
+  // private readonly _currentPiece: Piece;
 
-  constructor(id: string, player: string, state: string, settings: GameSettings) {
+  private readonly _score: number;
+  private readonly _linesCleared: number;
+  private readonly _level: number;
+  private readonly _gameOver: boolean;
+
+  constructor(
+    id: string,
+    player: string,
+    state: string,
+    settings: GameSettings,
+  ) {
     this._id = id;
     this._width = settings.width;
     this._height = settings.height;
+    this._board = Array.from({ length: this._height }, () =>
+      new Array(this._width).fill(0),
+    );
+    this._seed = Math.floor(Math.random() * 1000000);
+    this._pieces = []; // InitBag
+    // this._currentPiece =
+    this._nextPieces = [];
 
-    this._board = Array.from({ length: this._height }, () => Array(this._width).fill(0));
-    this._nextPiece = Array.from({ length: 4 }, () => Array(4).fill(0));
-    this._currentPiece = Array.from({ length: 4 }, () => Array(4).fill(0));
     this._score = 0;
     this._linesCleared = 0;
     this._level = 0;
