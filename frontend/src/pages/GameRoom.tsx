@@ -231,7 +231,6 @@ export function GameRoom() {
                   disabled={!isHost}
                   className={`${styles.gameModeButton} ${gameMode === mode.id ? styles.gameModeActive : ''}`}
                 >
-                  <span className={styles.gameModeIcon}>{mode.icon}</span>
                   <span className={styles.gameModeName}>{mode.name}</span>
                   <span className={styles.gameModeDescription}>{mode.description}</span>
                 </button>
