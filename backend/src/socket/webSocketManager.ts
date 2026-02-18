@@ -16,6 +16,12 @@ export class WebSocketManager {
     this.io.on('connection', (socket: Socket) => {
       console.log(`Client connected: ${socket.id}`);
 
+      // Basic echo test
+      socket.on('message', (data: any) => {
+        console.log(`Received message: ${data}`);
+        socket.emit('message', `Echo: ${data}`);
+      });
+
       wsRoomHandler(socket);
       wsGameHandler(socket);
 

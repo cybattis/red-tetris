@@ -2,7 +2,7 @@ import { jest, describe, test, expect, beforeAll, afterAll } from '@jest/globals
 import { createServer, Server as HttpServer } from 'http';
 import { AddressInfo } from 'net';
 import { io as Client, Socket as ClientSocket } from 'socket.io-client';
-import { WebSocketManager } from '../src/webSocketManager';
+import { WebSocketManager } from '../src/socket/webSocketManager';
 
 describe('WebSocketManager Class', () => {
   let httpServer: HttpServer;
