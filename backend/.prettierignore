@@ -1,0 +1,7 @@
+coverage
+.vscode
+.prettierrc
+public
+jest.config.ts
+*.json
+*.md
