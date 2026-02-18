@@ -76,35 +76,90 @@ export function HomePage() {
 
   return (
     <div className={styles.container}>
-      <div className={styles.content}>
-        {/* Logo / Title */}
-        <header className={styles.header}>
-          <h1 className={styles.title}>
-            <span className={styles.titleRed}>RED</span>
-            <span className={styles.titleTetris}>TETRIS</span>
-          </h1>
-          <p className={styles.subtitle}>Multiplayer Tetris Battle</p>
-        </header>
+      {/* Logo / Title */}
+      <header className={styles.header}>
+        <h1 className={styles.title}>
+          <span className={styles.titleRed}>RED</span>
+          <span className={styles.titleTetris}>TETRIS</span>
+        </h1>
+        <p className={styles.subtitle}>Multiplayer Tetris Battle</p>
+      </header>
 
-        {/* Join Form */}
-        <form className={styles.form} onSubmit={handleSubmit}>
-          {/* Mode Toggle */}
-          <div className={styles.modeToggle}>
-            <button
-              type="button"
-              className={`${styles.modeButton} ${mode === 'join' ? styles.modeButtonActive : ''}`}
-              onClick={() => {
-                setMode('join');
-                setError(null);
-              }}
-            >
-              Join Room
-            </button>
-            <button
-              type="button"
-              className={`${styles.modeButton} ${mode === 'matchmaking' ? styles.modeButtonActive : ''}`}
-              onClick={() => {
-                setMode('matchmaking');
+      <div className={styles.layout}>
+        {/* Match History - Left Column */}
+        <aside className={styles.sidePanel}>
+          <div className={styles.panelCard}>
+            <h2 className={styles.panelTitle}>
+              Match History
+            </h2>
+            <ul className={styles.matchList}>
+              {/* Placeholder matches - will be replaced with real data */}
+              <li className={styles.matchItem}>
+                <div className={styles.matchPlayers}>
+                  <span className={styles.playerName}>Player1</span>
+                  <span className={styles.matchVs}>vs</span>
+                  <span className={styles.playerName}>Player2</span>
+                </div>
+                <span className={styles.matchMode}>Classic</span>
+              </li>
+              <li className={styles.matchItem}>
+                <div className={styles.matchPlayers}>
+                  <span className={styles.playerName}>ProGamer</span>
+                </div>
+                <span className={styles.matchMode}>Solo</span>
+              </li>
+              <li className={styles.matchItem}>
+                <div className={styles.matchPlayers}>
+                  <span className={styles.playerName}>TetrisMaster</span>
+                  <span className={styles.matchVs}>vs</span>
+                  <span className={styles.playerName}>Newbie42</span>
+                </div>
+                <span className={styles.matchMode}>Sprint</span>
+              </li>
+              <li className={styles.matchItem}>
+                <div className={styles.matchPlayers}>
+                  <span className={styles.playerName}>BlockKing</span>
+                </div>
+                <span className={styles.matchMode}>Solo</span>
+              </li>
+              <li className={styles.matchItem}>
+                <div className={styles.matchPlayers}>
+                  <span className={styles.playerName}>SpeedRunner</span>
+                  <span className={styles.matchVs}>vs</span>
+                  <span className={styles.playerName}>CasualFan</span>
+                </div>
+                <span className={styles.matchMode}>Classic</span>
+              </li>
+              <li className={styles.matchItemEmpty}>
+                <span>No more matches to display</span>
+              </li>
+            </ul>
+          </div>
+        </aside>
+
+        {/* Join Form - Center Column */}
+        <main className={styles.content}>
+          <div className={styles.panelCard}>
+            <h2 className={styles.panelTitle}>Play</h2>
+            {/* Join Form */}
+            <form className={styles.form} onSubmit={handleSubmit}>
+              {/* Mode Toggle */}
+              <div className={styles.modeToggle}>
+                <button
+                  type="button"
+                  className={`${styles.modeButton} ${mode === 'join' ? styles.modeButtonActive : ''}`}
+                  onClick={() => {
+                    setMode('join');
+                    setError(null);
+                  }}
+                >
+                  Join Room
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.modeButton} ${mode === 'matchmaking' ? styles.modeButtonActive : ''}`}
+                  onClick={() => {
+                    setMode('matchmaking');
                 setError(null);
               }}
             >
@@ -155,7 +210,7 @@ export function HomePage() {
 
           {mode === 'matchmaking' && (
             <div className={styles.matchmakingInfo}>
-              <p>You'll be matched with other players looking for a game</p>
+              <p>You'll be matched with other players looking for a game.</p>
             </div>
           )}
 
@@ -165,10 +220,59 @@ export function HomePage() {
             </div>
           )}
 
-          <button type="submit" className={styles.submitButton}>
-            {mode === 'matchmaking' ? 'Find Match' : 'Join Game'}
-          </button>
-        </form>
+              <button type="submit" className={styles.submitButton}>
+                {mode === 'matchmaking' ? 'Find Match' : 'Join Game'}
+              </button>
+            </form>
+          </div>
+        </main>
+
+        {/* Leaderboards - Right Column */}
+        <aside className={styles.sidePanel}>
+          <div className={styles.panelCard}>
+            <h2 className={styles.panelTitle}>
+              Leaderboards
+            </h2>
+            <ol className={styles.leaderboardList}>
+              {/* Placeholder leaderboard entries - will be replaced with real data */}
+              <li className={styles.leaderboardItem}>
+                <span className={styles.leaderboardRank}>1</span>
+                <span className={styles.leaderboardName}>TetrisMaster</span>
+                <span className={styles.leaderboardScore}>125,400</span>
+              </li>
+              <li className={styles.leaderboardItem}>
+                <span className={styles.leaderboardRank}>2</span>
+                <span className={styles.leaderboardName}>ProGamer</span>
+                <span className={styles.leaderboardScore}>98,750</span>
+              </li>
+              <li className={styles.leaderboardItem}>
+                <span className={styles.leaderboardRank}>3</span>
+                <span className={styles.leaderboardName}>BlockKing</span>
+                <span className={styles.leaderboardScore}>87,200</span>
+              </li>
+              <li className={styles.leaderboardItem}>
+                <span className={styles.leaderboardRank}>4</span>
+                <span className={styles.leaderboardName}>SpeedRunner</span>
+                <span className={styles.leaderboardScore}>72,100</span>
+              </li>
+              <li className={styles.leaderboardItem}>
+                <span className={styles.leaderboardRank}>5</span>
+                <span className={styles.leaderboardName}>Player1</span>
+                <span className={styles.leaderboardScore}>65,800</span>
+              </li>
+              <li className={styles.leaderboardItem}>
+                <span className={styles.leaderboardRank}>6</span>
+                <span className={styles.leaderboardName}>CasualFan</span>
+                <span className={styles.leaderboardScore}>54,300</span>
+              </li>
+              <li className={styles.leaderboardItem}>
+                <span className={styles.leaderboardRank}>7</span>
+                <span className={styles.leaderboardName}>Newbie42</span>
+                <span className={styles.leaderboardScore}>32,150</span>
+              </li>
+            </ol>
+          </div>
+        </aside>
       </div>
     </div>
   );

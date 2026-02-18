@@ -1,0 +1,578 @@
+/**
+ * GameRoom styles - Pre-game lobby and in-game view
+ * Matches the modern Tetris-themed design from HomePage
+ */
+
+/* Container */
+.container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f0f23 100%);
+  color: #fff;
+  overflow: hidden;
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.5rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+
+.leaveButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.leaveButton:hover {
+  background: rgba(255, 0, 0, 0.2);
+  border-color: rgba(255, 0, 0, 0.4);
+}
+
+.roomInfo {
+  text-align: center;
+}
+
+.roomName {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #00ffff;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+}
+
+.roomMode {
+  display: inline-block;
+  margin-top: 0.25rem;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: #888;
+}
+
+.headerSpacer {
+  width: 100px;
+}
+
+/* Lobby Layout */
+.lobby {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Panel Cards */
+.panel {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.panelTitle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+
+.hostOnly {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #666;
+  text-transform: none;
+  letter-spacing: 0;
+  margin-left: 0.5rem;
+}
+
+.panelContent {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Player List */
+.playerList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 1rem;
+}
+
+.playerItem {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.875rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.2s;
+}
+
+.playerItem:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.playerItemEmpty {
+  flex: 1;
+  padding: 0.875rem;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  text-align: center;
+}
+
+.playerInfo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.playerName {
+  font-weight: 600;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.hostBadge {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: linear-gradient(135deg, #ffd700 0%, #ffaa00 100%);
+  color: #000;
+  border-radius: 4px;
+}
+
+.youBadge {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(0, 255, 255, 0.2);
+  color: #00ffff;
+  border-radius: 4px;
+}
+
+.playerStatus {
+  font-size: 0.75rem;
+  color: #888;
+  font-weight: 500;
+}
+
+.playerStatus.ready {
+  color: #00ff00;
+}
+
+.waitingText {
+  font-size: 0.875rem;
+  color: #666;
+  font-style: italic;
+}
+
+.playerCount {
+  padding-top: 0.75rem;
+  text-align: center;
+  font-size: 0.75rem;
+  color: #666;
+}
+
+/* Game Mode Grid */
+.gameModeGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.gameModeButton {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.gameModeButton:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.gameModeButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.gameModeActive {
+  background: rgba(0, 255, 255, 0.1);
+  border-color: #00ffff;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
+}
+
+.gameModeActive:hover:not(:disabled) {
+  background: rgba(0, 255, 255, 0.15);
+  border-color: #00ffff;
+}
+
+.gameModeIcon {
+  font-size: 1.5rem;
+}
+
+.gameModeName {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.gameModeDescription {
+  font-size: 0.75rem;
+  color: #888;
+  text-align: center;
+}
+
+/* Settings Grid */
+.settingsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  overflow: hidden;
+}
+
+.settingItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  transition: all 0.2s;
+  text-align: center;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.settingItem:hover {
+  background: rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.settingLabel {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #ccc;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: center;
+}
+
+.settingControl {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.slider {
+  flex: 1;
+  min-width: 0;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  background: linear-gradient(135deg, #00ffff 0%, #0088aa 100%);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 255, 255, 0.4);
+  transition: transform 0.2s;
+}
+
+.slider::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+}
+
+.slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  background: linear-gradient(135deg, #00ffff 0%, #0088aa 100%);
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 255, 255, 0.4);
+}
+
+.slider:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.slider:disabled::-webkit-slider-thumb {
+  background: #666;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.settingValue {
+  min-width: 2.5rem;
+  text-align: right;
+  font-family: 'Monaco', 'Consolas', monospace;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #00ffff;
+}
+
+.toggleButton {
+  padding: 0.5rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: #888;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.toggleButton:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.toggleButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toggleActive {
+  background: linear-gradient(135deg, #00ffff 0%, #0088aa 100%);
+  border-color: transparent;
+  color: #000;
+  box-shadow: 0 2px 8px rgba(0, 255, 255, 0.3);
+}
+
+.toggleActive:hover:not(:disabled) {
+  background: linear-gradient(135deg, #00ffff 0%, #0088aa 100%);
+  color: #000;
+}
+
+/* Start Section */
+.startSection {
+  width: 100%;
+  padding: 1rem 0;
+  display: flex;
+  justify-content: center;
+}
+
+/* Start Game Button */
+.startButton {
+  width: 100%;
+  padding: 1rem 2.5rem;
+  font-size: 1.125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  background: linear-gradient(135deg, #ff0000 0%, #cc0000 100%);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 
+    0 4px 15px rgba(255, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transition: all 0.2s;
+}
+
+.startButton:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 6px 20px rgba(255, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.startButton:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.startButton:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Ready Button States */
+.readyButton {
+  background: linear-gradient(135deg, #00ffff 0%, #0088aa 100%) !important;
+  box-shadow: 
+    0 4px 15px rgba(0, 255, 255, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+}
+
+.readyButton:hover:not(:disabled) {
+  box-shadow: 
+    0 6px 20px rgba(0, 255, 255, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+}
+
+.notReadyButton {
+  background: linear-gradient(135deg, #888888 0%, #555555 100%) !important;
+  box-shadow: 
+    0 4px 15px rgba(136, 136, 136, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+}
+
+.notReadyButton:hover:not(:disabled) {
+  background: linear-gradient(135deg, #00ffff 0%, #0088aa 100%) !important;
+  box-shadow: 
+    0 6px 20px rgba(0, 255, 255, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Countdown Overlay */
+.countdownOverlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.8);
+  z-index: 100;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.countdownContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+}
+
+.countdownNumber {
+  font-size: 10rem;
+  font-weight: 900;
+  color: #ff0000;
+  text-shadow: 
+    0 0 20px rgba(255, 0, 0, 0.8),
+    0 0 40px rgba(255, 0, 0, 0.6),
+    0 0 60px rgba(255, 0, 0, 0.4);
+  animation: countdownPulse 1s ease-in-out infinite;
+}
+
+.cancelButton {
+  padding: 1rem 2rem;
+  font-size: 1.125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  background: linear-gradient(135deg, #888888 0%, #555555 100%);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 
+    0 4px 15px rgba(136, 136, 136, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transition: all 0.2s;
+}
+
+.cancelButton:hover {
+  background: linear-gradient(135deg, #ff0000 0%, #cc0000 100%);
+  box-shadow: 
+    0 6px 20px rgba(255, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes countdownPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+/* Game View (placeholder) */

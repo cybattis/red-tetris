@@ -4,7 +4,7 @@
  */
 
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { HomePage } from './pages';
+import { HomePage, GameRoom } from './pages';
 import './App.css';
 
 function App() {
@@ -12,8 +12,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<HomePage />} />
-        {/* Future routes will be added here */}
-        {/* <Route path="/game" element={<GamePage />} /> */}
+        <Route path="/:room/:playerName" element={<GameRoom />} />
       </Routes>
     </BrowserRouter>
   );
