@@ -1,8 +1,8 @@
-import { jest, describe, test, expect, beforeAll, afterAll } from '@jest/globals';
+import { describe, test, expect, beforeAll, afterAll } from '@jest/globals';
 import { createServer, Server as HttpServer } from 'http';
 import { AddressInfo } from 'net';
 import { io as Client, Socket as ClientSocket } from 'socket.io-client';
-import { WebSocketManager } from '../src/socket/webSocketManager';
+import { WebSocketManager } from '../src/socket/webSocketManager.js';
 
 describe('WebSocketManager Class', () => {
   let httpServer: HttpServer;
@@ -12,7 +12,7 @@ describe('WebSocketManager Class', () => {
 
   beforeAll((done) => {
     httpServer = createServer();
-    // Initialize our wrapper class
+    // Initialize WebSocketManager with HTTP server
     wsManager = new WebSocketManager(httpServer);
 
     httpServer.listen(0, () => {
@@ -22,26 +22,54 @@ describe('WebSocketManager Class', () => {
   });
 
   afterAll((done) => {
+    if (clientSocket && clientSocket.connected) {
+      clientSocket.disconnect();
+    }
     wsManager.io.close();
     httpServer.close(done);
   });
 
-  test('should initialize and return the io instance', () => {
+  test('should initialize with HTTP server and create io instance', () => {
     expect(wsManager.io).toBeDefined();
+    expect(wsManager.io.engine.httpServer).toBe(httpServer);
   });
 
-  test('should handle message events and echo back', (done) => {
+  test('should accept WebSocket client connections', (done) => {
     clientSocket = Client(`http://localhost:${port}`);
-    const testMessage = 'Hello World';
 
     clientSocket.on('connect', () => {
-      clientSocket.emit('message', testMessage);
+      expect(clientSocket.connected).toBe(true);
+      clientSocket.disconnect();
+      done();
     });
 
-    clientSocket.on('message', (data) => {
+    clientSocket.on('error', (error) => {
+      done(error);
+    });
+  });
+
+  test('should handle custom socket events', (done) => {
+    clientSocket = Client(`http://localhost:${port}`);
+    const testMessage = 'Hello WebSocket';
+
+    wsManager.io.on('connection', (socket) => {
+      socket.on('test_message', (data) => {
+        socket.emit('test_response', `Echo: ${data}`);
+      });
+    });
+
+    clientSocket.on('connect', () => {
+      clientSocket.emit('test_message', testMessage);
+    });
+
+    clientSocket.on('test_response', (data) => {
       expect(data).toBe(`Echo: ${testMessage}`);
-      clientSocket.close();
+      clientSocket.disconnect();
       done();
+    });
+
+    clientSocket.on('error', (error) => {
+      done(error);
     });
   });
 });

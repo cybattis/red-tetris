@@ -1,4 +1,4 @@
-import { Server as HttpServer } from 'http';
+import { Server as HttpServer } from 'node:http';
 import { Server, Socket } from 'socket.io';
 
 export class WebSocketManager {
@@ -7,9 +7,9 @@ export class WebSocketManager {
   constructor(server: HttpServer) {
     this.io = new Server(server, {
       cors: {
-        origin: "*", // Adjust for production
-        methods: ["GET", "POST"]
-      }
+        origin: '*', // Adjust for production
+        methods: ['GET', 'POST'],
+      },
     });
     console.log('WebSocket server initialized');
 

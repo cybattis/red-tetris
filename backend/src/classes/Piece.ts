@@ -1,5 +1,4 @@
-import {PieceName} from "../types/piece";
-
+import { PieceName } from '../types/piece';
 
 export class Piece {
   name: PieceName;
@@ -22,7 +21,9 @@ export class Piece {
     const rows = this.shape.length;
     const cols = this.shape[0].length;
 
-    const newShape: number[][] = Array.from({ length: cols }, () => Array(rows).fill(0));
+    const newShape: number[][] = Array.from({ length: cols }, () =>
+      Array(rows).fill(0),
+    );
 
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {

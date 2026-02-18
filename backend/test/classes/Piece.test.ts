@@ -1,18 +1,19 @@
 import { describe, expect, test } from '@jest/globals';
-import { Piece, PieceName } from '../../src/classes/Piece';
+import { Piece } from '../../src/classes/Piece';
+import { PieceName } from '../../src/types/piece';
 
 describe('Piece Class', () => {
   const T_SHAPE = [
     [0, 1, 0],
     [1, 1, 1],
-    [0, 0, 0]
+    [0, 0, 0],
   ];
 
   const I_SHAPE = [
     [0, 1, 0, 0],
     [0, 1, 0, 0],
     [0, 1, 0, 0],
-    [0, 1, 0, 0]
+    [0, 1, 0, 0],
   ];
 
   describe('Constructor', () => {
@@ -48,7 +49,7 @@ describe('Piece Class', () => {
       const expectedRight = [
         [0, 1, 0],
         [0, 1, 1],
-        [0, 1, 0]
+        [0, 1, 0],
       ];
 
       piece.getNextRotation('right');
@@ -71,7 +72,7 @@ describe('Piece Class', () => {
       const expectedLeft = [
         [0, 1, 0],
         [1, 1, 0],
-        [0, 1, 0]
+        [0, 1, 0],
       ];
 
       piece.getNextRotation('left');
@@ -94,7 +95,7 @@ describe('Piece Class', () => {
       const expectedLeft = [
         [0, 0, 0],
         [1, 1, 1],
-        [0, 1, 0]
+        [0, 1, 0],
       ];
 
       piece.getNextRotation('left');
@@ -121,7 +122,7 @@ describe('Piece Class', () => {
         [0, 0, 0, 0],
         [1, 1, 1, 1],
         [0, 0, 0, 0],
-        [0, 0, 0, 0]
+        [0, 0, 0, 0],
       ];
 
       piece.getNextRotation('right');
@@ -147,7 +148,7 @@ describe('Piece Class', () => {
         [0, 0, 1, 0],
         [0, 0, 1, 0],
         [0, 0, 1, 0],
-        [0, 0, 1, 0]
+        [0, 0, 1, 0],
       ];
 
       piece.getNextRotation('left');
@@ -165,4 +166,3 @@ describe('Piece Class', () => {
     });
   });
 });
-
