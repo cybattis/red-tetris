@@ -1,152 +1,174 @@
-/**
- * GameRoom Page - Pre-game lobby and game view
- * Displays waiting room before game starts, then the game itself
- */
-
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import styles from './GameRoom.module.css';
 import type {
-  Player,
   GameMode,
   GameSettings,
 } from '../types/game';
 import {
-  DEFAULT_SETTINGS,
   GAME_MODES,
-  ROOM_CONFIG,
-  prepareGameCreationData,
-  canStartGame,
 } from '../types/game';
+
+// Redux imports
+import { useAppDispatch, useAppSelector } from '../store/index.js';
+import {
+  joinRoomSuccess,
+  addPlayer,
+  leaveRoom,
+  updatePlayerReady,
+  updateGameMode,
+  updateSetting,
+  startCountdown,
+  cancelCountdown,
+  resetToLobby,
+  selectPlayers,
+  selectCurrentPlayer,
+  selectIsHost,
+  selectGameMode,
+  selectGameSettings,
+  selectCanStartGame,
+  selectCountdown,
+  selectGameStarted,
+  selectError,
+  selectGameCreationData,
+} from '../store/slices/gameRoomSlice.js';
 
 export function GameRoom() {
   const { room, playerName } = useParams<{ room: string; playerName: string }>();
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
 
-  // Placeholder state - will be replaced with Redux store
-  const [players, setPlayers] = useState<Player[]>([
-    { id: '1', name: playerName || 'Player1', isHost: true, isReady: true },
-  ]);
-  const [gameMode, setGameMode] = useState<GameMode>('classic');
-  const [settings, setSettings] = useState<GameSettings>(DEFAULT_SETTINGS);
-  const [gameStarted, setGameStarted] = useState(false);
-  const [countdown, setCountdown] = useState<number | null>(null);
+  // Redux state selectors
+  const players = useAppSelector(selectPlayers);
+  const currentPlayer = useAppSelector(selectCurrentPlayer);
+  const isHost = useAppSelector(selectIsHost);
+  const gameMode = useAppSelector(selectGameMode);
+  const settings = useAppSelector(selectGameSettings);
+  const canStartGameNow = useAppSelector(selectCanStartGame);
+  const countdown = useAppSelector(selectCountdown);
+  const gameStarted = useAppSelector(selectGameStarted);
+  const gameCreationData = useAppSelector(selectGameCreationData);
+  const error = useAppSelector(selectError);
 
-  // Current player (first player for now - will use socket ID later)
-  const currentPlayer = players.find(p => p.name === playerName);
-  const isHost = currentPlayer?.isHost ?? false;
+  // Derived state
   const isSoloGame = players.length === 1;
-  const allPlayersReady = canStartGame(players);
+
+  useEffect(() => {
+    if (room && playerName) {
+      // For now, without a real backend
+      // Will be replaced with actual socket events when backend is ready
+      dispatch(joinRoomSuccess({
+        players: [
+          { 
+            id: '1', 
+            name: playerName, 
+            isHost: true, 
+            isReady: true 
+          }
+        ],
+        currentPlayerId: '1',
+        gameMode: 'classic',
+      }));
+      
+      // TODO: When backend is ready, replace with:
+      // if (isConnected) {
+      //   dispatch(joinRoom({ roomId: room, playerName }));
+      // }
+    }
+  }, [dispatch, room, playerName]);
 
   // Placeholder: Add a second player after 3 seconds (for testing)
   useEffect(() => {
-    // This is just for demo - will be replaced with socket events
+    // Just for demo - will be replaced with real socket events
     const timer = setTimeout(() => {
       if (players.length === 1) {
-        // Uncomment to test 2-player mode:
-        setPlayers(prev => [...prev, { id: '2', name: 'Opponent', isHost: false, isReady: true }]);
+        // Add a test opponent to see multiplayer functionality
+        dispatch(addPlayer({ id: '2', name: 'Opponent', isHost: false, isReady: false }));
       }
     }, 3000);
     return () => clearTimeout(timer);
-  }, [players.length]);
+  }, [players.length, dispatch]);
+
+  // Handle countdown interval
+  useEffect(() => {
+    let interval: number | null = null;
+    
+    if (countdown !== null && countdown > 0) {
+      interval = window.setInterval(() => {
+        dispatch({ type: 'gameRoom/updateCountdown', payload: countdown - 1 });
+      }, 1000);
+    }
+
+    return () => {
+      if (interval) {
+        window.clearInterval(interval);
+      }
+    };
+  }, [countdown, dispatch]);
 
   const handleSettingChange = (key: keyof GameSettings, value: number | boolean) => {
     if (!isHost) return;
     
-    const newSettings = { ...settings, [key]: value };
-    setSettings(newSettings);
-    
-    // TODO: Send to backend via socket
-    // socket.emit('UPDATE_SETTINGS', { roomId: room!, settings: newSettings });
+    dispatch(updateSetting({ key, value }));
   };
 
   const handleGameModeChange = (newGameMode: GameMode) => {
     if (!isHost) return;
     
-    setGameMode(newGameMode);
-    
-    // TODO: Send to backend via socket
-    // socket.emit('UPDATE_GAME_MODE', { roomId: room!, gameMode: newGameMode });
+    dispatch(updateGameMode(newGameMode));
   };
 
   const handleStartGame = () => {
-    if (!isHost) return;
+    if (!isHost || !canStartGameNow) return;
     
-    try {
-      // Prepare game creation data for backend
-      const gameCreationData = prepareGameCreationData(room || '', gameMode, settings, players);
-      
-      // TODO: Send to backend via socket
-      // socket.emit('START_GAME', { roomId: gameCreationData.roomId });
+    if (gameCreationData) {
       console.log('Game Creation Data:', gameCreationData);
-      
-      // Start countdown
-      setCountdown(ROOM_CONFIG.COUNTDOWN_DURATION);
-      const interval = setInterval(() => {
-        setCountdown(prev => {
-          if (prev === null || prev <= 1) {
-            clearInterval(interval);
-            setGameStarted(true);
-            
-            // TODO: Send final game start event to backend
-            // socket.emit('GAME_STARTED', { gameId: generateGameId() });
-            
-            return null;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-      
-      // Store interval ID so we can clear it if needed
-      (window as any).countdownInterval = interval;
-    } catch (error) {
-      console.error('Failed to prepare game creation data:', error);
+      dispatch(startCountdown());
     }
   };
 
   const handleCancelCountdown = () => {
-    // Clear the interval to prevent game from starting
-    if ((window as any).countdownInterval) {
-      clearInterval((window as any).countdownInterval);
-      (window as any).countdownInterval = null;
-    }
-    setCountdown(null);
-    
-    // TODO: Send to backend via socket
-    // socket.emit('CANCEL_START', { roomId: room! });
+    dispatch(cancelCountdown());
   };
 
   const handleToggleReady = () => {
     if (!currentPlayer) return;
     
     const newReadyStatus = !currentPlayer.isReady;
-    
-    setPlayers(prev => prev.map(player => 
-      player.id === currentPlayer.id 
-        ? { ...player, isReady: newReadyStatus }
-        : player
-    ));
-    
-    // TODO: Send to backend via socket
-    // socket.emit('PLAYER_READY', { 
-    //   roomId: room!, 
-    //   playerId: currentPlayer.id, 
-    //   isReady: newReadyStatus 
-    // });
+    dispatch(updatePlayerReady({ 
+      playerId: currentPlayer.id, 
+      isReady: newReadyStatus 
+    }));
   };
 
   const handleLeaveRoom = () => {
+    dispatch(leaveRoom());
     navigate('/');
   };
 
-  // If game has started, show game view (placeholder for now)
+  // Show error state
+  if (error) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.gameView}>
+          <h2>Error</h2>
+          <p>{error}</p>
+          <button onClick={handleLeaveRoom} className={styles.backButton}>
+            Back to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // If game has started, show game view (placeholder)
   if (gameStarted) {
     return (
       <div className={styles.container}>
         <div className={styles.gameView}>
           <h2>Game In Progress</h2>
           <p>Game board will be displayed here</p>
-          <button onClick={() => setGameStarted(false)} className={styles.backButton}>
+          <button onClick={() => dispatch(resetToLobby())} className={styles.backButton}>
             Back to Lobby (Debug)
           </button>
         </div>
@@ -156,7 +178,6 @@ export function GameRoom() {
 
   return (
     <div className={styles.container}>
-      {/* Countdown Overlay */}
       {countdown !== null && (
         <div className={styles.countdownOverlay}>
           <div className={styles.countdownContent}>
@@ -168,7 +189,6 @@ export function GameRoom() {
         </div>
       )}
 
-      {/* Header */}
       <header className={styles.header}>
         <button onClick={handleLeaveRoom} className={styles.leaveButton}>
           ← Leave Room
@@ -182,9 +202,7 @@ export function GameRoom() {
         <div className={styles.headerSpacer} />
       </header>
 
-      {/* Main Content */}
       <main className={styles.lobby}>
-        {/* Players Panel */}
         <section className={styles.panel}>
           <h2 className={styles.panelTitle}>Players</h2>
           <div className={styles.panelContent}>
@@ -217,7 +235,6 @@ export function GameRoom() {
           </div>
         </section>
 
-        {/* Game Mode Panel */}
         <section className={styles.panel}>
           <h2 className={styles.panelTitle}>
             Game Mode
@@ -239,14 +256,12 @@ export function GameRoom() {
           </div>
         </section>
 
-        {/* Settings Panel */}
         <section className={styles.panel}>
           <h2 className={styles.panelTitle}>
             Game Settings
           </h2>
           <div className={styles.panelContent}>
             <div className={styles.settingsGrid}>
-              {/* Board Width */}
               <div className={styles.settingItem}>
                 <label className={styles.settingLabel}>Board Width</label>
                 <div className={styles.settingControl}>
@@ -263,7 +278,6 @@ export function GameRoom() {
                 </div>
               </div>
 
-              {/* Board Height */}
               <div className={styles.settingItem}>
                 <label className={styles.settingLabel}>Board Height</label>
                 <div className={styles.settingControl}>
@@ -280,7 +294,6 @@ export function GameRoom() {
                 </div>
               </div>
 
-              {/* Gravity */}
               <div className={styles.settingItem}>
                 <label className={styles.settingLabel}>Gravity</label>
                 <div className={styles.settingControl}>
@@ -297,7 +310,6 @@ export function GameRoom() {
                 </div>
               </div>
 
-              {/* Game Speed */}
               <div className={styles.settingItem}>
                 <label className={styles.settingLabel}>Game Speed</label>
                 <div className={styles.settingControl}>
@@ -315,7 +327,6 @@ export function GameRoom() {
                 </div>
               </div>
 
-              {/* Next Piece Count */}
               <div className={styles.settingItem}>
                 <label className={styles.settingLabel}>Preview Queue</label>
                 <div className={styles.settingControl}>
@@ -332,7 +343,6 @@ export function GameRoom() {
                 </div>
               </div>
 
-              {/* Ghost Piece */}
               <div className={styles.settingItem}>
                 <label className={styles.settingLabel}>Ghost Piece</label>
                 <div className={styles.settingControl}>
@@ -349,13 +359,12 @@ export function GameRoom() {
           </div>
         </section>
 
-        {/* Start Game Button */}
         <div className={styles.startSection}>
           {isHost ? (
             <button
               onClick={handleStartGame}
               className={styles.startButton}
-              disabled={countdown !== null || !allPlayersReady}
+              disabled={countdown !== null || !canStartGameNow}
             >
               {countdown !== null ? `Starting in ${countdown}...` : 'Start Game'}
             </button>
