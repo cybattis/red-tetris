@@ -1,5 +1,5 @@
 /backend/public
-
+*.js
 # IntelliJ project files
 .idea
 *.iml
