@@ -4,6 +4,9 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import http from 'node:http';
 import { WebSocketManager } from './socket/webSocketManager.js';
+import { Player } from './classes/Player.js';
+import { Game } from './classes/game.js';
+import { GameSettings } from '@shared/types/game.js';
 
 const app = express();
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -28,5 +31,20 @@ app.get('*', (req: Request, res: Response) => {
 const server = http.createServer(app);
 // Initialize WebSocketManager to handle all Socket.io logic
 const wsManager = new WebSocketManager(server);
+
+console.log('Running server tests...');
+const player = new Player('test-player');
+const settings: GameSettings = {
+  gravity: 1,
+  gameSpeed: 1,
+  ghostPiece: false,
+  boardWidth: 10,
+  boardHeight: 20,
+  nextPieceCount: 5,
+};
+const game = new Game(player, settings, 12345);
+console.log('Game initialized successfully');
+
+game.start();
 
 export { app, server, wsManager };

@@ -4,6 +4,7 @@ import { PieceType } from '../types/piece';
 export class Piece implements Piece {
   public type: PieceType;
   public shape: number[][]; // Current 2D shape
+  public position = { x: 0, y: 0 };
 
   constructor(type: PieceType) {
     this.type = type;
