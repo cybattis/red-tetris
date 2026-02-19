@@ -25,7 +25,8 @@
       "@hooks/*": ["src/hooks/*"],
       "@game/*": ["src/game/*"],
       "@utils/*": ["src/utils/*"],
-      "@types/*": ["src/types/*"]
+      "@types/*": ["src/types/*"],
+      "@shared/*": ["../shared/*"]
     },
 
     /* Linting */
