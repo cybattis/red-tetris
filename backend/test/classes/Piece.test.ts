@@ -1,6 +1,7 @@
 import { describe, expect, test } from '@jest/globals';
 import { Piece } from '../../src/classes/Piece';
-import { PieceName } from '../../src/types/piece';
+import { PieceType } from '../../src/types/piece';
+import { S_PIECE } from '../../src/pieces/TetrominoFactory';
 
 describe('Piece Class', () => {
   const T_SHAPE = [
@@ -17,152 +18,121 @@ describe('Piece Class', () => {
   ];
 
   describe('Constructor', () => {
-    test('should initialize with correct name and shape', () => {
-      const piece = new Piece(PieceName.T, T_SHAPE);
+    test('should initialize with correct type and shape', () => {
+      const piece = new Piece(PieceType.T);
 
       expect(piece).toBeDefined();
-      expect(piece.getName()).toBe(PieceName.T);
-      expect(piece.getShape()).toEqual(T_SHAPE);
+      expect(piece.type).toBe(PieceType.T);
+      expect(piece.shape).toEqual(T_SHAPE);
     });
 
     test('should initialize I piece correctly', () => {
-      const piece = new Piece(PieceName.I, I_SHAPE);
-      expect(piece.getName()).toBe(PieceName.I);
-      expect(piece.getShape()).toEqual(I_SHAPE);
+      const piece = new Piece(PieceType.I);
+
+      expect(piece.type).toBe(PieceType.I);
+      expect(piece.shape).toEqual(I_SHAPE);
+    });
+
+    test('should initialize S piece from dictionary correctly', () => {
+      const piece = new Piece(PieceType.S);
+
+      expect(piece.type).toBe(PieceType.S);
+      expect(piece.shape).toEqual(S_PIECE);
     });
   });
 
   describe('getNextRotation', () => {
-    test('should rotate right (clockwise)', () => {
-      const piece = new Piece(PieceName.T, T_SHAPE);
-      /*
-        Original T:
-        [0, 1, 0]
-        [1, 1, 1]
-        [0, 0, 0]
+    test('should return clockwise rotation for T piece', () => {
+      const piece = new Piece(PieceType.T);
 
-        Right Rotation:
-        [0, 1, 0]
-        [0, 1, 1]
-        [0, 1, 0]
-      */
-      const expectedRight = [
+      const expected = [
         [0, 1, 0],
         [0, 1, 1],
         [0, 1, 0],
       ];
 
-      piece.getNextRotation('right');
-      expect(piece.getShape()).toEqual(expectedRight);
+      expect(piece.getNextRotation()).toEqual(expected);
     });
 
-    test('should rotate left (counter-clockwise)', () => {
-      const piece = new Piece(PieceName.T, T_SHAPE);
-      /*
-        Original T:
-        [0, 1, 0]
-        [1, 1, 1]
-        [0, 0, 0]
+    test('should return correct down shape after two rotations', () => {
+      const piece = new Piece(PieceType.T);
+      piece.getNextRotation();
 
-        Left Rotation:
-        [0, 1, 0]
-        [1, 1, 0]
-        [0, 1, 0]
-      */
-      const expectedLeft = [
-        [0, 1, 0],
-        [1, 1, 0],
-        [0, 1, 0],
-      ];
-
-      piece.getNextRotation('left');
-      expect(piece.getShape()).toEqual(expectedLeft);
-    });
-
-    test('should rotate left (counter-clockwise)', () => {
-      const piece = new Piece(PieceName.T, T_SHAPE);
-      /*
-        Original T:
-        [0, 1, 0]
-        [1, 1, 1]
-        [0, 0, 0]
-
-        Left Rotation:
-        [0, 0, 0]
-        [1, 1, 1]
-        [0, 1, 0]
-      */
-      const expectedLeft = [
+      const expected = [
         [0, 0, 0],
         [1, 1, 1],
         [0, 1, 0],
       ];
 
-      piece.getNextRotation('left');
-      piece.getNextRotation('left');
-      expect(piece.getShape()).toEqual(expectedLeft);
+      piece.getNextRotation();
+      expect(piece.shape).toEqual(expected);
     });
 
-    test('should return 4x4 rotation correctly for I piece', () => {
-      const piece = new Piece(PieceName.I, I_SHAPE);
-      /*
-        Original I:
-        [0, 1, 0, 0]
-        [0, 1, 0, 0]
-        [0, 1, 0, 0]
-        [0, 1, 0, 0]
+    test('should return correct right shape after three rotations', () => {
+      const piece = new Piece(PieceType.T);
+      piece.getNextRotation();
+      piece.getNextRotation();
 
-        Right Rotation (Flat line):
-        [0, 0, 0, 0]
-        [1, 1, 1, 1]
-        [0, 0, 0, 0]
-        [0, 0, 0, 0]
-      */
-      const expectedRight = [
+      const expected = [
+        [0, 1, 0],
+        [1, 1, 0],
+        [0, 1, 0],
+      ];
+
+      piece.getNextRotation();
+      expect(piece.shape).toEqual(expected);
+    });
+
+    test('should return correct up shape after four rotations', () => {
+      const piece = new Piece(PieceType.T);
+      piece.getNextRotation();
+      piece.getNextRotation();
+      piece.getNextRotation();
+
+      const expected = T_SHAPE;
+
+      piece.getNextRotation();
+      expect(piece.shape).toEqual(expected);
+    });
+
+    test('should return horizontal rotation for I piece', () => {
+      const piece = new Piece(PieceType.I);
+
+      const expected = [
         [0, 0, 0, 0],
         [1, 1, 1, 1],
         [0, 0, 0, 0],
         [0, 0, 0, 0],
       ];
 
-      piece.getNextRotation('right');
-      expect(piece.getShape()).toEqual(expectedRight);
+      expect(piece.getNextRotation()).toEqual(expected);
     });
 
-    test('should return 4x4 rotation correctly for I piece', () => {
-      const piece = new Piece(PieceName.I, I_SHAPE);
-      /*
-        Original I:
-        [0, 1, 0, 0]
-        [0, 1, 0, 0]
-        [0, 1, 0, 0]
-        [0, 1, 0, 0]
+    test('should return vertical rotation for I piece', () => {
+      const piece = new Piece(PieceType.I);
 
-        Two Right Rotations (Back to vertical):
-        [0, 0, 1, 0]
-        [0, 0, 1, 0]
-        [0, 0, 1, 0]
-        [0, 0, 1, 0]
-      */
-      const expectedRight = [
-        [0, 0, 1, 0],
-        [0, 0, 1, 0],
-        [0, 0, 1, 0],
-        [0, 0, 1, 0],
+      // Rotate twice to get back to vertical
+      piece.getNextRotation(); // horizontal
+      piece.getNextRotation(); // vertical
+
+      const expected = [
+        [0, 1, 0, 0],
+        [0, 1, 0, 0],
+        [0, 1, 0, 0],
+        [0, 1, 0, 0],
       ];
 
-      piece.getNextRotation('left');
-      piece.getNextRotation('left');
-      expect(piece.getShape()).toEqual(expectedRight);
+      expect(piece.shape).toEqual(expected);
     });
 
-    test('should preserve original shape when calling getNextRotation', () => {
-      const piece = new Piece(PieceName.T, T_SHAPE);
-      const originalShapeCopy = JSON.parse(JSON.stringify(T_SHAPE));
+    test('should return same shape for O piece', () => {
+      const oShape = [
+        [1, 1],
+        [1, 1],
+      ];
+      const piece = new Piece(PieceType.O);
 
-      piece.getNextRotation('right');
-      piece.getNextRotation('left');
-      expect(piece.getShape()).toEqual(originalShapeCopy);
+      expect(piece.getNextRotation()).toEqual(oShape);
     });
   });
 });
