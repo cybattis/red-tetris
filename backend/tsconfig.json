@@ -15,5 +15,8 @@
     "strict": true,
     "skipLibCheck": true
   },
-  "include": ["src/**/*", "../shared/**/*"]
+  "include": [
+    "src/**/*",
+    "../shared/**/*"
+, "test/classes/Player.test.ts"  ]
 }

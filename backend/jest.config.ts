@@ -6,6 +6,7 @@ const config: Config.InitialOptions = {
   extensionsToTreatAsEsm: ['.ts'],
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1', // Handle .js extensions in imports
+    '^src/(.*)$': '<rootDir>/src/$1',
   },
   transform: {
     '^.+\\.tsx?$': [

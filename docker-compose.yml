@@ -6,7 +6,8 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./backend:/app
+      - ./shared:/app/shared
+      - ./backend:/app/backend
       - ./backend/node_modules:/app/node_modules
     networks:
       - red-tetris
