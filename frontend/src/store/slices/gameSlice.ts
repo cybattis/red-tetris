@@ -43,10 +43,8 @@ export interface GameState {
   currentPiece: PieceState | null;
   ghostPiece: PieceState | null;
 
-  // Piece queue and hold (from server)
+  // Piece queue (from server)
   nextPieces: number[]; // Array of piece type IDs
-  holdPiece: number | null;
-  canHold: boolean;
 
   // Score and progress (from server)
   score: number;
@@ -73,28 +71,76 @@ const createEmptyBoard = (width: number, height: number): number[][] => {
   return Array.from({ length: height }, () => Array(width).fill(0));
 };
 
+/**
+ * Create a mock board with some placed pieces for testing
+ */
+const createMockBoard = (): number[][] => {
+  const board = createEmptyBoard(10, 20);
+  
+  // Add some placed pieces at the bottom (simulating mid-game)
+  // Row 19 (bottom) - almost complete line
+  board[19] = [1, 2, 3, 4, 0, 5, 6, 7, 1, 2];
+  // Row 18
+  board[18] = [0, 1, 2, 0, 0, 0, 3, 4, 5, 6];
+  // Row 17
+  board[17] = [0, 0, 1, 0, 0, 0, 0, 2, 3, 4];
+  // Row 16
+  board[16] = [0, 0, 0, 0, 0, 0, 0, 1, 2, 0];
+  
+  return board;
+};
+
 const initialState: GameState = {
-  board: createEmptyBoard(10, 20),
+  board: createMockBoard(),
   boardWidth: 10,
   boardHeight: 20,
 
-  currentPiece: null,
-  ghostPiece: null,
+  // Mock current piece (T-piece falling) - type 3 = T piece (purple)
+  currentPiece: {
+    type: 3,
+    position: { x: 4, y: 2 },
+    shape: [
+      [0, 1, 0],
+      [1, 1, 1],
+      [0, 0, 0],
+    ],
+    rotation: 0,
+  },
+  
+  // Ghost piece (where it will land) - same type as current piece
+  ghostPiece: {
+    type: 3,
+    position: { x: 4, y: 14 },
+    shape: [
+      [0, 1, 0],
+      [1, 1, 1],
+      [0, 0, 0],
+    ],
+    rotation: 0,
+  },
 
-  nextPieces: [],
-  holdPiece: null,
-  canHold: true,
+  // Next pieces queue: I(1)
+  nextPieces: [1, 5 , 4, 1, 2, 4, 7],
 
-  score: 0,
-  level: 1,
-  linesCleared: 0,
-  totalLinesCleared: 0,
+  score: 4850,
+  level: 3,
+  linesCleared: 2,
+  totalLinesCleared: 12,
 
   isPaused: false,
   isGameOver: false,
   gameOverReason: null,
 
-  opponents: [],
+  // Mock opponent for testing 2-player layout (remove for production)
+  opponents: [
+    {
+      playerId: 'opponent-1',
+      playerName: 'Opponent',
+      spectrum: [3, 5, 7, 4, 6, 8, 5, 3, 4, 6],
+      score: 1250,
+      isEliminated: false,
+    },
+  ],
   pendingPenaltyLines: 0,
 };
 
@@ -106,8 +152,6 @@ export interface GameStateUpdate {
   currentPiece?: PieceState | null;
   ghostPiece?: PieceState | null;
   nextPieces?: number[];
-  holdPiece?: number | null;
-  canHold?: boolean;
   score?: number;
   level?: number;
   linesCleared?: number;
@@ -136,8 +180,6 @@ const gameSlice = createSlice({
       state.nextPieces = nextPieces ?? [];
       state.currentPiece = null;
       state.ghostPiece = null;
-      state.holdPiece = null;
-      state.canHold = true;
       state.score = 0;
       state.level = 1;
       state.linesCleared = 0;
@@ -160,8 +202,6 @@ const gameSlice = createSlice({
       if (update.currentPiece !== undefined) state.currentPiece = update.currentPiece;
       if (update.ghostPiece !== undefined) state.ghostPiece = update.ghostPiece;
       if (update.nextPieces !== undefined) state.nextPieces = update.nextPieces;
-      if (update.holdPiece !== undefined) state.holdPiece = update.holdPiece;
-      if (update.canHold !== undefined) state.canHold = update.canHold;
       if (update.score !== undefined) state.score = update.score;
       if (update.level !== undefined) state.level = update.level;
       if (update.linesCleared !== undefined) state.linesCleared = update.linesCleared;
@@ -273,8 +313,6 @@ export const selectBoard = (state: { game: GameState }) => state.game.board;
 export const selectCurrentPiece = (state: { game: GameState }) => state.game.currentPiece;
 export const selectGhostPiece = (state: { game: GameState }) => state.game.ghostPiece;
 export const selectNextPieces = (state: { game: GameState }) => state.game.nextPieces;
-export const selectHoldPiece = (state: { game: GameState }) => state.game.holdPiece;
-export const selectCanHold = (state: { game: GameState }) => state.game.canHold;
 export const selectScore = (state: { game: GameState }) => state.game.score;
 export const selectLevel = (state: { game: GameState }) => state.game.level;
 export const selectLinesCleared = (state: { game: GameState }) => state.game.linesCleared;

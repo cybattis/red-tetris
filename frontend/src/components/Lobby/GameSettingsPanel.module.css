@@ -24,6 +24,10 @@
   border-color: rgba(255, 255, 255, 0.1);
 }
 
+.resetButton {
+  margin: auto;
+}
+
 @media (max-width: 768px) {
   .settingsGrid {
     grid-template-columns: repeat(2, 1fr);

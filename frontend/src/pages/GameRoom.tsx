@@ -15,6 +15,7 @@ import {
   updatePlayerReady,
   updateGameMode,
   updateSetting,
+  resetSettings,
   startCountdown,
   updateCountdown,
   cancelCountdown,
@@ -127,6 +128,12 @@ export function GameRoom() {
     if (!isHost) return;
     
     dispatch(updateSetting({ key, value }));
+  };
+
+  const handleResetSettings = () => {
+    if (!isHost) return;
+    
+    dispatch(resetSettings());
   };
 
   const handleGameModeChange = (newGameMode: GameMode) => {
@@ -248,6 +255,7 @@ export function GameRoom() {
         <GameSettingsPanel
           settings={settings}
           onSettingChange={handleSettingChange}
+          onResetToDefault={isHost ? handleResetSettings : undefined}
           disabled={!isHost}
           className={styles.panel}
         />

@@ -1,9 +1,5 @@
 .container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
-  --board-width: calc(var(--cell-size, 28px) * 10 + 2px); /* 10 columns + border */
+  display: inline-flex;
 }
 
 .container.normal {
@@ -22,32 +18,26 @@
   gap: 1rem;
 }
 
-.leftSidebar,
-.rightSidebar {
+.boardColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sidebar {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
   width: var(--sidebar-width);
-}
-
-.leftSidebar {
-  align-items: flex-end;
-}
-
-.rightSidebar {
   align-items: flex-start;
-}
-
-.boardSection {
-  flex-shrink: 0;
 }
 
 .playerCard {
   display: flex;
-  justify-content: flex-start;
+  justify-content: space-between;
   align-items: center;
   gap: 0.75rem;
-  width: var(--board-width);
+  width: 100%;
   padding: 0.625rem 1rem;
   background: rgba(255, 255, 255, 0.05);
   border-radius: 8px;
