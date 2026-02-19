@@ -5,9 +5,6 @@ import type {
   GameMode,
   GameSettings,
 } from '../types/game';
-import {
-  GAME_MODES,
-} from '../types/game';
 
 // Redux imports
 import { useAppDispatch, useAppSelector } from '../store/index.js';
@@ -19,6 +16,7 @@ import {
   updateGameMode,
   updateSetting,
   startCountdown,
+  updateCountdown,
   cancelCountdown,
   resetToLobby,
   selectPlayers,
@@ -32,6 +30,17 @@ import {
   selectError,
   selectGameCreationData,
 } from '../store/slices/gameRoomSlice.js';
+
+import {
+  Button,
+  Panel,
+} from '../components/UI';
+import {
+  PlayerList,
+  GameModeSelector,
+  GameSettingsPanel,
+  CountdownOverlay,
+} from '../components/Lobby';
 
 export function GameRoom() {
   const { room, playerName } = useParams<{ room: string; playerName: string }>();
@@ -55,9 +64,12 @@ export function GameRoom() {
 
   useEffect(() => {
     if (room && playerName) {
-      // For now, without a real backend
-      // Will be replaced with actual socket events when backend is ready
+      // TEMPORARY: Local initialization for testing without backend.
+      // When backend is ready, this will be replaced with socket-based room joining.
+      // The roomId is passed here as a workaround since joinRoom (which sets roomId)
+      // requires an active socket connection to the backend.
       dispatch(joinRoomSuccess({
+        roomId: room, // TODO: Remove after backend integration - roomId will come from joinRoom action
         players: [
           { 
             id: '1', 
@@ -70,7 +82,7 @@ export function GameRoom() {
         gameMode: 'classic',
       }));
       
-      // TODO: When backend is ready, replace with:
+      // TODO: When backend is ready, replace above with:
       // if (isConnected) {
       //   dispatch(joinRoom({ roomId: room, playerName }));
       // }
@@ -83,7 +95,7 @@ export function GameRoom() {
     const timer = setTimeout(() => {
       if (players.length === 1) {
         // Add a test opponent to see multiplayer functionality
-        dispatch(addPlayer({ id: '2', name: 'Opponent', isHost: false, isReady: false }));
+        dispatch(addPlayer({ id: '2', name: 'Opponent', isHost: false, isReady: true }));
       }
     }, 3000);
     return () => clearTimeout(timer);
@@ -95,7 +107,7 @@ export function GameRoom() {
     
     if (countdown !== null && countdown > 0) {
       interval = window.setInterval(() => {
-        dispatch({ type: 'gameRoom/updateCountdown', payload: countdown - 1 });
+        dispatch(updateCountdown(countdown - 1));
       }, 1000);
     }
 
@@ -179,20 +191,17 @@ export function GameRoom() {
   return (
     <div className={styles.container}>
       {countdown !== null && (
-        <div className={styles.countdownOverlay}>
-          <div className={styles.countdownContent}>
-            <div className={styles.countdownNumber}>{countdown}</div>
-            <button onClick={handleCancelCountdown} className={styles.cancelButton}>
-              Cancel
-            </button>
-          </div>
-        </div>
+        <CountdownOverlay
+          count={countdown}
+          showCancel={isHost}
+          onCancel={handleCancelCountdown}
+        />
       )}
 
       <header className={styles.header}>
-        <button onClick={handleLeaveRoom} className={styles.leaveButton}>
+        <Button variant="ghost" onClick={handleLeaveRoom} className={styles.leaveButton}>
           ← Leave Room
-        </button>
+        </Button>
         <div className={styles.roomInfo}>
           <h1 className={styles.roomName}>{room}</h1>
           <span className={styles.roomMode}>
@@ -203,175 +212,46 @@ export function GameRoom() {
       </header>
 
       <main className={styles.lobby}>
-        <section className={styles.panel}>
-          <h2 className={styles.panelTitle}>Players</h2>
-          <div className={styles.panelContent}>
-            <ul className={styles.playerList}>
-              {players.map(player => (
-                <li key={player.id} className={styles.playerItem}>
-                  <div className={styles.playerInfo}>
-                    <span className={styles.playerName}>
-                      {player.name}
-                      {player.isHost && <span className={styles.hostBadge}>Host</span>}
-                    </span>
-                    {player.name === playerName && (
-                      <span className={styles.youBadge}>You</span>
-                    )}
-                  </div>
-                  <span className={`${styles.playerStatus} ${player.isReady ? styles.ready : ''}`}>
-                    {player.isReady ? '✓ Ready' : 'Waiting...'}
-                  </span>
-                </li>
-              ))}
-              {players.length < 2 && (
-                <li className={styles.playerItemEmpty}>
-                  <span className={styles.waitingText}>Waiting for opponent...</span>
-                </li>
-              )}
-            </ul>
-            <div className={styles.playerCount}>
-              {players.length}/2 Players
-            </div>
-          </div>
-        </section>
+        <Panel title="Players" className={styles.panel}>
+          <PlayerList
+            players={players}
+            maxPlayers={2}
+            currentPlayerName={playerName || ''}
+          />
+        </Panel>
 
-        <section className={styles.panel}>
-          <h2 className={styles.panelTitle}>
-            Game Mode
-          </h2>
-          <div className={styles.panelContent}>
-            <div className={styles.gameModeGrid}>
-              {GAME_MODES.map(mode => (
-                <button
-                  key={mode.id}
-                  onClick={() => handleGameModeChange(mode.id)}
-                  disabled={!isHost}
-                  className={`${styles.gameModeButton} ${gameMode === mode.id ? styles.gameModeActive : ''}`}
-                >
-                  <span className={styles.gameModeName}>{mode.name}</span>
-                  <span className={styles.gameModeDescription}>{mode.description}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </section>
+        <Panel title="Game Mode" className={styles.panel}>
+          <GameModeSelector
+            selectedMode={gameMode}
+            onModeChange={handleGameModeChange}
+            disabled={!isHost}
+          />
+        </Panel>
 
-        <section className={styles.panel}>
-          <h2 className={styles.panelTitle}>
-            Game Settings
-          </h2>
-          <div className={styles.panelContent}>
-            <div className={styles.settingsGrid}>
-              <div className={styles.settingItem}>
-                <label className={styles.settingLabel}>Board Width</label>
-                <div className={styles.settingControl}>
-                  <input
-                    type="range"
-                    min="8"
-                    max="16"
-                    value={settings.boardWidth}
-                    onChange={(e) => handleSettingChange('boardWidth', Number(e.target.value))}
-                    disabled={!isHost}
-                    className={styles.slider}
-                  />
-                  <span className={styles.settingValue}>{settings.boardWidth}</span>
-                </div>
-              </div>
-
-              <div className={styles.settingItem}>
-                <label className={styles.settingLabel}>Board Height</label>
-                <div className={styles.settingControl}>
-                  <input
-                    type="range"
-                    min="15"
-                    max="25"
-                    value={settings.boardHeight}
-                    onChange={(e) => handleSettingChange('boardHeight', Number(e.target.value))}
-                    disabled={!isHost}
-                    className={styles.slider}
-                  />
-                  <span className={styles.settingValue}>{settings.boardHeight}</span>
-                </div>
-              </div>
-
-              <div className={styles.settingItem}>
-                <label className={styles.settingLabel}>Gravity</label>
-                <div className={styles.settingControl}>
-                  <input
-                    type="range"
-                    min="1"
-                    max="20"
-                    value={settings.gravity}
-                    onChange={(e) => handleSettingChange('gravity', Number(e.target.value))}
-                    disabled={!isHost}
-                    className={styles.slider}
-                  />
-                  <span className={styles.settingValue}>{settings.gravity}x</span>
-                </div>
-              </div>
-
-              <div className={styles.settingItem}>
-                <label className={styles.settingLabel}>Game Speed</label>
-                <div className={styles.settingControl}>
-                  <input
-                    type="range"
-                    min="0.5"
-                    max="3"
-                    step="0.5"
-                    value={settings.gameSpeed}
-                    onChange={(e) => handleSettingChange('gameSpeed', Number(e.target.value))}
-                    disabled={!isHost}
-                    className={styles.slider}
-                  />
-                  <span className={styles.settingValue}>{settings.gameSpeed}x</span>
-                </div>
-              </div>
-
-              <div className={styles.settingItem}>
-                <label className={styles.settingLabel}>Preview Queue</label>
-                <div className={styles.settingControl}>
-                  <input
-                    type="range"
-                    min="1"
-                    max="6"
-                    value={settings.nextPieceCount}
-                    onChange={(e) => handleSettingChange('nextPieceCount', Number(e.target.value))}
-                    disabled={!isHost}
-                    className={styles.slider}
-                  />
-                  <span className={styles.settingValue}>{settings.nextPieceCount}</span>
-                </div>
-              </div>
-
-              <div className={styles.settingItem}>
-                <label className={styles.settingLabel}>Ghost Piece</label>
-                <div className={styles.settingControl}>
-                  <button
-                    onClick={() => handleSettingChange('ghostPiece', !settings.ghostPiece)}
-                    disabled={!isHost}
-                    className={`${styles.toggleButton} ${settings.ghostPiece ? styles.toggleActive : ''}`}
-                  >
-                    {settings.ghostPiece ? 'ON' : 'OFF'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+        <GameSettingsPanel
+          settings={settings}
+          onSettingChange={handleSettingChange}
+          disabled={!isHost}
+          className={styles.panel}
+        />
 
         <div className={styles.startSection}>
           {isHost ? (
-            <button
+            <Button
               onClick={handleStartGame}
-              className={styles.startButton}
+              variant="primary"
+              size="large"
+              fullWidth
               disabled={countdown !== null || !canStartGameNow}
             >
               {countdown !== null ? `Starting in ${countdown}...` : 'Start Game'}
-            </button>
+            </Button>
           ) : (
-            <button
+            <Button
               onClick={handleToggleReady}
-              className={`${styles.startButton} ${currentPlayer?.isReady ? styles.readyButton : styles.notReadyButton}`}
+              variant={currentPlayer?.isReady ? 'secondary' : 'primary'}
+              size="large"
+              fullWidth
               disabled={countdown !== null}
             >
               {countdown !== null 
@@ -380,7 +260,7 @@ export function GameRoom() {
                   ? 'Ready ✓' 
                   : 'Ready Up'
               }
-            </button>
+            </Button>
           )}
         </div>
       </main>

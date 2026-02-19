@@ -1,0 +1,113 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: none;
+  border-radius: 0.375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.primary {
+  background: linear-gradient(135deg, #00d4ff, #0099cc);
+  color: #0a0e17;
+  box-shadow: 0 4px 15px rgba(0, 212, 255, 0.3);
+}
+
+.primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #00e5ff, #00aadd);
+  box-shadow: 0 6px 20px rgba(0, 212, 255, 0.4);
+  transform: translateY(-1px);
+}
+
+.primary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 10px rgba(0, 212, 255, 0.3);
+}
+
+.secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e0e0e0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.danger {
+  background: linear-gradient(135deg, #ff4444, #cc0000);
+  color: white;
+  box-shadow: 0 4px 15px rgba(255, 68, 68, 0.3);
+}
+
+.danger:hover:not(:disabled) {
+  background: linear-gradient(135deg, #ff5555, #dd1111);
+  box-shadow: 0 6px 20px rgba(255, 68, 68, 0.4);
+  transform: translateY(-1px);
+}
+
+.ghost {
+  background: transparent;
+  color: #00d4ff;
+  border: 1px solid transparent;
+}
+
+.ghost:hover:not(:disabled) {
+  background: rgba(0, 212, 255, 0.1);
+  border-color: rgba(0, 212, 255, 0.3);
+}
+
+.small {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+}
+
+.medium {
+  padding: 0.75rem 1.5rem;
+  font-size: 0.875rem;
+}
+
+.large {
+  padding: 1rem 2rem;
+  font-size: 1rem;
+}
+
+.fullWidth {
+  width: 100%;
+}
+
+.loading {
+  position: relative;
+  color: transparent;
+}
+
+.spinner {
+  position: absolute;
+  width: 1em;
+  height: 1em;
+  border: 2px solid transparent;
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.loading .spinner {
+  color: inherit;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

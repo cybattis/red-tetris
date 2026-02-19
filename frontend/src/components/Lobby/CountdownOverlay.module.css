@@ -1,0 +1,72 @@
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+.content {
+  text-align: center;
+  animation: scaleIn 0.3s ease;
+}
+
+.message {
+  font-size: 1.5rem;
+  color: #a0a0a0;
+  margin: 0 0 1.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+}
+
+.countdown {
+  font-size: 8rem;
+  font-weight: 700;
+  color: #00d4ff;
+  text-shadow: 0 0 60px rgba(0, 212, 255, 0.5);
+  animation: pulse 1s ease-in-out infinite;
+  line-height: 1;
+  margin-bottom: 2rem;
+}
+
+.cancelButton {
+  min-width: 150px;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+}

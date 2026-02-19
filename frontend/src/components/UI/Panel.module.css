@@ -1,0 +1,41 @@
+.panel {
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.default {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+}
+
+.solid {
+  background: #1a1f2e;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.title {
+  padding: 1rem 1.25rem;
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #00d4ff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.content {
+  padding: 1.25rem;
+}
+
+.panel:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+}

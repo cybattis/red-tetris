@@ -1,8 +1,3 @@
-/**
- * Custom hook for managing socket connection
- * Handles connection initialization and cleanup
- */
-
 import { useEffect } from 'react';
 import { useAppSelector } from '../store/index.js';
 // import { useAppDispatch } from '../store/index.js'; // TODO: Uncomment when backend is ready

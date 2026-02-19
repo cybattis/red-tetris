@@ -60,12 +60,19 @@ const gameRoomSlice = createSlice({
       state.roomId = action.payload.roomId;
     },
     
-    joinRoomSuccess: (state, action: PayloadAction<{ players: Player[]; currentPlayerId: string; gameMode?: GameMode; settings?: GameSettings }>) => {
+    // TODO: When backend is connected, roomId should come from the server via socket events.
+    // The optional roomId parameter is a temporary workaround for local testing without a backend.
+    // After backend integration, remove the optional roomId here - it should only be set by joinRoom action.
+    joinRoomSuccess: (state, action: PayloadAction<{ roomId?: string; players: Player[]; currentPlayerId: string; gameMode?: GameMode; settings?: GameSettings }>) => {
       state.isJoiningRoom = false;
       state.players = action.payload.players;
       state.currentPlayerId = action.payload.currentPlayerId;
       state.roomStatus = 'lobby';
       
+      // TODO: Remove this conditional after backend integration - roomId will be set by joinRoom action
+      if (action.payload.roomId) {
+        state.roomId = action.payload.roomId;
+      }
       if (action.payload.gameMode) {
         state.gameMode = action.payload.gameMode;
       }
