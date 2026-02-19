@@ -12,7 +12,7 @@ export interface Player {
 
 export type GameMode = 'classic' | 'invisible' | 'sprint';
 
-export type GameState = 'waiting' | 'starting' | 'in-progress' | 'ended';
+export type GameState = 'waiting' | 'starting' | 'playing' | 'ended';
 
 export interface GameSettings {
   gravity: number;
