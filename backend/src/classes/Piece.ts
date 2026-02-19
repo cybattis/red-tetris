@@ -63,4 +63,13 @@ export class Piece implements Piece {
     this.shape = nextShape;
     return this.shape;
   }
+
+  public toString(): string {
+    const rows = this.shape.map((row) =>
+      row.map((cell) => (cell === 0 ? ' ' : cell.toString())).join(' '),
+    );
+    const width = rows[0]?.length ?? 0;
+    const border = `+${'-'.repeat(width)}+`;
+    return [border, ...rows.map((row) => `|${row}|`), border].join('\n');
+  }
 }
