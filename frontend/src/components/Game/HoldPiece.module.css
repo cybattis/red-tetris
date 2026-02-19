@@ -1,0 +1,55 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  transition: opacity 0.2s ease;
+}
+
+.container.locked {
+  opacity: 0.5;
+}
+
+.title {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #00d4ff;
+}
+
+.pieceHolder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  min-width: 60px;
+  padding: 0.375rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 4px;
+}
+
+.pieceGrid {
+  display: grid;
+  gap: 1px;
+}
+
+.empty {
+  color: #666;
+  font-size: 0.875rem;
+}
+
+.lockedLabel {
+  margin-top: 0.375rem;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #ff6666;
+}

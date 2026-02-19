@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import type { TypedUseSelectorHook } from 'react-redux';
 
 import gameRoomSlice from './slices/gameRoomSlice.js';
+import gameSlice from './slices/gameSlice.js';
 import connectionSlice from './slices/connectionSlice.js';
 import uiSlice from './slices/uiSlice.js';
 
@@ -11,6 +12,7 @@ import { socketMiddleware } from './middleware/socketMiddleware.js';
 export const store = configureStore({
   reducer: {
     gameRoom: gameRoomSlice,
+    game: gameSlice,
     connection: connectionSlice,
     ui: uiSlice,
   },
@@ -30,6 +32,7 @@ export const store = configureStore({
 
 export type RootState = {
   gameRoom: ReturnType<typeof gameRoomSlice>;
+  game: ReturnType<typeof gameSlice>;
   connection: ReturnType<typeof connectionSlice>;
   ui: ReturnType<typeof uiSlice>;
 };

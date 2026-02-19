@@ -7,8 +7,8 @@ export interface GameSettings {
   boardWidth: number;
   boardHeight: number;
   gravity: number;
-  gameSpeed: number;
   nextPieceCount: number;
+  holdPiece: boolean;
   ghostPiece: boolean;
 }
 
@@ -16,7 +16,6 @@ export interface GameSettingsConfig {
   boardWidth: { min: number; max: number; step: number };
   boardHeight: { min: number; max: number; step: number };
   gravity: { min: number; max: number; step: number };
-  gameSpeed: { min: number; max: number; step: number };
   nextPieceCount: { min: number; max: number; step: number };
 }
 
@@ -33,7 +32,6 @@ const DEFAULT_CONFIG: GameSettingsConfig = {
   boardWidth: { min: 8, max: 14, step: 1 },
   boardHeight: { min: 16, max: 24, step: 1 },
   gravity: { min: 0.5, max: 3, step: 0.1 },
-  gameSpeed: { min: 0.5, max: 3, step: 0.1 },
   nextPieceCount: { min: 1, max: 5, step: 1 },
 };
 
@@ -92,15 +90,11 @@ export function GameSettingsPanel({
         </div>
 
         <div className={styles.settingCard}>
-          <Slider
-            label="Game Speed"
-            min={mergedConfig.gameSpeed.min}
-            max={mergedConfig.gameSpeed.max}
-            step={mergedConfig.gameSpeed.step}
-            value={settings.gameSpeed}
-            onChange={(value) => onSettingChange('gameSpeed', value)}
+          <Toggle
+            label="Hold Piece"
+            value={settings.holdPiece}
+            onChange={(value) => onSettingChange('holdPiece', value)}
             disabled={disabled}
-            suffix="×"
           />
         </div>
 
