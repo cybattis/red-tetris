@@ -27,9 +27,7 @@ export class Piece implements Piece {
   rotateClockwise(matrix: number[][]): number[][] {
     const rows = matrix.length;
     const cols = matrix[0].length;
-    const rotated: number[][] = Array.from({ length: cols }, () =>
-      Array(rows).fill(0),
-    );
+    const rotated: number[][] = Array.from({ length: cols }, () => new Array(rows).fill(0));
 
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
@@ -48,14 +46,10 @@ export class Piece implements Piece {
     let nextShape: number[][];
 
     if (this.type === PieceType.I) {
-      const isHorizontal = this.shape.some(
-        (row) => row.reduce((sum, cell) => sum + cell, 0) > 1,
-      );
+      const isHorizontal = this.shape.some((row) => row.reduce((sum, cell) => sum + cell, 0) > 1);
 
       nextShape = isHorizontal
-        ? this.rotateClockwise(
-            this.rotateClockwise(this.rotateClockwise(this.shape)),
-          )
+        ? this.rotateClockwise(this.rotateClockwise(this.rotateClockwise(this.shape)))
         : this.rotateClockwise(this.shape);
     } else {
       nextShape = this.rotateClockwise(this.shape);
@@ -66,9 +60,7 @@ export class Piece implements Piece {
   }
 
   public toString(): string {
-    const rows = this.shape.map((row) =>
-      row.map((cell) => (cell === 0 ? ' ' : cell.toString())).join(' '),
-    );
+    const rows = this.shape.map((row) => row.map((cell) => (cell === 0 ? ' ' : cell.toString())).join(' '));
     const width = rows[0]?.length ?? 0;
     const border = `+${'-'.repeat(width)}+`;
     return [border, ...rows.map((row) => `|${row}|`), border].join('\n');

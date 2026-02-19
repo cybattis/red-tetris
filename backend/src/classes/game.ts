@@ -29,11 +29,7 @@ export class Game {
   public score: number = 0;
   public linesCleared: number = 0;
 
-  constructor(
-    player: Player,
-    settings: GameSettings,
-    seed: number,
-  ) {
+  constructor(player: Player, settings: GameSettings, seed: number) {
     this._id = randomUUID();
     this._player = player;
     this._settings = settings;
@@ -77,7 +73,6 @@ export class Game {
       this.moveCurrentPieceDown();
       this._gravityAccumulatorMs -= Game.GRAVITY_INTERVAL_MS;
     }
-
   }
 
   private spawnNextPiece(): void {
@@ -93,15 +88,33 @@ export class Game {
 
     const bottomY = this._settings.boardHeight - 1;
 
+    if (
+      this.board[this._currentPiece.position.y + 1][
+        this._currentPiece.position.x
+      ] === 1
+    ) {
+      console.log(`Collision detected at y=${this._currentPiece.position.y}`);
+
+      if (this._currentPiece.position.y === 0) {
+        console.log(
+          `Game over for player ${this._player.name} - piece cannot move down from the top`,
+        );
+        this.eliminate();
+        return;
+      }
+
+      console.log(
+        `Piece locked at x=${this._currentPiece.position.x}, y=${this._currentPiece.position.y}`,
+      );
+      return;
+    }
+
     if (this._currentPiece.position.y < bottomY) {
       this._currentPiece.position.y += 1;
       console.log(`Piece moved down to y=${this._currentPiece.position.y}`);
       return;
     }
 
-    // Current piece reached bottom -> lock and spawn next
-    console.log(`Piece reached bottom at y=${this._currentPiece.position.y}`);
-    // ...existing collision/lock handling...
     this.spawnNextPiece();
   }
 
@@ -120,8 +133,7 @@ export class Game {
 
   private addPenaltyLines(count: number): void {
     console.log(`Adding ${count} penalty lines to player ${this._player.name}`);
-    const emptyLine = Array(this._settings.boardWidth).fill(0);
-    const penaltyLine = Array(this._settings.boardWidth).fill(1);
+    const penaltyLine = new Array(this._settings.boardWidth).fill(1);
 
     // Add penalty lines at the bottom
     for (let i = 0; i < count; i++) {
@@ -144,7 +156,8 @@ export class Game {
   // Helper methodes
   // ============================================
   private createEmptyBoard(): number[][] {
-    return Array.from({ length: this._settings.boardHeight },
-      () => Array(this._settings.boardWidth ).fill(0));
+    return Array.from({ length: this._settings.boardHeight }, () =>
+      new Array(this._settings.boardWidth).fill(0),
+    );
   }
 }
