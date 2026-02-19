@@ -7,8 +7,6 @@ import {
   selectCurrentPiece,
   selectGhostPiece,
   selectNextPieces,
-  selectHoldPiece,
-  selectCanHold,
   selectScore,
   selectLevel,
   selectLinesCleared,
@@ -36,8 +34,6 @@ export function GameView({
   const currentPiece = useAppSelector(selectCurrentPiece);
   const ghostPiece = useAppSelector(selectGhostPiece);
   const nextPieces = useAppSelector(selectNextPieces);
-  const holdPiece = useAppSelector(selectHoldPiece);
-  const canHold = useAppSelector(selectCanHold);
   const score = useAppSelector(selectScore);
   const level = useAppSelector(selectLevel);
   const linesCleared = useAppSelector(selectLinesCleared);
@@ -75,8 +71,6 @@ export function GameView({
             currentPiece={currentPiece}
             ghostPiece={ghostPiece}
             nextPieces={nextPieces}
-            holdPiece={holdPiece}
-            canHold={canHold}
             score={score}
             level={level}
             linesCleared={linesCleared}
@@ -102,7 +96,6 @@ export function GameView({
           <span>↑ Rotate</span>
           <span>↓ Soft Drop</span>
           <span>Space Hard Drop</span>
-          <span>C Hold</span>
           <span>Esc Pause</span>
         </div>
       </footer>
@@ -118,7 +111,6 @@ interface OpponentBoardProps {
     score: number;
     isEliminated: boolean;
     board?: number[][];
-    holdPiece?: number | null;
     nextPieces?: number[];
   };
   boardHeight: number;
@@ -134,7 +126,6 @@ function OpponentBoard({ opponent, boardHeight }: OpponentBoardProps) {
         board={opponent.board}
         width={10}
         height={boardHeight}
-        holdPiece={opponent.holdPiece}
         nextPieces={opponent.nextPieces}
         score={opponent.score}
         isGameOver={opponent.isEliminated}

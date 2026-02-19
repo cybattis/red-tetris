@@ -14,7 +14,6 @@ export type GameMode = 'classic' | 'invisible' | 'sprint';
 
 export interface GameSettings {
   gravity: number;
-  holdPiece: boolean;
   ghostPiece: boolean;
   boardWidth: number;
   boardHeight: number;
@@ -61,11 +60,10 @@ export interface SocketEvents {
 // Game constants
 export const DEFAULT_SETTINGS: GameSettings = {
   gravity: 1,
-  holdPiece: true,
   ghostPiece: true,
   boardWidth: 10,
   boardHeight: 20,
-  nextPieceCount: 3,
+  nextPieceCount: 1,
 };
 
 export const GAME_MODES: Array<{ 

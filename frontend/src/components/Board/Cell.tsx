@@ -18,7 +18,7 @@ export const Cell = memo(function Cell({
 }: CellProps) {
   const isEmpty = value === PieceType.EMPTY && !isGhost;
   const backgroundColor = getCellColor(value, isGhost);
-  const borderColor = isActive ? getCellBorderColor(value) : 'transparent';
+  const borderColor = (isActive || isGhost) ? getCellBorderColor(value) : 'transparent';
 
   const style: React.CSSProperties = {
     backgroundColor,
