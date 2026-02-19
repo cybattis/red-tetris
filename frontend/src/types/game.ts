@@ -14,7 +14,7 @@ export type GameMode = 'classic' | 'invisible' | 'sprint';
 
 export interface GameSettings {
   gravity: number;
-  gameSpeed: number;
+  holdPiece: boolean;
   ghostPiece: boolean;
   boardWidth: number;
   boardHeight: number;
@@ -61,7 +61,7 @@ export interface SocketEvents {
 // Game constants
 export const DEFAULT_SETTINGS: GameSettings = {
   gravity: 1,
-  gameSpeed: 1,
+  holdPiece: true,
   ghostPiece: true,
   boardWidth: 10,
   boardHeight: 20,
@@ -129,7 +129,6 @@ export function canStartGame(players: Player[]): boolean {
 export function validateGameSettings(settings: GameSettings): boolean {
   return (
     settings.gravity > 0 &&
-    settings.gameSpeed > 0 &&
     settings.boardWidth > 0 &&
     settings.boardHeight > 0 &&
     settings.nextPieceCount >= 0

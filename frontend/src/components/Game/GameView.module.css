@@ -1,0 +1,121 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f0f23 100%);
+  color: #fff;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.5rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+
+.roomName {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #00d4ff;
+  text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+}
+
+.headerSpacer {
+  width: 100px;
+}
+
+.gameArea {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  min-height: 0;
+  gap: 2rem;
+}
+
+.soloLayout {
+  justify-content: center;
+}
+
+.multiplayerLayout {
+  justify-content: center;
+  gap: 3rem;
+}
+
+.playerBoardWrapper,
+.opponentBoardWrapper {
+  display: flex;
+  justify-content: center;
+}
+
+.multiplayerLayout .playerBoardWrapper {
+  padding-right: 1.5rem;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.multiplayerLayout .opponentBoardWrapper {
+  padding-left: 1.5rem;
+}
+
+.footer {
+  padding: 0.75rem 1rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+
+.controls {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  font-size: 0.75rem;
+  color: #666;
+}
+
+.controls span {
+  display: inline-flex;
+  gap: 0.25rem;
+  white-space: nowrap;
+}
+
+@media (max-width: 1200px) {
+  .multiplayerLayout {
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .multiplayerLayout .playerBoardWrapper {
+    padding-right: 0;
+    border-right: none;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .multiplayerLayout .opponentBoardWrapper {
+    padding-left: 0;
+    padding-top: 1.5rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .header {
+    padding: 0.5rem 1rem;
+  }
+
+  .roomName {
+    font-size: 1rem;
+  }
+
+  .controls {
+    gap: 0.75rem;
+    font-size: 0.625rem;
+  }
+}

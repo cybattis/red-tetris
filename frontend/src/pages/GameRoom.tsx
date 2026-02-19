@@ -41,6 +41,11 @@ import {
   GameSettingsPanel,
   CountdownOverlay,
 } from '../components/Lobby';
+import {
+  GameView,
+} from '../components/Game';
+import { useGameInput } from '../hooks';
+import type { GameActionType } from '../utils/keyBindings';
 
 export function GameRoom() {
   const { room, playerName } = useParams<{ room: string; playerName: string }>();
@@ -158,6 +163,19 @@ export function GameRoom() {
     navigate('/');
   };
 
+  // Handle game input actions - send to server
+  const handleGameAction = (action: GameActionType) => {
+    // TODO: When backend is ready, send action via socket
+    // socket.emit('game:action', { roomId: room, action });
+    console.log('Game action:', action);
+  };
+
+  // Game input hook - only active when game has started
+  useGameInput({
+    enabled: gameStarted,
+    onAction: handleGameAction,
+  });
+
   // Show error state
   if (error) {
     return (
@@ -173,18 +191,17 @@ export function GameRoom() {
     );
   }
 
-  // If game has started, show game view (placeholder)
+  // If game has started, show game view
   if (gameStarted) {
     return (
-      <div className={styles.container}>
-        <div className={styles.gameView}>
-          <h2>Game In Progress</h2>
-          <p>Game board will be displayed here</p>
-          <button onClick={() => dispatch(resetToLobby())} className={styles.backButton}>
-            Back to Lobby (Debug)
-          </button>
-        </div>
-      </div>
+      <GameView
+        roomName={room}
+        playerName={playerName}
+        isHost={isHost}
+        onLeave={() => {
+          dispatch(resetToLobby());
+        }}
+      />
     );
   }
 
