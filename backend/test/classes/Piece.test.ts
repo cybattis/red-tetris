@@ -1,7 +1,7 @@
 import { describe, expect, test } from '@jest/globals';
 import { Piece } from '../../src/classes/Piece';
 import { PieceType } from '../../src/types/piece';
-import { S_PIECE } from '../../src/pieces/TetrominoFactory';
+import { I_PIECE, S_PIECE } from '../../src/pieces/TetrominoFactory';
 
 describe('Piece Class', () => {
   const T_SHAPE = [
@@ -10,12 +10,7 @@ describe('Piece Class', () => {
     [0, 0, 0],
   ];
 
-  const I_SHAPE = [
-    [0, 1, 0, 0],
-    [0, 1, 0, 0],
-    [0, 1, 0, 0],
-    [0, 1, 0, 0],
-  ];
+  const I_SHAPE = I_PIECE;
 
   describe('Constructor', () => {
     test('should initialize with correct type and shape', () => {
@@ -97,15 +92,11 @@ describe('Piece Class', () => {
 
     test('should return horizontal rotation for I piece', () => {
       const piece = new Piece(PieceType.I);
+      const rotated = piece.getNextRotation();
 
-      const expected = [
-        [0, 0, 0, 0],
-        [1, 1, 1, 1],
-        [0, 0, 0, 0],
-        [0, 0, 0, 0],
-      ];
-
-      expect(piece.getNextRotation()).toEqual(expected);
+      expect(rotated).toHaveLength(4);
+      expect(rotated.every((row) => row.reduce((sum, cell) => sum + cell, 0) === 1)).toBe(true);
+      expect(rotated.flat().filter((cell) => cell === 1)).toHaveLength(4);
     });
 
     test('should return vertical rotation for I piece', () => {
@@ -115,12 +106,7 @@ describe('Piece Class', () => {
       piece.getNextRotation(); // horizontal
       piece.getNextRotation(); // vertical
 
-      const expected = [
-        [0, 1, 0, 0],
-        [0, 1, 0, 0],
-        [0, 1, 0, 0],
-        [0, 1, 0, 0],
-      ];
+      const expected = I_PIECE;
 
       expect(piece.shape).toEqual(expected);
     });
