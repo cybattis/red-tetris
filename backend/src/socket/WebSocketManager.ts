@@ -3,7 +3,7 @@ import { Server as HttpServer } from 'node:http';
 import { Server, Socket } from 'socket.io';
 import { Player } from 'src/classes/Player';
 import { gameManager } from 'src/server';
-import { ToStringFormat } from 'src/utils/helpers';
+import { Logger, ToStringFormat } from 'src/utils/helpers';
 
 export class WebSocketManager {
   public io: Server;
@@ -15,16 +15,16 @@ export class WebSocketManager {
         methods: ['GET', 'POST'],
       },
     });
-    console.log('WebSocket server initialized');
+    Logger.info('WebSocket server initialized');
 
     this.io.on('connection', (socket: Socket) => {
-      console.log(`Client connected: ${socket.id}`);
+      Logger.info(`Client connected: ${socket.id}`);
 
       wsRoomHandler(socket);
       wsGameHandler(socket);
 
       socket.on('disconnect', () => {
-        console.log(`Client disconnected: ${socket.id}`);
+        Logger.info(`Client disconnected: ${socket.id}`);
       });
     });
   }
@@ -36,25 +36,29 @@ export class WebSocketManager {
 
 function wsRoomHandler(socket: Socket) {
   socket.on('room', (data: any) => {
-    console.log(`Received room message: ${data}`);
+    Logger.debug(`Received room message: ${data}`);
     socket.emit('message', `Echo: ${data}`);
   });
 }
 
 function wsGameHandler(socket: Socket) {
   socket.on('START_GAME', (data: SocketEvents<'START_GAME'>) => {
-    console.log(`Received game message: ${ToStringFormat(data)}`);
+    Logger.debug(`Received game message: ${ToStringFormat(data)}`);
 
     const seed = Date.now(); // For example, use current timestamp as seed
     const player = new Player(socket.id);
-    const game = gameManager.createGame(player, {
-      gravity: 1,
-      gameSpeed: 1,
-      ghostPiece: true,
-      boardWidth: 10,
-      boardHeight: 20,
-      nextPieceCount: 5,
-    }, seed);
+    const game = gameManager.createGame(
+      player,
+      {
+        gravity: 1,
+        gameSpeed: 1,
+        ghostPiece: true,
+        boardWidth: 10,
+        boardHeight: 20,
+        nextPieceCount: 5,
+      },
+      seed,
+    );
 
     game.start();
 
@@ -62,7 +66,7 @@ function wsGameHandler(socket: Socket) {
   });
 
   socket.on('STOP_GAME', (data: SocketEvents) => {
-    console.log(ToStringFormat(data));
+    Logger.debug('', ToStringFormat(data));
 
     const { gameId } = data.data as { gameId: string };
     const game = gameManager.getGame(gameId);
@@ -75,7 +79,7 @@ function wsGameHandler(socket: Socket) {
   });
 
   socket.on('PLAYER_INPUT', (payload: SocketEvents<'PLAYER_INPUT'>) => {
-    console.log(ToStringFormat(payload));
+    Logger.debug('', ToStringFormat(payload));
 
     const { gameId, input } = payload.data;
     const game = gameManager.getGame(gameId)?.setPlayerInput(input);
