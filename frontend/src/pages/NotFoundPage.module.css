@@ -1,0 +1,178 @@
+.container {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f0f23 100%);
+  overflow: hidden;
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 600px;
+}
+
+.errorCode {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.blockGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  animation: dropIn 0.6s ease-out var(--animation-delay, 0s) both;
+}
+
+.blockRow {
+  display: flex;
+  gap: 3px;
+}
+
+.block {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  transition: transform 0.2s ease;
+}
+
+.blockFilled {
+  background: var(--block-color, #00f0f0);
+  box-shadow: 
+    inset 2px 2px 4px rgba(255, 255, 255, 0.3),
+    inset -1px -1px 2px rgba(0, 0, 0, 0.2),
+    0 0 10px var(--block-color, #00f0f0);
+}
+
+.blockEmpty {
+  background: transparent;
+}
+
+@keyframes dropIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-50px) rotate(-5deg);
+  }
+  60% {
+    transform: translateY(10px) rotate(2deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) rotate(0deg);
+  }
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #fff;
+  margin: 0 0 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  animation: fadeIn 0.6s ease-out 0.4s both;
+}
+
+.message {
+  font-size: 1.25rem;
+  color: #00ffff;
+  margin: 0 0 0.5rem;
+  animation: fadeIn 0.6s ease-out 0.5s both;
+}
+
+.submessage {
+  font-size: 1rem;
+  color: #888;
+  margin: 0 0 2rem;
+  animation: fadeIn 0.6s ease-out 0.6s both;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.actions {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  animation: fadeIn 0.6s ease-out 0.7s both;
+}
+
+.homeButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 2rem;
+  font-size: 1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #fff;
+  background: linear-gradient(135deg, #ff0000 0%, #cc0000 100%);
+  border: none;
+  border-radius: 8px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 
+    0 4px 15px rgba(255, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.homeButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 6px 20px rgba(255, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.homeButton:active {
+  transform: translateY(0);
+}
+
+.tips {
+  animation: fadeIn 0.6s ease-out 0.9s both;
+}
+
+.tip {
+  font-size: 0.875rem;
+  color: #666;
+  margin: 0;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+@media (max-width: 480px) {
+  .errorCode {
+    gap: 1rem;
+  }
+
+  .block {
+    width: 12px;
+    height: 12px;
+  }
+
+  .title {
+    font-size: 1.5rem;
+  }
+
+  .message {
+    font-size: 1rem;
+  }
+}

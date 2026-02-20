@@ -7,6 +7,9 @@ export interface CellProps {
   value: number;
   isGhost?: boolean;
   isActive?: boolean;
+  isClearing?: boolean;
+  isPenalty?: boolean;
+  isLocked?: boolean;
   size?: number;
 }
 
@@ -14,6 +17,9 @@ export const Cell = memo(function Cell({
   value,
   isGhost = false,
   isActive = false,
+  isClearing = false,
+  isPenalty = false,
+  isLocked = false,
   size,
 }: CellProps) {
   const isEmpty = value === PieceType.EMPTY && !isGhost;
@@ -23,14 +29,18 @@ export const Cell = memo(function Cell({
   const style: React.CSSProperties = {
     backgroundColor,
     borderColor,
+    '--cell-color': backgroundColor,
     ...(size && { width: size, height: size }),
-  };
+  } as React.CSSProperties;
 
   const classNames = [
     styles.cell,
     isEmpty ? styles.empty : styles.filled,
     isGhost ? styles.ghost : '',
     isActive ? styles.active : '',
+    isClearing ? styles.clearing : '',
+    isPenalty ? styles.penalty : '',
+    isLocked ? styles.locked : '',
   ]
     .filter(Boolean)
     .join(' ');

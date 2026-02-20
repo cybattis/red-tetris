@@ -9,3 +9,6 @@ export type { SliderProps } from './Slider';
 
 export { Toggle } from './Toggle';
 export type { ToggleProps } from './Toggle';
+
+export { TetrisBackground } from './TetrisBackground';
+export type { TetrisBackgroundProps } from './TetrisBackground';

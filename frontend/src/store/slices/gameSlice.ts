@@ -62,6 +62,10 @@ export interface GameState {
 
   // Penalty lines pending (from server)
   pendingPenaltyLines: number;
+
+  // Animation state (for visual effects)
+  clearingRows: number[];  // Row indices currently being cleared
+  penaltyRows: number[];   // Row indices that are penalty lines (for animation)
 }
 
 /**
@@ -142,6 +146,10 @@ const initialState: GameState = {
     },
   ],
   pendingPenaltyLines: 0,
+  
+  // Animation state
+  clearingRows: [],
+  penaltyRows: [],
 };
 
 /**
@@ -285,6 +293,34 @@ const gameSlice = createSlice({
     },
 
     /**
+     * Set rows that are being cleared (for line clear animation)
+     */
+    setClearingRows: (state, action: PayloadAction<number[]>) => {
+      state.clearingRows = action.payload;
+    },
+
+    /**
+     * Clear the clearing rows animation state
+     */
+    clearClearingRows: (state) => {
+      state.clearingRows = [];
+    },
+
+    /**
+     * Set penalty rows (for penalty line animation)
+     */
+    setPenaltyRows: (state, action: PayloadAction<number[]>) => {
+      state.penaltyRows = action.payload;
+    },
+
+    /**
+     * Clear penalty rows animation state
+     */
+    clearPenaltyRows: (state) => {
+      state.penaltyRows = [];
+    },
+
+    /**
      * Reset game state
      */
     resetGame: () => {
@@ -303,6 +339,10 @@ export const {
   setPaused,
   togglePause,
   gameOver,
+  setClearingRows,
+  clearClearingRows,
+  setPenaltyRows,
+  clearPenaltyRows,
   resetGame,
 } = gameSlice.actions;
 
@@ -328,3 +368,5 @@ export const selectBoardDimensions = (state: { game: GameState }) => ({
   width: state.game.boardWidth,
   height: state.game.boardHeight,
 });
+export const selectClearingRows = (state: { game: GameState }) => state.game.clearingRows;
+export const selectPenaltyRows = (state: { game: GameState }) => state.game.penaltyRows;
