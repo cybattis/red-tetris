@@ -1,9 +1,9 @@
 import { Player } from './Player';
-import { GameAction, GameSettings, GameState } from '@shared/types/game';
+import { GameState, GameSettings, GameAction } from '@shared/types/game';
 import { randomUUID } from 'node:crypto';
 import { PiecesSequence } from './PiecesSequence';
 import { Piece } from './Piece';
-import { PrintBoard as printBoard } from 'src/utils/helpers';
+import { PrintBoard as printBoard, Log, Logger } from 'src/utils/helpers';
 
 export class Game {
   // Game state and public properties
@@ -29,9 +29,9 @@ export class Game {
   private _lastTickAt = 0;
   private _gravityAccumulatorMs = 0;
   private _currentPiece: Piece;
-  private _playerInputBuffer: GameAction[] = [];
+  private readonly _playerInputBuffer: GameAction[] = [];
 
-  constructor(player: Player, settings: GameSettings, seed: number) {
+  constructor(player: Player, seed: number, settings: GameSettings) {
     this.id = randomUUID();
     this.player = player;
     this.settings = settings;
@@ -45,16 +45,14 @@ export class Game {
   // ============================================
   public start(): void {
     if (this.state === 'playing') {
-      console.log(`Game for player ${this.player.name} is already in progress.`);
+      Logger.warn(`Game for player ${this.player.name} is already in progress.`);
       return;
     }
 
-    console.log(`Starting game for player ${this.player.name}`);
+    Logger.info(`Starting game for player ${this.player.name}`);
     this.state = GameState.Playing;
 
-    if (!this._currentPiece) {
-      this.spawnNextPiece();
-    }
+    this.spawnNextPiece();
 
     this._lastTickAt = Date.now();
     this._gameLoop = setInterval(() => {
@@ -83,9 +81,12 @@ export class Game {
 
     // Handle gravity
     if (this._gravityAccumulatorMs >= Game.GRAVITY_INTERVAL_MS) {
-      console.log(`Applying gravity`);
+      Logger.debug(`Applying gravity`);
       this.moveCurrentPieceDown();
       this._gravityAccumulatorMs = 0;
+
+      // Update the board state
+      this.updateBoard();
     }
 
     // Read player input and update piece position here
@@ -94,21 +95,20 @@ export class Game {
     // Check for line clears, update score, and handle game over conditions here
     // this.handleGameConditions();
 
-    // Update the board state
-    this.updateBoard();
-
     // send updated game state to client here
     // this.sendGameStateToClient();
   }
 
   private spawnNextPiece(): void {
     this._currentPiece = this.getNextPiece();
-    console.log(`Spawned new piece at y=${this._currentPiece.position.y}`);
+    Logger.debug(
+      `Spawned new piece at x=${this._currentPiece.position.x} y=${this._currentPiece.position.y}`,
+    );
   }
 
   private moveCurrentPieceDown(): void {
     this._currentPiece.position.y += 1;
-    console.log(`Piece moved down to y=${this._currentPiece.position.y}`);
+    Logger.debug(`Piece moved down to y=${this._currentPiece.position.y}`);
   }
 
   public stopGame(): void {
@@ -127,7 +127,7 @@ export class Game {
   }
 
   private addPenaltyLines(count: number): void {
-    console.log(`Adding ${count} penalty lines to player ${this.player.name}`);
+    Logger.info(`Adding ${count} penalty lines to player ${this.player.name}`);
     const penaltyLine = new Array(this.settings.boardWidth).fill(1);
 
     // Add penalty lines at the bottom
@@ -138,20 +138,27 @@ export class Game {
   }
 
   private updateBoard(): void {
-    console.log(`Updating board for player ${this.player.name}`);
-    let newBoard = this.board.map(row => row.slice()); // Deep copy of the board
+    Logger.info(`Updating board for player ${this.player.name}`);
+    let newBoard = this.board.map((row) => row.slice()); // Deep copy of the board
 
     // Draw the current piece on the new board
     const shape = this._currentPiece.shape;
     const posX = this._currentPiece.position.x;
     const posY = this._currentPiece.position.y;
 
+    Logger.debug('x:', posX, 'y:', posY, 'shape:', shape);
+
     for (let r = 0; r < shape.length; r++) {
       for (let c = 0; c < shape[r].length; c++) {
         if (shape[r][c] === 1) {
           const boardX = posX + c;
           const boardY = posY + r;
-          if (boardY >= 0 && boardY < this.settings.boardHeight && boardX >= 0 && boardX < this.settings.boardWidth) {
+          if (
+            boardY >= 0 &&
+            boardY < this.settings.boardHeight &&
+            boardX >= 0 &&
+            boardX < this.settings.boardWidth
+          ) {
             newBoard[boardY][boardX] = 1;
           }
         }
@@ -159,8 +166,8 @@ export class Game {
     }
 
     if (this.checkCollision(posX, posY)) {
-      console.log(`Collision detected after updating board, locking piece in place`);
-      this.board = newBoard.map(row => row.slice()); // Update the actual board with the new state
+      Logger.debug(`Collision detected after updating board, locking piece in place`);
+      this.board = newBoard.map((row) => row.slice()); // Update the actual board with the new state
       this.spawnNextPiece();
     }
 
@@ -168,7 +175,7 @@ export class Game {
   }
 
   private eliminate(): void {
-    console.log(`Player ${this.player.name} has been eliminated.`);
+    Logger.debug(`Player ${this.player.name} has been eliminated.`);
     this.isAlive = false;
     this.stopGame();
   }
@@ -182,7 +189,7 @@ export class Game {
       return;
     }
 
-    console.log(`Received player input: ${input}`);
+    Logger.debug(`Received player input: ${input}`);
 
     // For example, if input is 'down', we can move the piece down immediately
     if (input === GameAction.SOFT_DROP) {
@@ -195,14 +202,14 @@ export class Game {
       while (!this.checkCollision(this._currentPiece.position.x, this._currentPiece.position.y + 1)) {
         this.moveCurrentPieceDown();
       }
-      console.log(`Hard dropped piece to y=${this._currentPiece.position.y}`);
+      Logger.debug(`Hard dropped piece to y=${this._currentPiece.position.y}`);
       return;
     }
 
     if (input === GameAction.ROTATE_CW) {
       // Handle rotating the piece, with appropriate checks for collisions and wall kicks
       this._currentPiece.getNextRotation();
-      console.log(`Rotated piece to new shape: ${JSON.stringify(this._currentPiece.shape)}`);
+      Logger.debug(`Rotated piece to new shape: ${JSON.stringify(this._currentPiece.shape)}`);
     }
 
     if (input === GameAction.MOVE_LEFT || input === GameAction.MOVE_RIGHT) {
@@ -212,21 +219,24 @@ export class Game {
 
       if (nextX >= 0 && nextX < this.settings.boardWidth) {
         this._currentPiece.position.x = nextX;
-        console.log(`Moved piece ${input} to x=${this._currentPiece.position.x}`);
+        Logger.debug(`Moved piece ${input} to x=${this._currentPiece.position.x}`);
       } else {
-        console.log(`Cannot move piece ${input}, out of bounds at x=${nextX}`);
+        Logger.debug(`Cannot move piece ${input}, out of bounds at x=${nextX}`);
       }
     }
+
+    // Update the board state
+    this.updateBoard();
   }
 
   private checkCollision(x: number, y: number): boolean {
     if (y >= this.settings.boardHeight || x < 0 || x >= this.settings.boardWidth) {
-      console.log(`Collision detected at { x: ${x} y: ${y} } - reached board boundary`);
+      Logger.debug(`Collision detected at { x: ${x} y: ${y} } - reached board boundary`);
       return true; // Out of bounds
     }
 
     if (y >= 0 && this.board[y][x] === 1) {
-      console.log(`Collision detected at { x: ${x} y: ${y} }`);
+      Logger.debug(`Collision detected at { x: ${x} y: ${y} }`);
       return true; // Collision with existing blocks
     }
 

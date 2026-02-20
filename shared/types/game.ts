@@ -10,28 +10,27 @@ export interface Player {
   isReady: boolean;
 }
 
-export const enum GameMode {
-  Classic = 'classic',
-  Invisible = 'invisible',
-  Sprint = 'sprint',
+export enum GameMode {
+  Classic = "classic",
+  Invisible = "invisible",
+  Sprint = "sprint",
 }
 
-export const enum GameState {
-  Waiting = 'waiting',
-  Starting = 'starting',
-  Playing = 'playing',
-  Ended = 'ended',
+export enum GameState {
+  Waiting = "waiting",
+  Starting = "starting",
+  Playing = "playing",
+  Ended = "ended",
 }
 
 export const enum GameAction {
-  MOVE_LEFT = 'MOVE_LEFT',
-  MOVE_RIGHT = 'MOVE_RIGHT',
-  SOFT_DROP = 'SOFT_DROP',
-  HARD_DROP = 'HARD_DROP',
-  ROTATE_CW = 'ROTATE_CW',
-  PAUSE = 'PAUSE',
+  MOVE_LEFT = "MOVE_LEFT",
+  MOVE_RIGHT = "MOVE_RIGHT",
+  SOFT_DROP = "SOFT_DROP",
+  HARD_DROP = "HARD_DROP",
+  ROTATE_CW = "ROTATE_CW",
+  PAUSE = "PAUSE",
 }
-export type GameActionType = GameAction;
 
 export interface GameSettings {
   gravity: number;
@@ -53,7 +52,9 @@ export interface GameCreationData {
   timestamp: number;
 }
 
-export interface SocketEvents<T extends keyof SocketEventsType = keyof SocketEventsType> {
+export interface SocketEvents<
+  T extends keyof SocketEventsType = keyof SocketEventsType,
+> {
   message: T;
   data: SocketEventsType[T];
 }
@@ -101,22 +102,22 @@ export const GAME_MODES: Array<{
   name: string;
   description: string;
 }> = [
-    {
-      id: GameMode.Classic,
-      name: 'Classic',
-      description: 'Traditional Tetris gameplay',
-    },
-    {
-      id: GameMode.Invisible,
-      name: 'Invisible',
-      description: 'Pieces disappear after landing',
-    },
-    {
-      id: GameMode.Sprint,
-      name: 'Sprint',
-      description: 'Game speeds up over time',
-    },
-  ];
+  {
+    id: GameMode.Classic,
+    name: "Classic",
+    description: "Traditional Tetris gameplay",
+  },
+  {
+    id: GameMode.Invisible,
+    name: "Invisible",
+    description: "Pieces disappear after landing",
+  },
+  {
+    id: GameMode.Sprint,
+    name: "Sprint",
+    description: "Game speeds up over time",
+  },
+];
 
 // Room configuration
 export const ROOM_CONFIG = {
@@ -130,11 +131,11 @@ export function prepareGameCreationData(
   roomId: string,
   gameMode: GameMode,
   settings: GameSettings,
-  players: Player[]
+  players: Player[],
 ): GameCreationData {
-  const hostPlayer = players.find(p => p.isHost);
+  const hostPlayer = players.find((p) => p.isHost);
   if (!hostPlayer) {
-    throw new Error('No host player found');
+    throw new Error("No host player found");
   }
 
   return {
@@ -149,7 +150,7 @@ export function prepareGameCreationData(
 }
 
 export function canStartGame(players: Player[]): boolean {
-  const allPlayersReady = players.every(p => p.isHost || p.isReady); // Host is always ready
+  const allPlayersReady = players.every((p) => p.isHost || p.isReady); // Host is always ready
   const hasMinPlayers = players.length >= ROOM_CONFIG.MIN_PLAYERS;
   return allPlayersReady && hasMinPlayers;
 }
