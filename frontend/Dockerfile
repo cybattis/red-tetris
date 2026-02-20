@@ -1,6 +1,6 @@
 FROM node:24-alpine
 
-WORKDIR /app
+WORKDIR /app/frontend
 
 COPY startup.sh .
 RUN chmod 777 startup.sh
