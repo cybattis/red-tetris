@@ -1,5 +1,5 @@
 import { Player } from './Player';
-import { GameSettings, GameState } from '@shared/types/game';
+import { GameAction, GameSettings, GameState } from '@shared/types/game';
 import { randomUUID } from 'node:crypto';
 import { PiecesSequence } from './PiecesSequence';
 import { Piece } from './Piece';
@@ -29,7 +29,7 @@ export class Game {
   private _lastTickAt = 0;
   private _gravityAccumulatorMs = 0;
   private _currentPiece: Piece;
-
+  private _playerInputBuffer: GameAction[] = [];
 
   constructor(player: Player, settings: GameSettings, seed: number) {
     this.id = randomUUID();
@@ -62,11 +62,16 @@ export class Game {
     }, Game.TICK_INTERVAL_MS);
   }
 
+  public setPlayerInput(input: GameAction): void {
+    // Buffer player input to be processed in the gameloop
+    this._playerInputBuffer.push(input);
+  }
+
   // Game logic methods
   // ============================================
   private gameloop(): void {
     if (!this.isAlive) {
-      this.stopGameLoop();
+      this.stopGame();
       return;
     }
 
@@ -84,7 +89,7 @@ export class Game {
     }
 
     // Read player input and update piece position here
-    this.playerInput("");
+    this.playerInput();
 
     // Check for line clears, update score, and handle game over conditions here
     // this.handleGameConditions();
@@ -106,7 +111,7 @@ export class Game {
     console.log(`Piece moved down to y=${this._currentPiece.position.y}`);
   }
 
-  private stopGameLoop(): void {
+  public stopGame(): void {
     if (this._gameLoop) {
       clearInterval(this._gameLoop);
       this._gameLoop = null;
@@ -165,28 +170,44 @@ export class Game {
   private eliminate(): void {
     console.log(`Player ${this.player.name} has been eliminated.`);
     this.isAlive = false;
-    this.stopGameLoop();
+    this.stopGame();
   }
 
-  private playerInput(input: string): void {
+  private playerInput(): void {
     // Handle player input to move or rotate the piece
-    // This is a placeholder for actual input handling logic
+
+    // Process all buffered inputs
+    const input = this._playerInputBuffer.shift();
+    if (!input) {
+      return;
+    }
+
     console.log(`Received player input: ${input}`);
 
     // For example, if input is 'down', we can move the piece down immediately
-    if (input === 'down') {
+    if (input === GameAction.SOFT_DROP) {
       // Handle moving the piece down immediately, bypassing gravity with delay animation
+      this.moveCurrentPieceDown();
     }
 
-    if (input === 'rotate') {
+    if (input === GameAction.HARD_DROP) {
+      // Handle hard drop - move piece down until it collides
+      while (!this.checkCollision(this._currentPiece.position.x, this._currentPiece.position.y + 1)) {
+        this.moveCurrentPieceDown();
+      }
+      console.log(`Hard dropped piece to y=${this._currentPiece.position.y}`);
+      return;
+    }
+
+    if (input === GameAction.ROTATE_CW) {
       // Handle rotating the piece, with appropriate checks for collisions and wall kicks
       this._currentPiece.getNextRotation();
       console.log(`Rotated piece to new shape: ${JSON.stringify(this._currentPiece.shape)}`);
     }
 
-    if (input === 'left' || input === 'right') {
+    if (input === GameAction.MOVE_LEFT || input === GameAction.MOVE_RIGHT) {
       // Handle moving the piece left or right, with collision checks
-      const direction = input === 'left' ? -1 : 1;
+      const direction = input === GameAction.MOVE_LEFT ? -1 : 1;
       const nextX = this._currentPiece.position.x + direction;
 
       if (nextX >= 0 && nextX < this.settings.boardWidth) {
