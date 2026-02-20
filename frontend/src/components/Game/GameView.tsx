@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import styles from './GameView.module.css';
 import { PlayerBoard } from './PlayerBoard';
 import { GameOverOverlay } from './GameOverOverlay';
@@ -57,6 +58,10 @@ export function GameView({
   const clearingRows = useAppSelector(selectClearingRows);
   const penaltyRows = useAppSelector(selectPenaltyRows);
 
+  // Local state for debug animations (lock and hard drop)
+  const [debugLockedCells, setDebugLockedCells] = useState<{ x: number; y: number; type: number }[]>([]);
+  const [debugHardDropTrail, setDebugHardDropTrail] = useState<{ x: number; startY: number; endY: number; type: number }[]>([]);
+
   // Determine game mode based on opponents
   const isSoloGame = opponents.length === 0;
   const opponent = opponents[0]; // For 1v1, we only have one opponent
@@ -84,6 +89,30 @@ export function GameView({
 
   const handleDebugReset = () => {
     dispatch(resetGame());
+  };
+
+  const handleDebugLockPiece = () => {
+    // Simulate a T-piece locking in the middle of the board
+    const lockedCells = [
+      { x: 4, y: height - 3, type: 6 }, // T-piece type
+      { x: 3, y: height - 2, type: 6 },
+      { x: 4, y: height - 2, type: 6 },
+      { x: 5, y: height - 2, type: 6 },
+    ];
+    setDebugLockedCells(lockedCells);
+    setTimeout(() => setDebugLockedCells([]), 400);
+  };
+
+  const handleDebugHardDrop = () => {
+    // Simulate hard drop trail from top to near bottom
+    const trails = [
+      { x: 4, startY: 0, endY: height - 4, type: 1 }, // I-piece columns
+      { x: 5, startY: 0, endY: height - 4, type: 1 },
+      { x: 6, startY: 0, endY: height - 4, type: 1 },
+      { x: 7, startY: 0, endY: height - 4, type: 1 },
+    ];
+    setDebugHardDropTrail(trails);
+    setTimeout(() => setDebugHardDropTrail([]), 500);
   };
 
   return (
@@ -133,6 +162,8 @@ export function GameView({
             isGameOver={isGameOver}
             clearingRows={clearingRows}
             penaltyRows={penaltyRows}
+            lockedCells={debugLockedCells}
+            hardDropTrail={debugHardDropTrail}
             size="normal"
           />
         </div>
@@ -161,6 +192,8 @@ export function GameView({
         <span className={styles.debugTitle}>🛠 Debug</span>
         <button onClick={handleDebugLineClear}>Line Clear</button>
         <button onClick={handleDebugPenaltyLines}>Penalty Lines</button>
+        <button onClick={handleDebugLockPiece}>Lock Piece</button>
+        <button onClick={handleDebugHardDrop}>Hard Drop</button>
         <button onClick={handleDebugGameOver}>Game Over</button>
         <button onClick={handleDebugWin}>Win</button>
         <button onClick={handleDebugReset}>Reset</button>

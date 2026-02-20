@@ -20,6 +20,8 @@ export interface BoardProps {
   isGameOver?: boolean;
   clearingRows?: number[];
   penaltyRows?: number[];
+  lockedCells?: { x: number; y: number; type: number }[];
+  hardDropTrail?: { x: number; startY: number; endY: number; type: number }[];
 }
 
 interface Particle {
@@ -30,6 +32,7 @@ interface Particle {
   dy: number;
   color: string;
   size: number;
+  type?: 'explosion' | 'trail' | 'impact';
 }
 
 function createDisplayBoard(
@@ -92,18 +95,22 @@ export const Board = memo(function Board({
   isGameOver = false,
   clearingRows = [],
   penaltyRows = [],
+  lockedCells = [],
+  hardDropTrail = [],
 }: BoardProps) {
   const boardHeight = height ?? board.length;
   const boardWidth = width ?? (board[0]?.length ?? 10);
 
   const [isShaking, setIsShaking] = useState(false);
   const [isPenaltyWarning, setIsPenaltyWarning] = useState(false);
+  const [isLockImpact, setIsLockImpact] = useState(false);
   const [particles, setParticles] = useState<Particle[]>([]);
+  const [lockFlashCells, setLockFlashCells] = useState<Set<string>>(new Set());
 
   const clearingRowSet = useMemo(() => new Set(clearingRows), [clearingRows]);
   const penaltyRowSet = useMemo(() => new Set(penaltyRows), [penaltyRows]);
 
-  const generateParticles = useCallback((rows: number[]) => {
+  const generateLineClearParticles = useCallback((rows: number[]) => {
     const newParticles: Particle[] = [];
     const colors = rows.flatMap(row => 
       board[row]?.map(cell => getCellColor(cell, false)) ?? []
@@ -133,6 +140,7 @@ export const Board = memo(function Board({
           dy,
           color: sparkleColors[Math.floor(Math.random() * sparkleColors.length)] || '#fff',
           size: 3 + Math.random() * 5,
+          type: 'explosion',
         });
       }
     }
@@ -149,16 +157,75 @@ export const Board = memo(function Board({
         dy: (Math.random() - 0.5) * 200,
         color: sparkleColors[Math.floor(Math.random() * sparkleColors.length)] || '#fff',
         size: 2 + Math.random() * 4,
+        type: 'explosion',
       });
     }
     
     return newParticles;
   }, [board, boardWidth, cellSize]);
 
+  const generateHardDropParticles = useCallback((trails: { x: number; startY: number; endY: number; type: number }[]) => {
+    const newParticles: Particle[] = [];
+    
+    for (const trail of trails) {
+      const color = getCellColor(trail.type, false);
+      const x = trail.x * (cellSize + CELL_GAP) + cellSize / 2;
+      
+      const distance = trail.endY - trail.startY;
+      const particleCount = Math.min(distance * 2, 20);
+      
+      for (let i = 0; i < particleCount; i++) {
+        const progress = i / particleCount;
+        const y = (trail.startY + progress * distance) * (cellSize + CELL_GAP) + cellSize / 2;
+        
+        newParticles.push({
+          id: `trail-${Date.now()}-${trail.x}-${i}`,
+          x,
+          y,
+          dx: (Math.random() - 0.5) * 30,
+          dy: 20 + Math.random() * 40,
+          color,
+          size: 3 + Math.random() * 4,
+          type: 'trail',
+        });
+      }
+    }
+    
+    return newParticles;
+  }, [cellSize]);
+
+  const generateLockImpactParticles = useCallback((cells: { x: number; y: number; type: number }[]) => {
+    const newParticles: Particle[] = [];
+    
+    for (const cell of cells) {
+      const color = getCellColor(cell.type, false);
+      const x = cell.x * (cellSize + CELL_GAP) + cellSize / 2;
+      const y = cell.y * (cellSize + CELL_GAP) + cellSize / 2;
+      
+      for (let i = 0; i < 6; i++) {
+        const angle = (i / 6) * Math.PI * 2 + Math.random() * 0.5;
+        const speed = 30 + Math.random() * 50;
+        
+        newParticles.push({
+          id: `impact-${Date.now()}-${cell.x}-${cell.y}-${i}`,
+          x,
+          y,
+          dx: Math.cos(angle) * speed,
+          dy: Math.sin(angle) * speed,
+          color,
+          size: 2 + Math.random() * 3,
+          type: 'impact',
+        });
+      }
+    }
+    
+    return newParticles;
+  }, [cellSize]);
+
   useEffect(() => {
     if (clearingRows.length > 0) {
       setIsShaking(true);
-      setParticles(generateParticles(clearingRows));
+      setParticles(prev => [...prev, ...generateLineClearParticles(clearingRows)]);
       
       const timer = setTimeout(() => {
         setIsShaking(false);
@@ -167,7 +234,35 @@ export const Board = memo(function Board({
       
       return () => clearTimeout(timer);
     }
-  }, [clearingRows, generateParticles]);
+  }, [clearingRows, generateLineClearParticles]);
+
+  useEffect(() => {
+    if (hardDropTrail.length > 0) {
+      setParticles(prev => [...prev, ...generateHardDropParticles(hardDropTrail)]);
+      
+      const timer = setTimeout(() => {
+        setParticles(prev => prev.filter(p => p.type !== 'trail'));
+      }, 400);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [hardDropTrail, generateHardDropParticles]);
+
+  useEffect(() => {
+    if (lockedCells.length > 0) {
+      setIsLockImpact(true);
+      setLockFlashCells(new Set(lockedCells.map(c => `${c.x},${c.y}`)));
+      setParticles(prev => [...prev, ...generateLockImpactParticles(lockedCells)]);
+      
+      const timer = setTimeout(() => {
+        setIsLockImpact(false);
+        setLockFlashCells(new Set());
+        setParticles(prev => prev.filter(p => p.type !== 'impact'));
+      }, 300);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [lockedCells, generateLockImpactParticles]);
 
   useEffect(() => {
     if (penaltyRows.length > 0) {
@@ -196,6 +291,7 @@ export const Board = memo(function Board({
     styles.boardContainer,
     isShaking ? styles.shaking : '',
     isPenaltyWarning ? styles.penaltyWarning : '',
+    isLockImpact ? styles.lockImpact : '',
   ].filter(Boolean).join(' ');
 
   return (
@@ -208,6 +304,7 @@ export const Board = memo(function Board({
             const isGhost = ghostCells.has(key);
             const isClearing = clearingRowSet.has(y);
             const isPenalty = penaltyRowSet.has(y);
+            const isLocked = lockFlashCells.has(key);
 
             const displayValue = isGhost && ghostPiece ? ghostPiece.type : cellValue;
 
@@ -219,6 +316,7 @@ export const Board = memo(function Board({
                 isGhost={isGhost}
                 isClearing={isClearing}
                 isPenalty={isPenalty}
+                isLocked={isLocked}
                 size={cellSize}
               />
             );

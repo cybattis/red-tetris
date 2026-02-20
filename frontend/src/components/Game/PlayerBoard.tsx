@@ -24,6 +24,8 @@ export interface PlayerBoardProps {
   size?: 'normal' | 'small';
   clearingRows?: number[];
   penaltyRows?: number[];
+  lockedCells?: { x: number; y: number; type: number }[];
+  hardDropTrail?: { x: number; startY: number; endY: number; type: number }[];
 }
 
 export const PlayerBoard = memo(function PlayerBoard({
@@ -51,6 +53,8 @@ export const PlayerBoard = memo(function PlayerBoard({
   
   clearingRows = [],
   penaltyRows = [],
+  lockedCells = [],
+  hardDropTrail = [],
 }: PlayerBoardProps) {
   const cellSize = size === 'small' ? 20 : 28;
   
@@ -69,6 +73,8 @@ export const PlayerBoard = memo(function PlayerBoard({
             isGameOver={isGameOver}
             clearingRows={clearingRows}
             penaltyRows={penaltyRows}
+            lockedCells={lockedCells}
+            hardDropTrail={hardDropTrail}
           />
 
           <div className={`${styles.playerCard} ${isCurrentPlayer ? styles.currentPlayer : ''} ${isGameOver ? styles.eliminated : ''}`}>
