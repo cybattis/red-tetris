@@ -12,7 +12,7 @@ export class Game {
   public readonly settings: GameSettings;
   public readonly piecesSequence: PiecesSequence;
 
-  public state: GameState = 'waiting';
+  public state: GameState = GameState.Waiting;
   public board: number[][];
   public currentPieceIndex: number = 0;
   public isAlive: boolean = true;
@@ -50,7 +50,7 @@ export class Game {
     }
 
     console.log(`Starting game for player ${this.player.name}`);
-    this.state = 'playing';
+    this.state = GameState.Playing;
 
     if (!this._currentPiece) {
       this.spawnNextPiece();
