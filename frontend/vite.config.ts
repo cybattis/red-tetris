@@ -14,6 +14,7 @@ export default defineConfig({
       "@game": path.resolve(__dirname, "./src/game"),
       "@utils": path.resolve(__dirname, "./src/utils"),
       "@types": path.resolve(__dirname, "./src/types"),
+      "@shared": path.resolve(__dirname, "../shared/"),
     },
   },
   server: {

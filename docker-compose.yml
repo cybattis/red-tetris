@@ -21,7 +21,7 @@ services:
       - "3000:3000"
     volumes:
       - ./shared:/app/shared
-      - ./frontend:/frontend/app
+      - ./frontend:/app/frontend
       - ./frontend/node_modules:/app/frontend/node_modules
     networks:
       - red-tetris
