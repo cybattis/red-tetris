@@ -23,12 +23,15 @@ export const enum GameState {
   Ended = 'ended',
 }
 
-export const enum PlayerInput {
-  MoveLeft = 'moveLeft',
-  MoveRight = 'moveRight',
-  Rotate = 'rotate',
-  Drop = 'drop',
+export const enum GameAction {
+  MOVE_LEFT = 'MOVE_LEFT',
+  MOVE_RIGHT = 'MOVE_RIGHT',
+  SOFT_DROP = 'SOFT_DROP',
+  HARD_DROP = 'HARD_DROP',
+  ROTATE_CW = 'ROTATE_CW',
+  PAUSE = 'PAUSE',
 }
+export type GameActionType = GameAction;
 
 export interface GameSettings {
   gravity: number;
@@ -50,8 +53,13 @@ export interface GameCreationData {
   timestamp: number;
 }
 
+export interface SocketEvents<T extends keyof SocketEventsType = keyof SocketEventsType> {
+  message: T;
+  data: SocketEventsType[T];
+}
+
 // Socket event types for backend communication
-export interface SocketEvents {
+export interface SocketEventsType {
   // Outgoing events (client -> server)
   CREATE_GAME: GameCreationData;
   UPDATE_SETTINGS: { roomId: string; settings: GameSettings };
@@ -62,7 +70,7 @@ export interface SocketEvents {
   JOIN_ROOM: { roomId: string; playerName: string };
   LEAVE_ROOM: { roomId: string; playerId: string };
 
-  PLAYER_INPUT: { gameId: string; playerId: string; input: PlayerInput };
+  PLAYER_INPUT: { gameId: string; playerId: string; input: GameAction };
 
   // Incoming events (server -> client)
   GAME_CREATED: { success: boolean; roomId: string; error?: string };
