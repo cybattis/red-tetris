@@ -1,5 +1,7 @@
 import { useEffect, useCallback, useRef } from 'react';
-import { DEFAULT_KEY_BINDINGS, GameAction, type GameActionType } from '../utils/keyBindings';
+import { DEFAULT_KEY_BINDINGS } from '../utils/keyBindings';
+import { GameAction, type GameActionType } from '@shared/types/game';
+
 
 interface UseGameInputOptions {
   /** Whether input capture is enabled */
@@ -24,7 +26,7 @@ interface HeldKeyState {
 
 /**
  * Hook to capture game input and send actions to server
- * 
+ *
  * Features:
  * - Maps keyboard keys to game actions
  * - Supports key repeat for movement (DAS - Delayed Auto Shift)

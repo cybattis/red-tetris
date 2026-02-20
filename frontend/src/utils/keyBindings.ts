@@ -5,19 +5,7 @@
  * These actions are sent to the server - no game logic runs locally.
  */
 
-/**
- * Game actions that can be sent to the server
- */
-export const enum GameAction {
-  MOVE_LEFT = 'MOVE_LEFT',
-  MOVE_RIGHT = 'MOVE_RIGHT',
-  SOFT_DROP = 'SOFT_DROP',
-  HARD_DROP = 'HARD_DROP',
-  ROTATE_CW = 'ROTATE_CW', // Clockwise
-  PAUSE = 'PAUSE',
-}
-
-export type GameActionType = GameAction;
+import { GameAction, type GameActionType } from "@shared/types/game";
 
 /**
  * Default key bindings

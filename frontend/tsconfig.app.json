@@ -44,6 +44,9 @@
       "@types/*": [
         "src/types/*"
       ],
+      "@shared/*": [
+        "../shared/*"
+      ]
     },
     /* Linting */
     "strict": true,
@@ -54,6 +57,7 @@
     "noUncheckedSideEffectImports": true
   },
   "include": [
-    "src"
+    "src",
+    "../shared/**/*"
   ]
 }
