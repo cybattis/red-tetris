@@ -1,17 +1,16 @@
-import { useEffect, useCallback, useRef } from 'react';
-import { DEFAULT_KEY_BINDINGS } from '../utils/keyBindings';
-import { GameAction, type GameActionType } from '@shared/types/game';
-
+import { useEffect, useCallback, useRef } from "react";
+import { DEFAULT_KEY_BINDINGS } from "@/utils";
+import { GameAction } from "@shared/types/game";
 
 interface UseGameInputOptions {
   /** Whether input capture is enabled */
   enabled?: boolean;
   /** Callback when a game action is triggered */
-  onAction: (action: GameActionType) => void;
+  onAction: (action: GameAction) => void;
   /** Callback for continuous actions (move left/right) while key is held */
-  onActionStart?: (action: GameActionType) => void;
+  onActionStart?: (action: GameAction) => void;
   /** Callback when a continuous action key is released */
-  onActionEnd?: (action: GameActionType) => void;
+  onActionEnd?: (action: GameAction) => void;
   /** Delay before key repeat starts (ms) */
   repeatDelay?: number;
   /** Interval between repeated actions (ms) */
@@ -19,7 +18,7 @@ interface UseGameInputOptions {
 }
 
 interface HeldKeyState {
-  action: GameActionType;
+  action: GameAction;
   timeoutId: ReturnType<typeof setTimeout> | null;
   intervalId: ReturnType<typeof setInterval> | null;
 }
@@ -38,14 +37,14 @@ export function useGameInput({
   onAction,
   onActionStart,
   onActionEnd,
-  repeatDelay = 170,  // DAS delay
-  repeatInterval = 50,  // ARR (Auto Repeat Rate)
+  repeatDelay = 170, // DAS delay
+  repeatInterval = 50, // ARR (Auto Repeat Rate)
 }: UseGameInputOptions): void {
   // Track held keys for repeat functionality
   const heldKeysRef = useRef<Map<string, HeldKeyState>>(new Map());
 
   // Actions that support key repeat (holding)
-  const repeatableActions = new Set<GameActionType>([
+  const repeatableActions = new Set<GameAction>([
     GameAction.MOVE_LEFT,
     GameAction.MOVE_RIGHT,
     GameAction.SOFT_DROP,
@@ -60,61 +59,74 @@ export function useGameInput({
     }
   }, []);
 
-  const handleKeyDown = useCallback((event: KeyboardEvent) => {
-    if (!enabled) return;
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent) => {
+      if (!enabled) return;
 
-    const action = DEFAULT_KEY_BINDINGS[event.code];
-    if (!action) return;
+      const action = DEFAULT_KEY_BINDINGS[event.code];
+      if (!action) return;
 
-    // Prevent default browser behavior for game keys
-    event.preventDefault();
+      // Prevent default browser behavior for game keys
+      event.preventDefault();
 
-    // Check if key is already held (don't re-trigger)
-    if (heldKeysRef.current.has(event.code)) {
-      return;
-    }
+      // Check if key is already held (don't re-trigger)
+      if (heldKeysRef.current.has(event.code)) {
+        return;
+      }
 
-    // Fire the action immediately
-    onAction(action);
-    onActionStart?.(action);
+      // Fire the action immediately
+      onAction(action);
+      onActionStart?.(action);
 
-    // Set up key repeat for repeatable actions
-    if (repeatableActions.has(action)) {
-      const timeoutId = setTimeout(() => {
-        // Start repeating after delay
-        const intervalId = setInterval(() => {
-          onAction(action);
-        }, repeatInterval);
+      // Set up key repeat for repeatable actions
+      if (repeatableActions.has(action)) {
+        const timeoutId = setTimeout(() => {
+          // Start repeating after delay
+          const intervalId = setInterval(() => {
+            onAction(action);
+          }, repeatInterval);
 
-        // Update the state with interval ID
-        const state = heldKeysRef.current.get(event.code);
-        if (state) {
-          state.intervalId = intervalId;
-        }
-      }, repeatDelay);
+          // Update the state with interval ID
+          const state = heldKeysRef.current.get(event.code);
+          if (state) {
+            state.intervalId = intervalId;
+          }
+        }, repeatDelay);
 
-      heldKeysRef.current.set(event.code, {
-        action,
-        timeoutId,
-        intervalId: null,
-      });
-    } else {
-      // Track non-repeatable keys too (for onActionEnd)
-      heldKeysRef.current.set(event.code, {
-        action,
-        timeoutId: null,
-        intervalId: null,
-      });
-    }
-  }, [enabled, onAction, onActionStart, repeatDelay, repeatInterval, repeatableActions]);
+        heldKeysRef.current.set(event.code, {
+          action,
+          timeoutId,
+          intervalId: null,
+        });
+      } else {
+        // Track non-repeatable keys too (for onActionEnd)
+        heldKeysRef.current.set(event.code, {
+          action,
+          timeoutId: null,
+          intervalId: null,
+        });
+      }
+    },
+    [
+      enabled,
+      onAction,
+      onActionStart,
+      repeatDelay,
+      repeatInterval,
+      repeatableActions,
+    ],
+  );
 
-  const handleKeyUp = useCallback((event: KeyboardEvent) => {
-    const state = heldKeysRef.current.get(event.code);
-    if (state) {
-      clearKeyRepeat(event.code);
-      onActionEnd?.(state.action);
-    }
-  }, [clearKeyRepeat, onActionEnd]);
+  const handleKeyUp = useCallback(
+    (event: KeyboardEvent) => {
+      const state = heldKeysRef.current.get(event.code);
+      if (state) {
+        clearKeyRepeat(event.code);
+        onActionEnd?.(state.action);
+      }
+    },
+    [clearKeyRepeat, onActionEnd],
+  );
 
   // Handle window blur (clear all held keys when window loses focus)
   const handleBlur = useCallback(() => {
@@ -131,16 +143,16 @@ export function useGameInput({
       return;
     }
 
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-    window.addEventListener('blur', handleBlur);
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", handleBlur);
 
     return () => {
       // Cleanup: clear all intervals and remove listeners
       heldKeysRef.current.forEach((_, key) => clearKeyRepeat(key));
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-      window.removeEventListener('blur', handleBlur);
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", handleBlur);
     };
   }, [enabled, handleKeyDown, handleKeyUp, handleBlur, clearKeyRepeat]);
 }

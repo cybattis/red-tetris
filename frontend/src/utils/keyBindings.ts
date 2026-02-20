@@ -1,3 +1,5 @@
+import { GameAction } from "@shared/types/game";
+
 /**
  * Keyboard Input Bindings
  *
@@ -5,13 +7,11 @@
  * These actions are sent to the server - no game logic runs locally.
  */
 
-import { GameAction, type GameActionType } from "@shared/types/game";
-
 /**
  * Default key bindings
  * Maps KeyboardEvent.code to game actions
  */
-export const DEFAULT_KEY_BINDINGS: Record<string, GameActionType> = {
+export const DEFAULT_KEY_BINDINGS: Record<string, GameAction> = {
   ArrowLeft: GameAction.MOVE_LEFT,
   ArrowRight: GameAction.MOVE_RIGHT,
   ArrowDown: GameAction.SOFT_DROP,
@@ -25,7 +25,7 @@ export const DEFAULT_KEY_BINDINGS: Record<string, GameActionType> = {
 /**
  * Alternative WASD key bindings (optional)
  */
-export const WASD_KEY_BINDINGS: Record<string, GameActionType> = {
+export const WASD_KEY_BINDINGS: Record<string, GameAction> = {
   KeyA: GameAction.MOVE_LEFT,
   KeyD: GameAction.MOVE_RIGHT,
   KeyS: GameAction.SOFT_DROP,
@@ -38,11 +38,11 @@ export const WASD_KEY_BINDINGS: Record<string, GameActionType> = {
  * Keys that should prevent default browser behavior during gameplay
  */
 export const PREVENTED_KEYS = new Set([
-  'ArrowLeft',
-  'ArrowRight',
-  'ArrowDown',
-  'ArrowUp',
-  'Space',
+  "ArrowLeft",
+  "ArrowRight",
+  "ArrowDown",
+  "ArrowUp",
+  "Space",
 ]);
 
 /**
@@ -50,8 +50,8 @@ export const PREVENTED_KEYS = new Set([
  */
 export function getActionForKey(
   keyCode: string,
-  bindings: Record<string, GameActionType> = DEFAULT_KEY_BINDINGS
-): GameActionType | null {
+  bindings: Record<string, GameAction> = DEFAULT_KEY_BINDINGS,
+): GameAction | null {
   return bindings[keyCode] ?? null;
 }
 

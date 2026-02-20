@@ -1,13 +1,10 @@
-import { useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import styles from './GameRoom.module.css';
-import type {
-  GameMode,
-  GameSettings,
-} from '../types/game';
+import { useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import styles from "./GameRoom.module.css";
+import type { GameMode, GameSettings } from "../types/game";
 
 // Redux imports
-import { useAppDispatch, useAppSelector } from '../store/index.js';
+import { useAppDispatch, useAppSelector } from "../store/index.js";
 import {
   joinRoomSuccess,
   addPlayer,
@@ -30,26 +27,24 @@ import {
   selectGameStarted,
   selectError,
   selectGameCreationData,
-} from '../store/slices/gameRoomSlice.js';
+} from "../store/slices/gameRoomSlice.js";
 
-import {
-  Button,
-  Panel,
-} from '../components/UI';
+import { Button, Panel } from "../components/UI";
 import {
   PlayerList,
   GameModeSelector,
   GameSettingsPanel,
   CountdownOverlay,
-} from '../components/Lobby';
-import {
-  GameView,
-} from '../components/Game';
-import { useGameInput } from '../hooks';
-import type { GameActionType } from '../utils/keyBindings';
+} from "../components/Lobby";
+import { GameView } from "../components/Game";
+import { useGameInput } from "../hooks";
+import type { GameAction } from "../utils/keyBindings";
 
 export function GameRoom() {
-  const { room, playerName } = useParams<{ room: string; playerName: string }>();
+  const { room, playerName } = useParams<{
+    room: string;
+    playerName: string;
+  }>();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
 
@@ -74,20 +69,22 @@ export function GameRoom() {
       // When backend is ready, this will be replaced with socket-based room joining.
       // The roomId is passed here as a workaround since joinRoom (which sets roomId)
       // requires an active socket connection to the backend.
-      dispatch(joinRoomSuccess({
-        roomId: room, // TODO: Remove after backend integration - roomId will come from joinRoom action
-        players: [
-          { 
-            id: '1', 
-            name: playerName, 
-            isHost: true, 
-            isReady: true 
-          }
-        ],
-        currentPlayerId: '1',
-        gameMode: 'classic',
-      }));
-      
+      dispatch(
+        joinRoomSuccess({
+          roomId: room, // TODO: Remove after backend integration - roomId will come from joinRoom action
+          players: [
+            {
+              id: "1",
+              name: playerName,
+              isHost: true,
+              isReady: true,
+            },
+          ],
+          currentPlayerId: "1",
+          gameMode: "classic",
+        }),
+      );
+
       // TODO: When backend is ready, replace above with:
       // if (isConnected) {
       //   dispatch(joinRoom({ roomId: room, playerName }));
@@ -101,7 +98,14 @@ export function GameRoom() {
     const timer = setTimeout(() => {
       if (players.length === 1) {
         // Add a test opponent to see multiplayer functionality
-        dispatch(addPlayer({ id: '2', name: 'Opponent', isHost: false, isReady: true }));
+        dispatch(
+          addPlayer({
+            id: "2",
+            name: "Opponent",
+            isHost: false,
+            isReady: true,
+          }),
+        );
       }
     }, 3000);
     return () => clearTimeout(timer);
@@ -110,7 +114,7 @@ export function GameRoom() {
   // Handle countdown interval
   useEffect(() => {
     let interval: number | null = null;
-    
+
     if (countdown !== null && countdown > 0) {
       interval = window.setInterval(() => {
         dispatch(updateCountdown(countdown - 1));
@@ -124,29 +128,32 @@ export function GameRoom() {
     };
   }, [countdown, dispatch]);
 
-  const handleSettingChange = (key: keyof GameSettings, value: number | boolean) => {
+  const handleSettingChange = (
+    key: keyof GameSettings,
+    value: number | boolean,
+  ) => {
     if (!isHost) return;
-    
+
     dispatch(updateSetting({ key, value }));
   };
 
   const handleResetSettings = () => {
     if (!isHost) return;
-    
+
     dispatch(resetSettings());
   };
 
   const handleGameModeChange = (newGameMode: GameMode) => {
     if (!isHost) return;
-    
+
     dispatch(updateGameMode(newGameMode));
   };
 
   const handleStartGame = () => {
     if (!isHost || !canStartGameNow) return;
-    
+
     if (gameCreationData) {
-      console.log('Game Creation Data:', gameCreationData);
+      console.log("Game Creation Data:", gameCreationData);
       dispatch(startCountdown());
     }
   };
@@ -157,24 +164,26 @@ export function GameRoom() {
 
   const handleToggleReady = () => {
     if (!currentPlayer) return;
-    
+
     const newReadyStatus = !currentPlayer.isReady;
-    dispatch(updatePlayerReady({ 
-      playerId: currentPlayer.id, 
-      isReady: newReadyStatus 
-    }));
+    dispatch(
+      updatePlayerReady({
+        playerId: currentPlayer.id,
+        isReady: newReadyStatus,
+      }),
+    );
   };
 
   const handleLeaveRoom = () => {
     dispatch(leaveRoom());
-    navigate('/');
+    navigate("/");
   };
 
   // Handle game input actions - send to server
   const handleGameAction = (action: GameActionType) => {
     // TODO: When backend is ready, send action via socket
     // socket.emit('game:action', { roomId: room, action });
-    console.log('Game action:', action);
+    console.log("Game action:", action);
   };
 
   // Game input hook - only active when game has started
@@ -223,13 +232,17 @@ export function GameRoom() {
       )}
 
       <header className={styles.header}>
-        <Button variant="ghost" onClick={handleLeaveRoom} className={styles.leaveButton}>
+        <Button
+          variant="ghost"
+          onClick={handleLeaveRoom}
+          className={styles.leaveButton}
+        >
           ← Leave Room
         </Button>
         <div className={styles.roomInfo}>
           <h1 className={styles.roomName}>{room}</h1>
           <span className={styles.roomMode}>
-            {isSoloGame ? 'Solo Mode' : 'Multiplayer'}
+            {isSoloGame ? "Solo Mode" : "Multiplayer"}
           </span>
         </div>
         <div className={styles.headerSpacer} />
@@ -240,7 +253,7 @@ export function GameRoom() {
           <PlayerList
             players={players}
             maxPlayers={2}
-            currentPlayerName={playerName || ''}
+            currentPlayerName={playerName || ""}
           />
         </Panel>
 
@@ -269,22 +282,23 @@ export function GameRoom() {
               fullWidth
               disabled={countdown !== null || !canStartGameNow}
             >
-              {countdown !== null ? `Starting in ${countdown}...` : 'Start Game'}
+              {countdown !== null
+                ? `Starting in ${countdown}...`
+                : "Start Game"}
             </Button>
           ) : (
             <Button
               onClick={handleToggleReady}
-              variant={currentPlayer?.isReady ? 'secondary' : 'primary'}
+              variant={currentPlayer?.isReady ? "secondary" : "primary"}
               size="large"
               fullWidth
               disabled={countdown !== null}
             >
-              {countdown !== null 
-                ? `Starting in ${countdown}...` 
-                : currentPlayer?.isReady 
-                  ? 'Ready ✓' 
-                  : 'Ready Up'
-              }
+              {countdown !== null
+                ? `Starting in ${countdown}...`
+                : currentPlayer?.isReady
+                  ? "Ready ✓"
+                  : "Ready Up"}
             </Button>
           )}
         </div>
