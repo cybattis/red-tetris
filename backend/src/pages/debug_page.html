@@ -65,6 +65,15 @@
 		<span>Status: <span id="status">disconnected</span></span>
 	</div>
 
+	<div class="row">
+		<label for="gameId">Game ID:</label>
+		<input id="gameId" type="text" value="" placeholder="(set by GAME_STARTED)" />
+		<label for="playerId">Player ID:</label>
+		<input id="playerId" type="text" value="test-player" />
+		<button id="startGameBtn" type="button" disabled>Start Game</button>
+		<button id="stopGameBtn" type="button" disabled>Stop Game</button>
+	</div>
+
 	<p class="hint">Click anywhere on the page, then press keys. Events are sent as JSON on keydown/keyup.</p>
 	<div id="log"></div>
 
@@ -77,6 +86,22 @@
 		const disconnectBtn = document.getElementById('disconnectBtn');
 		const statusEl = document.getElementById('status');
 		const logEl = document.getElementById('log');
+		const gameIdEl = document.getElementById('gameId');
+		const playerIdEl = document.getElementById('playerId');
+		const startGameBtn = document.getElementById('startGameBtn');
+		const stopGameBtn = document.getElementById('stopGameBtn');
+
+		const KEY_TO_ACTION = {
+			ArrowLeft: 'MOVE_LEFT',
+			ArrowRight: 'MOVE_RIGHT',
+			ArrowDown: 'SOFT_DROP',
+			Space: 'HARD_DROP',
+			ArrowUp: 'ROTATE_CW',
+			KeyP: 'PAUSE',
+			Escape: 'PAUSE',
+		};
+
+		const PREVENT_DEFAULT_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp', 'Space']);
 
 		function log(message) {
 			const ts = new Date().toISOString().split('T')[1].replace('Z', '');
@@ -88,6 +113,8 @@
 			statusEl.textContent = connected ? 'connected' : 'disconnected';
 			connectBtn.disabled = connected;
 			disconnectBtn.disabled = !connected;
+			startGameBtn.disabled = !connected;
+			stopGameBtn.disabled = !connected;
 		}
 
 		function connect() {
@@ -106,6 +133,7 @@
 
 			socket.on('connect', () => {
 				setConnected(true);
+				if (!playerIdEl.value.trim()) playerIdEl.value = socket.id;
 				log(`connected to ${socketUrl}`);
 			});
 
@@ -118,6 +146,15 @@
 			socket.on('message', (data) => {
 				log(`recv: ${typeof data === 'string' ? data : JSON.stringify(data)}`);
 			});
+			socket.on('GAME_STARTED', (payload) => {
+				const gameId = payload?.gameId;
+				if (!gameId) {
+					log(`recv GAME_STARTED without gameId: ${JSON.stringify(payload)}`);
+					return;
+				}
+				gameIdEl.value = gameId;
+				log(`recv GAME_STARTED: gameId=${gameId}`);
+			});
 
 			socket.connect();
 		}
@@ -127,27 +164,72 @@
 			socket.disconnect();
 		}
 
-		function sendKeyEvent(type, e) {
+		function startGame() {
+			if (!socket || !socket.connected) return;
+			const payload = {
+				message: 'START_GAME',
+				data: { playerId: playerIdEl.value.trim() || socket.id || 'test-player' }
+			};
+			socket.emit('START_GAME', payload);
+			log(`sent START_GAME: ${JSON.stringify(payload)}`);
+		}
+
+		function stopGame() {
 			if (!socket || !socket.connected) return;
 
+			const gameId = gameIdEl.value.trim();
+			if (!gameId) {
+				log('skip STOP_GAME: no gameId to stop');
+				return;
+			}
+
 			const payload = {
-				type,
-				key: e.key,
-				code: e.code,
-				repeat: e.repeat,
-				altKey: e.altKey,
-				ctrlKey: e.ctrlKey,
-				shiftKey: e.shiftKey,
-				metaKey: e.metaKey,
-				timestamp: Date.now()
+				message: 'STOP_GAME',
+				data: {
+					gameId,
+					playerId: playerIdEl.value.trim() || socket.id || 'test-player'
+				}
 			};
 
-			socket.send(payload);
-			log(`sent: ${JSON.stringify(payload)}`);
+			socket.emit('STOP_GAME', payload);
+			log(`sent STOP_GAME: ${JSON.stringify(payload)}`);
+			gameIdEl.value = '';
+		}
+
+		function sendKeyEvent(type, e) {
+			if (!socket || !socket.connected) return;
+			if (type !== 'keydown') return;
+			if (e.repeat) return;
+
+			const input = KEY_TO_ACTION[e.code];
+			if (!input) return;
+
+			if (PREVENT_DEFAULT_KEYS.has(e.code)) {
+				e.preventDefault();
+			}
+
+			const payload = {
+				message: 'PLAYER_INPUT',
+				data: {
+					gameId: gameIdEl.value.trim(),
+					playerId: playerIdEl.value.trim() || socket.id || 'test-player',
+					input,
+				}
+			};
+
+			if (!payload.data.gameId) {
+				log('skip PLAYER_INPUT: no gameId yet (click "Start Game")');
+				return;
+			}
+
+			socket.emit('PLAYER_INPUT', payload);
+			log(`sent PLAYER_INPUT: ${JSON.stringify(payload)}`);
 		}
 
 		connectBtn.addEventListener('click', connect);
 		disconnectBtn.addEventListener('click', disconnect);
+		startGameBtn.addEventListener('click', startGame);
+		stopGameBtn.addEventListener('click', stopGame);
 		window.addEventListener('keydown', (e) => sendKeyEvent('keydown', e));
 		window.addEventListener('keyup', (e) => sendKeyEvent('keyup', e));
 
