@@ -9,19 +9,19 @@
  * Tetrimino piece type IDs (standard Tetris naming)
  * These match the values the server sends in the board state
  */
-export const PieceType = {
-  EMPTY: 0,
-  I: 1,
-  O: 2,
-  T: 3,
-  S: 4,
-  Z: 5,
-  J: 6,
-  L: 7,
-  PENALTY: 8, // Penalty/garbage lines in multiplayer
-} as const;
+export const enum PieceType {
+  EMPTY = 0,
+  I = 1,
+  O = 2,
+  T = 3,
+  S = 4,
+  Z = 5,
+  J = 6,
+  L = 7,
+  PENALTY = 8, // Penalty/garbage lines in multiplayer
+}
 
-export type PieceTypeValue = (typeof PieceType)[keyof typeof PieceType];
+export type PieceTypeValue = PieceType;
 
 /**
  * Color mappings for each piece type

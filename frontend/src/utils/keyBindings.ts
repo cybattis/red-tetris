@@ -8,18 +8,16 @@
 /**
  * Game actions that can be sent to the server
  */
-export const GameAction = {
-  MOVE_LEFT: 'MOVE_LEFT',
-  MOVE_RIGHT: 'MOVE_RIGHT',
-  SOFT_DROP: 'SOFT_DROP',
-  HARD_DROP: 'HARD_DROP',
-  ROTATE_CW: 'ROTATE_CW', // Clockwise
-  ROTATE_CCW: 'ROTATE_CCW', // Counter-clockwise
-  HOLD: 'HOLD',
-  PAUSE: 'PAUSE',
-} as const;
+export const enum GameAction {
+  MOVE_LEFT = 'MOVE_LEFT',
+  MOVE_RIGHT = 'MOVE_RIGHT',
+  SOFT_DROP = 'SOFT_DROP',
+  HARD_DROP = 'HARD_DROP',
+  ROTATE_CW = 'ROTATE_CW', // Clockwise
+  PAUSE = 'PAUSE',
+}
 
-export type GameActionType = (typeof GameAction)[keyof typeof GameAction];
+export type GameActionType = GameAction;
 
 /**
  * Default key bindings
@@ -31,11 +29,7 @@ export const DEFAULT_KEY_BINDINGS: Record<string, GameActionType> = {
   ArrowDown: GameAction.SOFT_DROP,
   ArrowUp: GameAction.ROTATE_CW,
   Space: GameAction.HARD_DROP,
-  KeyZ: GameAction.ROTATE_CCW,
   KeyX: GameAction.ROTATE_CW,
-  KeyC: GameAction.HOLD,
-  ShiftLeft: GameAction.HOLD,
-  ShiftRight: GameAction.HOLD,
   Escape: GameAction.PAUSE,
   KeyP: GameAction.PAUSE,
 };
@@ -49,8 +43,6 @@ export const WASD_KEY_BINDINGS: Record<string, GameActionType> = {
   KeyS: GameAction.SOFT_DROP,
   KeyW: GameAction.ROTATE_CW,
   Space: GameAction.HARD_DROP,
-  KeyQ: GameAction.ROTATE_CCW,
-  KeyE: GameAction.HOLD,
   Escape: GameAction.PAUSE,
 };
 
