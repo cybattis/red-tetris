@@ -1,7 +1,8 @@
 import styles from './GameView.module.css';
 import { PlayerBoard } from './PlayerBoard';
+import { GameOverOverlay } from './GameOverOverlay';
 import { Button } from '../UI';
-import { useAppSelector } from '../../store';
+import { useAppSelector, useAppDispatch } from '../../store';
 import {
   selectBoard,
   selectCurrentPiece,
@@ -14,6 +15,15 @@ import {
   selectIsGameOver,
   selectOpponents,
   selectBoardDimensions,
+  selectClearingRows,
+  selectPenaltyRows,
+  selectGameOverReason,
+  setClearingRows,
+  clearClearingRows,
+  setPenaltyRows,
+  clearPenaltyRows,
+  gameOver,
+  resetGame,
 } from '../../store/slices/gameSlice';
 
 export interface GameViewProps {
@@ -29,6 +39,8 @@ export function GameView({
   isHost = false,
   onLeave,
 }: GameViewProps) {
+  const dispatch = useAppDispatch();
+
   // Game state from Redux (received from server)
   const board = useAppSelector(selectBoard);
   const currentPiece = useAppSelector(selectCurrentPiece);
@@ -39,15 +51,58 @@ export function GameView({
   const linesCleared = useAppSelector(selectLinesCleared);
   const isPaused = useAppSelector(selectIsPaused);
   const isGameOver = useAppSelector(selectIsGameOver);
+  const gameOverReason = useAppSelector(selectGameOverReason);
   const opponents = useAppSelector(selectOpponents);
   const { width, height } = useAppSelector(selectBoardDimensions);
+  const clearingRows = useAppSelector(selectClearingRows);
+  const penaltyRows = useAppSelector(selectPenaltyRows);
 
   // Determine game mode based on opponents
   const isSoloGame = opponents.length === 0;
   const opponent = opponents[0]; // For 1v1, we only have one opponent
 
+  // === DEBUG HANDLERS ===
+  const handleDebugLineClear = () => {
+    // Simulate clearing bottom 2 rows with shake + firework particles
+    dispatch(setClearingRows([height - 1, height - 2]));
+    setTimeout(() => dispatch(clearClearingRows()), 1100);
+  };
+
+  const handleDebugPenaltyLines = () => {
+    // Simulate 2 penalty lines at the bottom with warning flash
+    dispatch(setPenaltyRows([height - 1, height - 2]));
+    setTimeout(() => dispatch(clearPenaltyRows()), 600);
+  };
+
+  const handleDebugGameOver = () => {
+    dispatch(gameOver({ reason: 'Board Overflow' }));
+  };
+
+  const handleDebugWin = () => {
+    dispatch(gameOver({ reason: 'Victory!' }));
+  };
+
+  const handleDebugReset = () => {
+    dispatch(resetGame());
+  };
+
   return (
     <div className={styles.container}>
+      <GameOverOverlay
+        isVisible={isGameOver}
+        reason={gameOverReason ?? 'Game Over'}
+        isWinner={gameOverReason === 'Victory!'}
+        stats={{
+          score,
+          level,
+          linesCleared,
+          placement: opponents.length > 0 ? 1 : undefined,
+          totalPlayers: opponents.length > 0 ? opponents.length + 1 : undefined,
+        }}
+        onPlayAgain={handleDebugReset}
+        onReturnToLobby={onLeave}
+      />
+
       <header className={styles.header}>
         {onLeave && (
           <Button variant="ghost" onClick={onLeave} className={styles.leaveButton}>
@@ -76,6 +131,8 @@ export function GameView({
             linesCleared={linesCleared}
             isPaused={isPaused}
             isGameOver={isGameOver}
+            clearingRows={clearingRows}
+            penaltyRows={penaltyRows}
             size="normal"
           />
         </div>
@@ -99,6 +156,15 @@ export function GameView({
           <span>Esc Pause</span>
         </div>
       </footer>
+
+      <div className={styles.debugPanel}>
+        <span className={styles.debugTitle}>🛠 Debug</span>
+        <button onClick={handleDebugLineClear}>Line Clear</button>
+        <button onClick={handleDebugPenaltyLines}>Penalty Lines</button>
+        <button onClick={handleDebugGameOver}>Game Over</button>
+        <button onClick={handleDebugWin}>Win</button>
+        <button onClick={handleDebugReset}>Reset</button>
+      </div>
     </div>
   );
 }

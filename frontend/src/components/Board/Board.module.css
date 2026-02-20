@@ -10,12 +10,149 @@
     inset 0 0 30px rgba(0, 0, 0, 0.5);
 }
 
+.boardContainer.shaking {
+  animation: boardShake 0.4s ease-out;
+}
+
+@keyframes boardShake {
+  0%, 100% { transform: translateX(0); }
+  10% { transform: translateX(-4px) rotate(-0.5deg); }
+  20% { transform: translateX(4px) rotate(0.5deg); }
+  30% { transform: translateX(-3px) rotate(-0.3deg); }
+  40% { transform: translateX(3px) rotate(0.3deg); }
+  50% { transform: translateX(-2px); }
+  60% { transform: translateX(2px); }
+  70% { transform: translateX(-1px); }
+  80% { transform: translateX(1px); }
+}
+
+.boardContainer.penaltyWarning {
+  animation: penaltyShake 0.5s ease-out;
+}
+
+.boardContainer.penaltyWarning::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 0, 0, 0.3);
+  border-radius: 6px;
+  z-index: 5;
+  animation: penaltyFlash 0.5s ease-out;
+  pointer-events: none;
+}
+
+@keyframes penaltyShake {
+  0%, 100% { transform: translateY(0); }
+  15% { transform: translateY(6px); }
+  30% { transform: translateY(-4px); }
+  45% { transform: translateY(3px); }
+  60% { transform: translateY(-2px); }
+  75% { transform: translateY(1px); }
+}
+
+@keyframes penaltyFlash {
+  0% { 
+    background: rgba(255, 0, 0, 0.5);
+    box-shadow: inset 0 0 50px rgba(255, 0, 0, 0.8);
+  }
+  100% { 
+    background: transparent;
+    box-shadow: none;
+  }
+}
+
 .board {
+  position: relative;
   display: grid;
   background: 
     linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
   background-size: 29px 29px;
+}
+
+.particles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 20;
+}
+
+.particle {
+  position: absolute;
+  border-radius: 50%;
+  animation: particleExplode 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  filter: blur(0.5px);
+}
+
+.particle::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  background: inherit;
+  filter: blur(3px);
+  opacity: 0.6;
+}
+
+@keyframes particleExplode {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1.5);
+    filter: blur(0px) brightness(2);
+  }
+  20% {
+    opacity: 1;
+    filter: blur(0.5px) brightness(1.5);
+  }
+  50% {
+    opacity: 0.8;
+    transform: translate(calc(var(--dx) * 0.6), calc(var(--dy) * 0.6)) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), var(--dy)) scale(0.2);
+    filter: blur(2px) brightness(0.5);
+  }
+}
+
+.particle:nth-child(3n) {
+  animation: particleSparkle 0.6s ease-out forwards;
+}
+
+@keyframes particleSparkle {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(2) rotate(0deg);
+    filter: brightness(3);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(calc(var(--dx) * 0.3), calc(var(--dy) * 0.3)) scale(1.2) rotate(180deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), var(--dy)) scale(0) rotate(360deg);
+    filter: brightness(0);
+  }
+}
+
+.particle:nth-child(5n) {
+  animation: particleTrail 1s ease-out forwards;
+}
+
+@keyframes particleTrail {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(var(--dx) * 1.5), calc(var(--dy) * 1.5 + 50px)) scale(0.1);
+  }
 }
 
 .overlay {

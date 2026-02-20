@@ -1,0 +1,66 @@
+.background {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.piece {
+  position: absolute;
+  top: -100px;
+  left: var(--piece-left, 50%);
+  opacity: var(--piece-opacity, 0.15);
+  animation: fall var(--piece-duration, 20s) linear var(--piece-delay, 0s) infinite;
+  will-change: transform;
+  display: grid;
+  gap: 2px;
+}
+
+.cell {
+  width: var(--piece-size, 20px);
+  height: var(--piece-size, 20px);
+  background: var(--piece-color);
+  border-radius: 3px;
+  box-shadow: 
+    inset 2px 2px 4px rgba(255, 255, 255, 0.3),
+    inset -1px -1px 2px rgba(0, 0, 0, 0.2),
+    0 0 12px var(--piece-color);
+}
+
+@keyframes fall {
+  0% {
+    transform: translateY(0) rotate(0deg);
+  }
+  100% {
+    transform: translateY(calc(100vh + 200px)) rotate(360deg);
+  }
+}
+
+.pieceI {
+  grid-template-columns: repeat(4, auto);
+  grid-template-rows: auto;
+}
+
+.pieceO {
+  grid-template-columns: repeat(2, auto);
+  grid-template-rows: repeat(2, auto);
+}
+
+.pieceT,
+.pieceS,
+.pieceZ,
+.pieceJ,
+.pieceL {
+  grid-template-columns: repeat(3, auto);
+  grid-template-rows: repeat(2, auto);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .piece {
+    animation: none;
+    opacity: calc(var(--piece-opacity, 0.15) * 0.5);
+    top: var(--piece-left, 50%);
+    transform: rotate(45deg);
+  }
+}

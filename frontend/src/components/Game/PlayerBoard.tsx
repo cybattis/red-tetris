@@ -22,11 +22,10 @@ export interface PlayerBoardProps {
   isPaused?: boolean;
   isGameOver?: boolean;
   size?: 'normal' | 'small';
+  clearingRows?: number[];
+  penaltyRows?: number[];
 }
 
-/**
- * PlayerBoard - A complete self-contained game board for one player
- */
 export const PlayerBoard = memo(function PlayerBoard({
   playerName,
   isCurrentPlayer = false,
@@ -49,6 +48,9 @@ export const PlayerBoard = memo(function PlayerBoard({
   isGameOver = false,
   
   size = 'normal',
+  
+  clearingRows = [],
+  penaltyRows = [],
 }: PlayerBoardProps) {
   const cellSize = size === 'small' ? 20 : 28;
   
@@ -65,6 +67,8 @@ export const PlayerBoard = memo(function PlayerBoard({
             cellSize={cellSize}
             isPaused={isPaused}
             isGameOver={isGameOver}
+            clearingRows={clearingRows}
+            penaltyRows={penaltyRows}
           />
 
           <div className={`${styles.playerCard} ${isCurrentPlayer ? styles.currentPlayer : ''} ${isGameOver ? styles.eliminated : ''}`}>

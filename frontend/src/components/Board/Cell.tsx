@@ -7,6 +7,8 @@ export interface CellProps {
   value: number;
   isGhost?: boolean;
   isActive?: boolean;
+  isClearing?: boolean;
+  isPenalty?: boolean;
   size?: number;
 }
 
@@ -14,6 +16,8 @@ export const Cell = memo(function Cell({
   value,
   isGhost = false,
   isActive = false,
+  isClearing = false,
+  isPenalty = false,
   size,
 }: CellProps) {
   const isEmpty = value === PieceType.EMPTY && !isGhost;
@@ -31,6 +35,8 @@ export const Cell = memo(function Cell({
     isEmpty ? styles.empty : styles.filled,
     isGhost ? styles.ghost : '',
     isActive ? styles.active : '',
+    isClearing ? styles.clearing : '',
+    isPenalty ? styles.penalty : '',
   ]
     .filter(Boolean)
     .join(' ');

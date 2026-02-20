@@ -15,3 +15,6 @@ export type { ScoreDisplayProps } from './ScoreDisplay';
 
 export { Spectrum } from './Spectrum';
 export type { SpectrumProps } from './Spectrum';
+
+export { GameOverOverlay } from './GameOverOverlay';
+export type { GameOverOverlayProps, GameOverStats } from './GameOverOverlay';

@@ -1,5 +1,6 @@
 import { useState, useCallback, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { TetrisBackground } from '@/components/UI';
 import styles from './HomePage.module.css';
 
 export function HomePage() {
@@ -76,6 +77,9 @@ export function HomePage() {
 
   return (
     <div className={styles.container}>
+      {/* Animated Background */}
+      <TetrisBackground pieceCount={50} />
+
       {/* Logo / Title */}
       <header className={styles.header}>
         <h1 className={styles.title}>
