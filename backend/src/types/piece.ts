@@ -1,4 +1,4 @@
-export enum PieceType {
+export const enum PieceType {
   I = 'I',
   J = 'J',
   L = 'L',

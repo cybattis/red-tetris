@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>WebSocket Keyboard Test</title>
+	<style>
+		:root {
+			color-scheme: light dark;
+		}
+
+		body {
+			font-family: system-ui, sans-serif;
+			margin: 1rem;
+		}
+
+		.row {
+			display: flex;
+			gap: .5rem;
+			align-items: center;
+			margin-bottom: .75rem;
+			flex-wrap: wrap;
+		}
+
+		input {
+			min-width: 22rem;
+			padding: .4rem;
+		}
+
+		button {
+			padding: .4rem .7rem;
+		}
+
+		#status {
+			font-weight: 600;
+		}
+
+		#log {
+			border: 1px solid #8886;
+			border-radius: .5rem;
+			padding: .5rem;
+			height: 16rem;
+			overflow: auto;
+			white-space: pre-wrap;
+			font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+			font-size: .85rem;
+		}
+
+		.hint {
+			opacity: .8;
+			font-size: .9rem;
+		}
+	</style>
+</head>
+
+<body>
+	<h1>Keyboard → WebSocket Test</h1>
+
+	<div class="row">
+		<label for="wsUrl">WS URL:</label>
+		<input id="wsUrl" type="text" value="ws://localhost:8000" />
+		<button id="connectBtn" type="button">Connect</button>
+		<button id="disconnectBtn" type="button" disabled>Disconnect</button>
+		<span>Status: <span id="status">disconnected</span></span>
+	</div>
+
+	<p class="hint">Click anywhere on the page, then press keys. Events are sent as JSON on keydown/keyup.</p>
+	<div id="log"></div>
+
+	<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+	<script>
+		let socket = null;
+
+		const wsUrl = document.getElementById('wsUrl');
+		const connectBtn = document.getElementById('connectBtn');
+		const disconnectBtn = document.getElementById('disconnectBtn');
+		const statusEl = document.getElementById('status');
+		const logEl = document.getElementById('log');
+
+		function log(message) {
+			const ts = new Date().toISOString().split('T')[1].replace('Z', '');
+			logEl.textContent += `[${ts}] ${message}\n`;
+			logEl.scrollTop = logEl.scrollHeight;
+		}
+
+		function setConnected(connected) {
+			statusEl.textContent = connected ? 'connected' : 'disconnected';
+			connectBtn.disabled = connected;
+			disconnectBtn.disabled = !connected;
+		}
+
+		function connect() {
+			const rawUrl = wsUrl.value.trim();
+			const socketUrl = rawUrl.replace(/^ws(s?):\/\//, 'http$1://');
+
+			if (socket) {
+				socket.disconnect();
+				socket.removeAllListeners();
+			}
+
+			socket = io(socketUrl, {
+				autoConnect: false,
+				transports: ['websocket']
+			});
+
+			socket.on('connect', () => {
+				setConnected(true);
+				log(`connected to ${socketUrl}`);
+			});
+
+			socket.on('disconnect', (reason) => {
+				setConnected(false);
+				log(`connection closed (${reason})`);
+			});
+
+			socket.on('connect_error', (err) => log(`connect error: ${err.message}`));
+			socket.on('message', (data) => {
+				log(`recv: ${typeof data === 'string' ? data : JSON.stringify(data)}`);
+			});
+
+			socket.connect();
+		}
+
+		function disconnect() {
+			if (!socket) return;
+			socket.disconnect();
+		}
+
+		function sendKeyEvent(type, e) {
+			if (!socket || !socket.connected) return;
+
+			const payload = {
+				type,
+				key: e.key,
+				code: e.code,
+				repeat: e.repeat,
+				altKey: e.altKey,
+				ctrlKey: e.ctrlKey,
+				shiftKey: e.shiftKey,
+				metaKey: e.metaKey,
+				timestamp: Date.now()
+			};
+
+			socket.send(payload);
+			log(`sent: ${JSON.stringify(payload)}`);
+		}
+
+		connectBtn.addEventListener('click', connect);
+		disconnectBtn.addEventListener('click', disconnect);
+		window.addEventListener('keydown', (e) => sendKeyEvent('keydown', e));
+		window.addEventListener('keyup', (e) => sendKeyEvent('keyup', e));
+
+		setConnected(false);
+	</script>
+</body>
+
+</html>

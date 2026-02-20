@@ -2,15 +2,20 @@ import { PieceType } from '../types/piece';
 
 export class PiecesSequence {
   private readonly _pieces: PieceType[] = [];
-  private readonly _pieceTypes: PieceType[];
+  private readonly _pieceTypes: PieceType[] = [
+    PieceType.I,
+    PieceType.J,
+    PieceType.L,
+    PieceType.O,
+    PieceType.S,
+    PieceType.T,
+    PieceType.Z,
+  ];
   private _rngState: number;
   private _currentIndex: number = 0;
 
   constructor(seed: number, initialSize: number = 1000) {
     this._rngState = (seed >>> 0) || 1;
-    this._pieceTypes = Object.values(PieceType).filter(
-      (value): value is PieceType => typeof value === 'string',
-    );
 
     this._pieces.push(...this.generate(initialSize));
   }
@@ -46,7 +51,7 @@ export class PiecesSequence {
     this._pieces.push(...this.generate(growBy));
   }
 
-  public getNextPiece(): PieceType {
+  public getNextPieceType(): PieceType {
     this.ensurePieceBuffer();
     if (this._currentIndex >= this._pieces.length) {
       throw new Error('No pieces available in sequence.');
