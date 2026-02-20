@@ -1,3 +1,4 @@
+import { describe, expect, it } from '@jest/globals';
 import { Player } from '../../src/classes/Player';
 
 describe('Player', () => {
@@ -36,3 +37,4 @@ describe('Player', () => {
     expect(json.socketId).toBeUndefined();
   });
 });
+
