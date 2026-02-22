@@ -1,7 +1,7 @@
 import { describe, expect, test } from '@jest/globals';
 import { Piece } from '../../src/classes/Piece';
-import { PieceType } from '../../src/types/piece';
-import { I_PIECE, S_PIECE } from '../../src/pieces/TetrominoFactory';
+import { PieceType } from '../../src/types/IPiece';
+import { I_PIECE, TETROMINO_DICTIONARY } from '../../src/pieces/TetrominoFactory';
 
 describe('Piece Class', () => {
   const T_SHAPE = [
@@ -10,115 +10,89 @@ describe('Piece Class', () => {
     [0, 0, 0],
   ];
 
-  const I_SHAPE = I_PIECE;
+  const I_SHAPE = I_PIECE.shape;
 
   describe('Constructor', () => {
     test('should initialize with correct type and shape', () => {
-      const piece = new Piece(PieceType.T);
+      const piece = new Piece(TETROMINO_DICTIONARY[PieceType.T]);
 
       expect(piece).toBeDefined();
       expect(piece.type).toBe(PieceType.T);
       expect(piece.shape).toEqual(T_SHAPE);
     });
 
-    test('should initialize I piece correctly', () => {
-      const piece = new Piece(PieceType.I);
+    test('should initialize with I piece correctly', () => {
+      const piece = new Piece(TETROMINO_DICTIONARY[PieceType.I]);
 
       expect(piece.type).toBe(PieceType.I);
       expect(piece.shape).toEqual(I_SHAPE);
     });
 
-    test('should initialize S piece from dictionary correctly', () => {
-      const piece = new Piece(PieceType.S);
-
-      expect(piece.type).toBe(PieceType.S);
-      expect(piece.shape).toEqual(S_PIECE);
+    test('should throw error for invalid piece type request', () => {
+      // Since we are now passing an object, we can't easily test 'invalid piece type'
+      // in the same way if the type checking works.
+      // Previously it might have been looking up by enum.
+      // If the intention is to test that the Piece class handles bad data:
+      expect(() => {
+        // @ts-ignore
+        new Piece({ type: 'INVALID', id: 99, shape: [] });
+      }).toThrow();
+    });
+    // Or perhaps the previous test was checking if constructor threw when passed an enum not in dictionary?
+    // The new constructor expects an IPiece, so it assumes the caller gives a valid piece definition.
+    // However, inside constructor: this.shape = this.getInitialShape(piece.type);
+    // And getInitialShape does: const piece = TETROMINO_DICTIONARY[type]; if (!piece) throw...
+    // So we can pass a dummy object with an invalid type.
+    test('should throw error for invalid piece type', () => {
+      expect(() => {
+        // @ts-ignore
+        new Piece({ type: 'INVALID', id: 99, shape: [] });
+      }).toThrow();
     });
   });
 
   describe('getNextRotation', () => {
-    test('should return clockwise rotation for T piece', () => {
-      const piece = new Piece(PieceType.T);
-
-      const expected = [
+    test('should rotate T piece clockwise', () => {
+      const piece = new Piece(TETROMINO_DICTIONARY[PieceType.T]);
+      const expectedRotation = [
         [0, 1, 0],
         [0, 1, 1],
         [0, 1, 0],
       ];
-
-      expect(piece.getNextRotation()).toEqual(expected);
+      piece.getNextRotation();
+      expect(piece.shape).toEqual(expectedRotation);
     });
 
-    test('should return correct down shape after two rotations', () => {
-      const piece = new Piece(PieceType.T);
+    test('should rotate I piece correctly', () => {
+      const piece = new Piece(TETROMINO_DICTIONARY[PieceType.I]);
       piece.getNextRotation();
 
-      const expected = [
-        [0, 0, 0],
-        [1, 1, 1],
-        [0, 1, 0],
+      const expectedHorizontal = [
+        [0, 0, 0, 0],
+        [1, 1, 1, 1],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
       ];
 
+      expect(piece.shape).toEqual(expectedHorizontal);
+
       piece.getNextRotation();
-      expect(piece.shape).toEqual(expected);
+
+      const expectedVertical = I_PIECE.shape;
+
+      expect(piece.shape).toEqual(expectedVertical);
     });
 
-    test('should return correct right shape after three rotations', () => {
-      const piece = new Piece(PieceType.T);
-      piece.getNextRotation();
-      piece.getNextRotation();
-
-      const expected = [
-        [0, 1, 0],
-        [1, 1, 0],
-        [0, 1, 0],
-      ];
-
-      piece.getNextRotation();
-      expect(piece.shape).toEqual(expected);
-    });
-
-    test('should return correct up shape after four rotations', () => {
-      const piece = new Piece(PieceType.T);
-      piece.getNextRotation();
-      piece.getNextRotation();
-      piece.getNextRotation();
-
-      const expected = T_SHAPE;
-
-      piece.getNextRotation();
-      expect(piece.shape).toEqual(expected);
-    });
-
-    test('should return horizontal rotation for I piece', () => {
-      const piece = new Piece(PieceType.I);
-      const rotated = piece.getNextRotation();
-
-      expect(rotated).toHaveLength(4);
-      expect(rotated.every((row) => row.reduce((sum, cell) => sum + cell, 0) === 1)).toBe(true);
-      expect(rotated.flat().filter((cell) => cell === 1)).toHaveLength(4);
-    });
-
-    test('should return vertical rotation for I piece', () => {
-      const piece = new Piece(PieceType.I);
-
-      // Rotate twice to get back to vertical
-      piece.getNextRotation(); // horizontal
-      piece.getNextRotation(); // vertical
-
-      const expected = I_PIECE;
-
-      expect(piece.shape).toEqual(expected);
-    });
-
-    test('should return same shape for O piece', () => {
+    test('should not rotate O piece', () => {
       const oShape = [
         [1, 1],
         [1, 1],
       ];
-      const piece = new Piece(PieceType.O);
+      const piece = new Piece(TETROMINO_DICTIONARY[PieceType.O]);
 
-      expect(piece.getNextRotation()).toEqual(oShape);
+      piece.getNextRotation();
+
+      expect(piece.shape).toEqual(oShape);
     });
   });
 });

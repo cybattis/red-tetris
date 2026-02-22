@@ -8,7 +8,13 @@ export const enum PieceType {
   Z = 'Z',
 }
 
-export interface Piece {
+export interface IPiece {
   type: PieceType;
+  id: number;
   shape: number[][]; // 3D array of shape blocks
 }
+
+export type Position = {
+  x: number;
+  y: number;
+};

@@ -1,14 +1,22 @@
 import { TETROMINO_DICTIONARY } from '../pieces/TetrominoFactory';
-import { PieceType } from '../types/piece';
+import { IPiece, PieceType, Position } from '../types/IPiece';
+import { Logger } from '../utils/helpers';
 
-export class Piece implements Piece {
+export class Piece implements IPiece {
   public type: PieceType;
+  public id: number;
   public shape: number[][]; // Current 2D shape
-  public position = { x: 0, y: 0 };
+  public position: Position = { x: 0, y: 0 };
+  public width;
+  public height;
+  public isLocked = false;
 
-  constructor(type: PieceType) {
-    this.type = type;
-    this.shape = this.getInitialShape(type);
+  constructor(piece: IPiece) {
+    this.type = piece.type;
+    this.id = piece.id;
+    this.shape = this.getInitialShape(piece.type);
+    this.width = this.shape[0].length;
+    this.height = this.shape.length;
   }
 
   private cloneMatrix(matrix: number[][]): number[][] {
@@ -16,11 +24,11 @@ export class Piece implements Piece {
   }
 
   getInitialShape(type: PieceType): number[][] {
-    const shape = TETROMINO_DICTIONARY[type];
-    if (!shape) {
+    const piece = TETROMINO_DICTIONARY[type];
+    if (!piece) {
       throw new Error(`Invalid piece type: ${type}`);
     }
-    return this.cloneMatrix(shape);
+    return this.cloneMatrix(piece.shape);
   }
 
   // Rotate the piece 90 degrees clockwise
@@ -43,20 +51,27 @@ export class Piece implements Piece {
       return this.shape;
     }
 
-    let nextShape: number[][];
+    this.shape = this.rotateClockwise(this.shape);
+    this.width = this.getRealWidth();
+    this.height = this.getRealHeight();
+    return this.shape;
+  }
 
-    if (this.type === PieceType.I) {
-      const isHorizontal = this.shape.some((row) => row.reduce((sum, cell) => sum + cell, 0) > 1);
+  public getRealWidth(): number {
+    // check if first or last column is empty and adjust width accordingly
+    let width = this.shape[0].length;
+    const firstColEmpty = this.shape.every((row) => row[0] === 0);
+    const lastColEmpty = this.shape.every((row) => row[row.length - 1] === 0);
 
-      nextShape = isHorizontal
-        ? this.rotateClockwise(this.rotateClockwise(this.rotateClockwise(this.shape)))
-        : this.rotateClockwise(this.shape);
-    } else {
-      nextShape = this.rotateClockwise(this.shape);
+    if (firstColEmpty) {
+      width -= 1;
+      this.position = { x: this.position.x + 1, y: this.position.y }; // Shift piece right if first column is empty
+    }
+    if (lastColEmpty) {
+      width -= 1;
     }
 
-    this.shape = nextShape;
-    return this.shape;
+    return width;
   }
 
   public toString(): string {
@@ -64,5 +79,26 @@ export class Piece implements Piece {
     const width = rows[0]?.length ?? 0;
     const border = `+${'-'.repeat(width)}+`;
     return [border, ...rows.map((row) => `|${row}|`), border].join('\n');
+  }
+
+  getRealHeight() {
+    // check if first or last row is empty and adjust height accordingly
+    let height = this.shape.length;
+    const firstRowEmpty = this.shape[0].every((cell) => cell === 0);
+    const lastRowEmpty = this.shape[this.shape.length - 1].every((cell) => cell === 0);
+
+    if (firstRowEmpty) {
+      height -= 1;
+      this.position = { x: this.position.x, y: this.position.y + 1 }; // Shift piece down if first row is empty
+    }
+    if (lastRowEmpty) {
+      height -= 1;
+    }
+
+    return height;
+  }
+
+  public checkPosition(newPos: Position): boolean {
+    return this.position.x === newPos.x && this.position.y === newPos.y;
   }
 }
