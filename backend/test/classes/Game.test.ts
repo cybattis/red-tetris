@@ -3,7 +3,7 @@ import { Game } from '../../src/classes/Game';
 import { Player } from '../../src/classes/Player';
 import { Piece } from '../../src/classes/Piece';
 import { GameAction, GameSettings, GameState } from '../../../shared/types/game';
-import { PieceType } from '../../src/types/piece';
+import { PieceType } from '../../src/types/IPiece';
 
 const settings: GameSettings = {
   gravity: 1,

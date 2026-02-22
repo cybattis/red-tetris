@@ -24,6 +24,7 @@ export enum GameState {
 }
 
 export const enum GameAction {
+  NO_INPUT = "NO_INPUT",
   MOVE_LEFT = "MOVE_LEFT",
   MOVE_RIGHT = "MOVE_RIGHT",
   SOFT_DROP = "SOFT_DROP",
