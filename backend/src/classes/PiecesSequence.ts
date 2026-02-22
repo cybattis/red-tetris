@@ -1,4 +1,4 @@
-import { PieceType } from '../types/piece';
+import { PieceType } from '../types/IPiece';
 
 export class PiecesSequence {
   private readonly _pieces: PieceType[] = [];
@@ -14,8 +14,8 @@ export class PiecesSequence {
   private _rngState: number;
   private _currentIndex: number = 0;
 
-  constructor(seed: number, initialSize: number = 1000) {
-    this._rngState = (seed >>> 0) || 1;
+  constructor(seed: number, initialSize: number = 7) {
+    this._rngState = seed >>> 0 || 1;
 
     this._pieces.push(...this.generate(initialSize));
   }
@@ -45,7 +45,7 @@ export class PiecesSequence {
     return sequence.slice(0, count);
   }
 
-  public ensurePieceBuffer(minRemaining: number = 200, growBy: number = 1000): void {
+  public ensurePieceBuffer(minRemaining: number = 3, growBy: number = 7): void {
     const remaining = this._pieces.length - this._currentIndex;
     if (remaining >= minRemaining) return;
     this._pieces.push(...this.generate(growBy));

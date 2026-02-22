@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 import { PiecesSequence } from '../../src/classes/PiecesSequence';
-import { PieceType } from '../../src/types/piece';
+import { PieceType } from '../../src/types/IPiece';
 
 const allPieceTypes: PieceType[] = [
   PieceType.I,
