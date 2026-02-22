@@ -3,7 +3,7 @@ import { Server as HttpServer } from 'node:http';
 import { Server, Socket } from 'socket.io';
 import { Player } from 'src/classes/Player';
 import { gameManager } from 'src/server';
-import { Logger, ToStringFormat } from 'src/utils/helpers';
+import { Logger, toStringFormat } from 'src/utils/helpers';
 
 export class WebSocketManager {
   public io: Server;
@@ -43,7 +43,7 @@ function wsRoomHandler(socket: Socket) {
 
 function wsGameHandler(socket: Socket) {
   socket.on('START_GAME', (data: SocketEvents<'START_GAME'>) => {
-    Logger.debug(`Received game message: ${ToStringFormat(data)}`);
+    Logger.debug(`Received game message: ${toStringFormat(data)}`);
 
     const seed = Date.now(); // For example, use current timestamp as seed
     const player = new Player(socket.id);
@@ -66,7 +66,7 @@ function wsGameHandler(socket: Socket) {
   });
 
   socket.on('STOP_GAME', (data: SocketEvents) => {
-    Logger.debug('', ToStringFormat(data));
+    Logger.debug('', toStringFormat(data));
 
     const { gameId } = data.data as { gameId: string };
     const game = gameManager.getGame(gameId);
@@ -74,17 +74,17 @@ function wsGameHandler(socket: Socket) {
       game.stopGame();
       socket.emit('GAME_STOPPED', { gameId });
     } else {
-      console.warn(`Game not found: ${gameId}`);
+      Logger.warn(`Game not found: ${gameId}`);
     }
   });
 
   socket.on('PLAYER_INPUT', (payload: SocketEvents<'PLAYER_INPUT'>) => {
-    Logger.debug('', ToStringFormat(payload));
+    Logger.debug('', toStringFormat(payload));
 
     const { gameId, input } = payload.data;
     const game = gameManager.getGame(gameId)?.setPlayerInput(input);
     if (!game) {
-      console.warn(`Game not found: ${gameId}`);
+      Logger.warn(`Game not found: ${gameId}`);
     }
   });
 }
