@@ -1,15 +1,16 @@
+import fs, { WriteStream } from 'node:fs';
 //
-export function PrintBoard(board: number[][]): void {
+export function printBoard(board: number[][]): void {
   for (const row of board) {
-    console.log(row.map((cell) => (cell === 1 ? 'X' : '.')).join(' '));
+    Logger.write(LogLevel.DEBUG, row.map((cell) => (cell === 0 ? '.' : cell.toString())).join(' '));
   }
 }
 
-export function ToStringFormat(value: unknown): string | void {
+export function toStringFormat(value: unknown): string | void {
   try {
     return JSON.stringify(value, null, 2);
   } catch (error) {
-    console.error('Unable to stringify value:', value, error);
+    Logger.error('Unable to stringify value:', value, error);
   }
 }
 
@@ -35,7 +36,8 @@ const colors = {
 };
 
 export class Logger {
-  private static currentLevel: LogLevel = LogLevel.INFO;
+  private static currentLevel: LogLevel = LogLevel.DEBUG;
+  private static readonly streams: Map<LogLevel, WriteStream> = new Map();
 
   public static setLevel(level: LogLevel): void {
     Logger.currentLevel = level;
@@ -56,20 +58,95 @@ export class Logger {
     }
   }
 
+  private static getTimestamp(): string {
+    const now = new Date();
+    const time = now.toISOString().split('T')[1].slice(0, -1); // HH:mm:ss.mmm
+    return `${colors.fg.gray}[${time}]${colors.reset}`;
+  }
+
+  private static formatLevel(level: LogLevel): string {
+    const levelName = LogLevel[level];
+    const color = Logger.getColor(level);
+    const paddedName = levelName.padEnd(5, ' ');
+    return `${color}[${paddedName}]${colors.reset}`;
+  }
+
+  private static getStream(level: LogLevel): WriteStream | null {
+    if (Logger.streams.has(level)) {
+      return Logger.streams.get(level)!;
+    }
+
+    let ttyPath: string | undefined;
+    switch (level) {
+      case LogLevel.DEBUG:
+        ttyPath = process.env.LOG_TTY_DEBUG;
+        break;
+      case LogLevel.INFO:
+        ttyPath = process.env.LOG_TTY_INFO;
+        break;
+      case LogLevel.WARN:
+        ttyPath = process.env.LOG_TTY_WARN;
+        break;
+      case LogLevel.ERROR:
+        ttyPath = process.env.LOG_TTY_ERROR;
+        break;
+    }
+
+    // If global LOG_TTY is set and specific is missing, use global
+    if (!ttyPath && process.env.LOG_TTY) {
+      ttyPath = process.env.LOG_TTY;
+    }
+
+    if (ttyPath) {
+      try {
+        const stream = fs.createWriteStream(ttyPath, { flags: 'a' });
+        stream.on('error', (err) => {
+          console.error(`Error writing to TTY ${ttyPath} for level ${LogLevel[level]}:`, err);
+          Logger.streams.delete(level);
+        });
+        Logger.streams.set(level, stream);
+        return stream;
+      } catch (error) {
+        console.error(`Failed to open TTY ${ttyPath} for level ${LogLevel[level]}:`, error);
+      }
+    }
+
+    return null;
+  }
+
   private static print(level: LogLevel, ...args: unknown[]): void {
     if (level < Logger.currentLevel) return;
 
-    const timestamp = new Date().toISOString();
-    const levelName = LogLevel[level];
-    const color = Logger.getColor(level);
+    const timestamp = Logger.getTimestamp();
+    const levelTag = Logger.formatLevel(level);
+    const padding = ' ';
 
-    const levelTag = `[${levelName}]`;
-    const paddedLevelTag = levelTag.padEnd(7, ' ');
+    // If the first argument is a string, we print it normally.
+    // If it's an object/array, we want to dump it.
+    const validArgs = args.map((arg) => {
+      if (typeof arg === 'object' && arg !== null) {
+        return JSON.stringify(arg, null, 2);
+      }
+      return arg;
+    });
 
-    console.log(
-      `${colors.fg.cyan}[${timestamp}]${colors.reset} ${color}${paddedLevelTag}${colors.reset}`,
-      ...args,
-    );
+    const message = `${timestamp} ${levelTag}${padding} ${validArgs.join(' ')}\n`;
+    const stream = Logger.getStream(level);
+
+    if (stream) {
+      stream.write(message);
+    } else {
+      console.log(`${timestamp} ${levelTag}${padding}`, ...validArgs);
+    }
+  }
+
+  public static write(level: LogLevel, message: string): void {
+    const stream = Logger.getStream(level);
+    if (stream) {
+      stream.write(message + '\n');
+    } else {
+      console.log(message);
+    }
   }
 
   public static debug(...args: unknown[]): void {
@@ -88,14 +165,15 @@ export class Logger {
     Logger.print(LogLevel.ERROR, ...args);
   }
 
-  // Convenience method for single variable dump
-  public static dump(label: string, value: unknown): void;
-  public static dump(value: unknown): void;
+  // Convenience method specifically for dumping variables with label
+  // Usage: Logger.dump('myVar', myVar) or Logger.dump(myVar)
   public static dump(arg1: unknown, arg2?: unknown): void {
     if (arg2 === undefined) {
-      Logger.print(LogLevel.DEBUG, ToStringFormat(arg1));
+      // Just dumping a value
+      Logger.print(LogLevel.DEBUG, JSON.stringify(arg1, null, 2));
     } else {
-      Logger.print(LogLevel.DEBUG, `${arg1}:`, ToStringFormat(arg2));
+      // Dumping label + value
+      Logger.print(LogLevel.DEBUG, `${arg1}:`, JSON.stringify(arg2, null, 2));
     }
   }
 }
