@@ -1,6 +1,5 @@
 import { TETROMINO_DICTIONARY } from '../pieces/TetrominoFactory';
 import { IPiece, PieceType, Position } from '../types/IPiece';
-import { Logger } from '../utils/helpers';
 
 export class Piece implements IPiece {
   public type: PieceType;
@@ -55,6 +54,18 @@ export class Piece implements IPiece {
     this.width = this.getRealWidth();
     this.height = this.getRealHeight();
     return this.shape;
+  }
+
+  public getOccupiedCells(): Position[] {
+    const cells: Position[] = [];
+    for (let r = 0; r < this.shape.length; r++) {
+      for (let c = 0; c < this.shape[r].length; c++) {
+        if (this.shape[r][c] === 1) {
+          cells.push({ x: c, y: r });
+        }
+      }
+    }
+    return cells;
   }
 
   public getRealWidth(): number {

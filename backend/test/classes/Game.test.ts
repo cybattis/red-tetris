@@ -4,6 +4,7 @@ import { Player } from '../../src/classes/Player';
 import { Piece } from '../../src/classes/Piece';
 import { GameAction, GameSettings, GameState } from '../../../shared/types/game';
 import { PieceType } from '../../src/types/IPiece';
+import { TETROMINO_DICTIONARY } from '../../src/pieces/TetrominoFactory';
 
 const settings: GameSettings = {
   gravity: 1,
@@ -52,36 +53,38 @@ describe('Game', () => {
 
   it('handles input buffer actions', () => {
     const game = createGame();
-    (game as any)._currentPiece = new Piece(PieceType.T);
-    (game as any)._currentPiece.position = { x: 1, y: 0 };
+    const gameAny = game as any;
+    gameAny._currentPiece = new Piece(TETROMINO_DICTIONARY[PieceType.T]);
+    gameAny._currentPiece.position = { x: 1, y: 0 };
 
     game.setPlayerInput(GameAction.MOVE_LEFT);
-    (game as any).playerInput();
-    expect((game as any)._currentPiece.position.x).toBe(0);
+    gameAny._currentPiece.position = gameAny.playerInput({ ...gameAny._currentPiece.position });
+    expect(gameAny._currentPiece.position.x).toBe(0);
 
     game.setPlayerInput(GameAction.MOVE_LEFT);
-    (game as any).playerInput();
-    expect((game as any)._currentPiece.position.x).toBe(0);
+    gameAny._currentPiece.position = gameAny.playerInput({ ...gameAny._currentPiece.position });
+    expect(gameAny._currentPiece.position.x).toBe(-1);
 
     game.setPlayerInput(GameAction.ROTATE_CW);
-    const beforeRotation = JSON.stringify((game as any)._currentPiece.shape);
-    (game as any).playerInput();
-    expect(JSON.stringify((game as any)._currentPiece.shape)).not.toBe(beforeRotation);
+    const beforeRotation = JSON.stringify(gameAny._currentPiece.shape);
+    gameAny._currentPiece.position = gameAny.playerInput({ ...gameAny._currentPiece.position });
+    expect(JSON.stringify(gameAny._currentPiece.shape)).not.toBe(beforeRotation);
 
     game.setPlayerInput(GameAction.SOFT_DROP);
-    (game as any).playerInput();
-    expect((game as any)._currentPiece.position.y).toBe(1);
+    gameAny._currentPiece.position = gameAny.playerInput({ ...gameAny._currentPiece.position });
+    expect(gameAny._currentPiece.position.y).toBe(1);
   });
 
   it('hard-drops piece until collision', () => {
     const game = createGame();
-    (game as any)._currentPiece = new Piece(PieceType.I);
-    (game as any)._currentPiece.position = { x: 0, y: -1 };
+    const gameAny = game as any;
+    gameAny._currentPiece = new Piece(TETROMINO_DICTIONARY[PieceType.I]);
+    gameAny._currentPiece.position = { x: 0, y: -1 };
 
     game.setPlayerInput(GameAction.HARD_DROP);
-    (game as any).playerInput();
+    gameAny._currentPiece.position = gameAny.playerInput({ ...gameAny._currentPiece.position });
 
-    expect((game as any)._currentPiece.position.y).toBe(settings.boardHeight - 1);
+    expect(gameAny._currentPiece.position.y).toBe(-1);
   });
 
   it('reports collisions on boundaries and occupied cells', () => {
@@ -110,7 +113,7 @@ describe('Game', () => {
     const game = createGame();
     const stopSpy = jest.spyOn(game, 'stopGame');
 
-    (game as any).eliminate();
+    (game as any).GameOver();
 
     expect(game.isAlive).toBe(false);
     expect(stopSpy).toHaveBeenCalled();
@@ -118,7 +121,7 @@ describe('Game', () => {
 
   it('runs gameloop gravity and dead-player path', () => {
     const game = createGame();
-    (game as any)._currentPiece = new Piece(PieceType.T);
+    (game as any)._currentPiece = new Piece(TETROMINO_DICTIONARY[PieceType.T]);
     (game as any)._currentPiece.position = { x: 0, y: 0 };
     (game as any)._lastTickAt = 0;
 

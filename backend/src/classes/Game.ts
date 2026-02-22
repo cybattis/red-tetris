@@ -107,6 +107,7 @@ export class Game {
     if (this.checkCollision(newPos.x, newPos.y)) {
       Logger.debug('Collision detected at x:', newPos.x, 'y:', newPos.y);
       // Check if Game Over condition is met (collision at spawn position)
+      newPos = { ...this._currentPiece.position }; // Revert to last valid position
       if (newPos.y < 0) {
         this.GameOver();
         return;
@@ -145,30 +146,22 @@ export class Game {
     Logger.info(`Updating board for player ${this.player.name}`);
     let newBoard = this.board.map((row) => row.slice()); // Deep copy of the board
 
-    // Draw the current piece on the new board
-    const shape = this._currentPiece.shape;
-    Logger.dump(shape);
     const posX = this._currentPiece.position.x;
     const posY = this._currentPiece.position.y;
 
-    for (let r = 0; r < shape.length; r++) {
-      for (let c = 0; c < shape[r].length; c++) {
-        if (shape[r][c] === 1) {
-          const boardX = posX + c;
-          const boardY = posY + r;
-          if (
-            boardY >= 0 &&
-            boardY < this.settings.boardHeight &&
-            boardX >= 0 &&
-            boardX < this.settings.boardWidth
-          ) {
-            newBoard[boardY][boardX] = this.currentPieceIndex + 1; // Use piece index + 1 to represent the piece on the board
-          }
-        }
+    for (const cell of this._currentPiece.getOccupiedCells()) {
+      const boardX = posX + cell.x;
+      const boardY = posY + cell.y;
+      if (
+        boardY >= 0 &&
+        boardY < this.settings.boardHeight &&
+        boardX >= 0 &&
+        boardX < this.settings.boardWidth
+      ) {
+        newBoard[boardY][boardX] = this._currentPiece.id + 1;
       }
     }
 
-    Logger.dump(newBoard);
     if (this._currentPiece.isLocked) {
       this.board = newBoard;
       this.spawnNextPiece();
@@ -217,29 +210,27 @@ export class Game {
   }
 
   private checkCollision(x: number, y: number): boolean {
-    const width = this._currentPiece.width;
-    const height = this._currentPiece.height;
-    const shape = this._currentPiece.shape;
+    Logger.debug(`Checking collision for piece at x=${x} y=${y}`);
+    for (const cell of this._currentPiece.getOccupiedCells()) {
+      Logger.dump(cell);
+      const boardX = x + cell.x;
+      const boardY = y + cell.y;
 
-    for (let r = 0; r < height; r++) {
-      for (let c = 0; c < width; c++) {
-        if (shape[r][c] === 1) {
-          const boardX = x + c;
-          const boardY = y + r;
+      if (boardX < 0 || boardX >= this.settings.boardWidth) {
+        Logger.warn('Collision with wall at x:', boardX, 'y:', boardY);
+        return true;
+      }
 
-          // Check boundaries
-          if (boardX < 0 || boardX >= this.settings.boardWidth) {
-            Logger.warn('Collision with wall or floor at x:', boardX, 'y:', boardY);
-            return true; // Collision with walls or floor
-          }
+      if (boardY >= this.settings.boardHeight - 1) {
+        Logger.warn('Collision with floor at x:', boardX, 'y:', boardY);
+        this._currentPiece.isLocked = true;
+        return true;
+      }
 
-          // Check collision with existing pieces on the board or floor
-          if ((boardY >= 0 && boardY >= this.settings.boardHeight) || this.board[boardY][boardX] !== 0) {
-            Logger.warn('Collision with existing piece at x:', boardX, 'y:', boardY);
-            this._currentPiece.isLocked = true;
-            return true; // Collision with existing pieces or floor
-          }
-        }
+      if (boardY >= 0 && this.board[boardY + 1][boardX] !== 0) {
+        Logger.warn('Collision with existing piece at x:', boardX, 'y:', boardY);
+        this._currentPiece.isLocked = true;
+        return true;
       }
     }
 
