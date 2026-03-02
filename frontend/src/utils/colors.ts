@@ -23,20 +23,16 @@ export const PieceType = {
 
 export type PieceTypeValue = (typeof PieceType)[keyof typeof PieceType];
 
-/**
- * Color mappings for each piece type
- * Used by Cell component to render the correct color
- */
 export const PIECE_COLORS: Record<PieceTypeValue, string> = {
   [PieceType.EMPTY]: 'transparent',
-  [PieceType.I]: '#00f0f0', // Cyan
-  [PieceType.O]: '#f0f000', // Yellow
-  [PieceType.T]: '#a000f0', // Purple
-  [PieceType.S]: '#00f000', // Green
-  [PieceType.Z]: '#f00000', // Red
-  [PieceType.J]: '#0000f0', // Blue
-  [PieceType.L]: '#f0a000', // Orange
-  [PieceType.PENALTY]: '#808080', // Gray
+  [PieceType.I]: '#00ffff', // Neon Cyan
+  [PieceType.O]: '#ffff00', // Neon Yellow
+  [PieceType.T]: '#ff00ff', // Neon Magenta
+  [PieceType.S]: '#39ff14', // Neon Green
+  [PieceType.Z]: '#ff073a', // Neon Red
+  [PieceType.J]: '#4d4dff', // Neon Blue
+  [PieceType.L]: '#ff6600', // Neon Orange
+  [PieceType.PENALTY]: '#666666', // Dark Gray
 };
 
 /**
@@ -44,14 +40,14 @@ export const PIECE_COLORS: Record<PieceTypeValue, string> = {
  */
 export const GHOST_PIECE_COLORS: Record<PieceTypeValue, string> = {
   [PieceType.EMPTY]: 'transparent',
-  [PieceType.I]: 'rgba(0, 240, 240, 0.3)',
-  [PieceType.O]: 'rgba(240, 240, 0, 0.3)',
-  [PieceType.T]: 'rgba(160, 0, 240, 0.3)',
-  [PieceType.S]: 'rgba(0, 240, 0, 0.3)',
-  [PieceType.Z]: 'rgba(240, 0, 0, 0.3)',
-  [PieceType.J]: 'rgba(0, 0, 240, 0.3)',
-  [PieceType.L]: 'rgba(240, 160, 0, 0.3)',
-  [PieceType.PENALTY]: 'rgba(128, 128, 128, 0.3)',
+  [PieceType.I]: 'rgba(0, 255, 255, 0.25)',
+  [PieceType.O]: 'rgba(255, 255, 0, 0.25)',
+  [PieceType.T]: 'rgba(255, 0, 255, 0.25)',
+  [PieceType.S]: 'rgba(57, 255, 20, 0.25)',
+  [PieceType.Z]: 'rgba(255, 7, 58, 0.25)',
+  [PieceType.J]: 'rgba(77, 77, 255, 0.25)',
+  [PieceType.L]: 'rgba(255, 102, 0, 0.25)',
+  [PieceType.PENALTY]: 'rgba(102, 102, 102, 0.25)',
 };
 
 /**
@@ -61,12 +57,12 @@ export const PIECE_BORDER_COLORS: Record<PieceTypeValue, string> = {
   [PieceType.EMPTY]: 'transparent',
   [PieceType.I]: '#00ffff',
   [PieceType.O]: '#ffff00',
-  [PieceType.T]: '#bf00ff',
-  [PieceType.S]: '#00ff00',
-  [PieceType.Z]: '#ff0000',
-  [PieceType.J]: '#0000ff',
-  [PieceType.L]: '#ff8000',
-  [PieceType.PENALTY]: '#a0a0a0',
+  [PieceType.T]: '#ff00ff',
+  [PieceType.S]: '#39ff14',
+  [PieceType.Z]: '#ff073a',
+  [PieceType.J]: '#4d4dff',
+  [PieceType.L]: '#ff6600',
+  [PieceType.PENALTY]: '#888888',
 };
 
 /**
