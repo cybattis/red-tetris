@@ -32,6 +32,7 @@ interface FallingPiece {
   duration: number;
   size: number;
   opacity: number;
+  rotationDirection: 'clockwise' | 'counter-clockwise';
 }
 
 function generatePieces(count: number): FallingPiece[] {
@@ -46,6 +47,7 @@ function generatePieces(count: number): FallingPiece[] {
       duration: 8 + Math.random() * 25, // 8-33 seconds
       size: 15 + Math.random() * 30,
       opacity: 0.15 + Math.random() * 0.2,
+      rotationDirection: Math.random() < 0.5 ? 'clockwise' : 'counter-clockwise',
     });
   }
   
@@ -68,7 +70,9 @@ export const TetrisBackground = memo(function TetrisBackground({
       {pieces.map((piece) => (
         <div
           key={piece.id}
-          className={`${styles.piece} ${styles[`piece${piece.type}`]}`}
+          className={`${styles.piece} ${styles[`piece${piece.type}`]} ${
+            piece.rotationDirection === 'counter-clockwise' ? styles.counterClockwise : ''
+          }`}
           style={{
             '--piece-left': `${piece.left}%`,
             '--piece-delay': `${piece.delay}s`,
