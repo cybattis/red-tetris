@@ -69,14 +69,14 @@ export class Piece implements IPiece {
   }
 
   public getRealWidth(): number {
-    // check if first or last column is empty and adjust width accordingly
+    // Check if first or last column is empty and adjust width accordingly
     let width = this.shape[0].length;
     const firstColEmpty = this.shape.every((row) => row[0] === 0);
     const lastColEmpty = this.shape.every((row) => row[row.length - 1] === 0);
 
     if (firstColEmpty) {
       width -= 1;
-      this.position = { x: this.position.x + 1, y: this.position.y }; // Shift piece right if first column is empty
+      // Don't mutate position here - let the caller handle position adjustments
     }
     if (lastColEmpty) {
       width -= 1;
@@ -93,14 +93,14 @@ export class Piece implements IPiece {
   }
 
   getRealHeight() {
-    // check if first or last row is empty and adjust height accordingly
+    // Check if first or last row is empty and adjust height accordingly
     let height = this.shape.length;
     const firstRowEmpty = this.shape[0].every((cell) => cell === 0);
     const lastRowEmpty = this.shape[this.shape.length - 1].every((cell) => cell === 0);
 
     if (firstRowEmpty) {
       height -= 1;
-      this.position = { x: this.position.x, y: this.position.y + 1 }; // Shift piece down if first row is empty
+      // Don't mutate position here - let the caller handle position adjustments
     }
     if (lastRowEmpty) {
       height -= 1;

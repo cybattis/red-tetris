@@ -28,6 +28,7 @@ export interface GameRoomState {
   
   countdown: number | null;
   gameStarted: boolean;
+  gameId: string | null;
   
   error: string | null;
   
@@ -41,10 +42,11 @@ const initialState: GameRoomState = {
   players: [],
   currentPlayerId: null,
   maxPlayers: ROOM_CONFIG.MAX_PLAYERS,
-  gameMode: 'classic',
+  gameMode: 'classic' as GameMode,
   settings: DEFAULT_SETTINGS,
   countdown: null,
   gameStarted: false,
+  gameId: null,
   error: null,
   isJoiningRoom: false,
   isUpdatingSettings: false,
@@ -145,8 +147,9 @@ const gameRoomSlice = createSlice({
       state.roomStatus = 'lobby';
     },
     
-    startGame: (state) => {
+    startGame: (state, action?: PayloadAction<{ gameId: string }>) => {
       state.gameStarted = true;
+      state.gameId = action?.payload?.gameId || null;
       state.countdown = null;
       state.roomStatus = 'playing';
     },
@@ -229,6 +232,7 @@ export const selectCanStartGame = (state: { gameRoom: GameRoomState }) => {
 };
 export const selectCountdown = (state: { gameRoom: GameRoomState }) => state.gameRoom.countdown;
 export const selectGameStarted = (state: { gameRoom: GameRoomState }) => state.gameRoom.gameStarted;
+export const selectGameId = (state: { gameRoom: GameRoomState }) => state.gameRoom.gameId;
 export const selectRoomStatus = (state: { gameRoom: GameRoomState }) => state.gameRoom.roomStatus;
 export const selectError = (state: { gameRoom: GameRoomState }) => state.gameRoom.error;
 

@@ -1,11 +1,12 @@
 import { Player } from './Player';
-import { GameAction, GameSettings, GameState } from '@shared/types/game';
+import { GameAction, GameSettings, GameState, GameStateUpdate } from '../../../shared/types/game.js';
 import { randomUUID } from 'node:crypto';
 import { PiecesSequence } from './PiecesSequence';
 import { Piece } from './Piece';
-import { Logger, printBoard } from 'src/utils/helpers';
+import { Logger, printBoard } from '../utils/helpers';
 import { TETROMINO_DICTIONARY } from '../pieces/TetrominoFactory';
 import { Position } from '../types/IPiece';
+import type { Socket } from 'socket.io';
 
 export class Game {
   // Game state and public properties
@@ -20,6 +21,11 @@ export class Game {
   public isAlive: boolean = true;
   public score: number = 0;
   public linesCleared: number = 0;
+  public lines: number = 0;
+  public level: number = 1;
+
+  // Game timing
+  public dropInterval: number = 1000; // milliseconds
 
   // Timing constants
   private static readonly TICK_RATE = 60;
@@ -33,11 +39,13 @@ export class Game {
   private _gravityActivated = false;
   private _currentPiece: Piece;
   private _playerInput: GameAction = GameAction.NO_INPUT;
+  private _socket: Socket | null = null;
 
-  constructor(player: Player, seed: number, settings: GameSettings) {
+  constructor(player: Player, seed: number, settings: GameSettings, socket?: Socket) {
     this.id = randomUUID();
     this.player = player;
     this.settings = settings;
+    this._socket = socket || null;
     this.piecesSequence = new PiecesSequence(seed, 7);
     this.board = this.createEmptyBoard();
     this._currentPiece = this.getNextPiece();
@@ -53,7 +61,7 @@ export class Game {
 
     Logger.info(`Starting game for player ${this.player.name}...`);
     this.state = GameState.Playing;
-    this.spawnNextPiece();
+    // Don't spawn a new piece here - we already have one from the constructor
     this._lastTickAt = Date.now();
 
     // Start the game loop
@@ -74,6 +82,60 @@ export class Game {
     this._playerInput = input;
   }
 
+  // Game state serialization for frontend
+  // ============================================
+  public getGameState() {
+    return {
+      gameId: this.id,
+      board: this.board,
+      currentPiece: this._currentPiece
+        ? {
+            type: this._currentPiece.id,
+            position: this._currentPiece.position,
+            shape: this._currentPiece.shape,
+          }
+        : null,
+      ghostPiece: this.calculateGhostPiece(),
+      nextPieces: this.getNextPiecesPreview(),
+      score: this.score,
+      level: Math.floor(this.linesCleared / 10) + 1, // Simple level calculation
+      linesCleared: this.linesCleared,
+      totalLinesCleared: this.linesCleared,
+      isPaused: this.state !== GameState.Playing,
+      isGameOver: !this.isAlive,
+      gameOverReason: !this.isAlive ? 'Game Over' : null,
+      boardWidth: this.settings.boardWidth,
+      boardHeight: this.settings.boardHeight,
+    };
+  }
+
+  private getNextPiecesPreview(): number[] {
+    // Get next few pieces for preview - use a simple approach for now
+    const preview = [];
+    const maxPreview = Math.min(this.settings.nextPieceCount, 5);
+    
+    // For now, just return the current piece sequence
+    // TODO: Implement proper peek functionality in PiecesSequence
+    for (let i = 0; i < maxPreview; i++) {
+      preview.push(i + 1); // Temporary: just return sequential numbers
+    }
+    return preview;
+  }
+
+  // Socket communication methods
+  // ============================================
+  public setSocket(socket: Socket): void {
+    this._socket = socket;
+  }
+
+  private broadcastGameState(): void {
+    if (this._socket) {
+      const gameState = this.getGameState();
+      this._socket.emit('GAME_STATE_UPDATE', gameState);
+      Logger.debug(`Broadcasting game state for game ${this.id}`);
+    }
+  }
+
   // Game logic methods
   // ============================================
   private gameloop(): void {
@@ -92,7 +154,7 @@ export class Game {
     let newPos = { ...this._currentPiece.position };
 
     // Handle gravity
-    if (this._gravityAccumulatorMs >= Game.GRAVITY_INTERVAL_MS) {
+    if (this._gravityAccumulatorMs >= this.dropInterval) {
       Logger.debug(`Applying gravity`);
       newPos.y += 1; // Move piece down by gravity
       this._gravityAccumulatorMs = 0;
@@ -102,25 +164,58 @@ export class Game {
     // Read player input and update piece position
     newPos = this.playerInput(newPos);
 
-    if (this._currentPiece.checkPosition(newPos)) return;
-
+    // Check if the new position is valid
     if (this.checkCollision(newPos.x, newPos.y)) {
       Logger.debug('Collision detected at x:', newPos.x, 'y:', newPos.y);
-      // Check if Game Over condition is met (collision at spawn position)
-      newPos = { ...this._currentPiece.position }; // Revert to last valid position
-      if (newPos.y < 0) {
-        this.GameOver();
-        return;
+      
+      // If this was a gravity-induced movement, handle piece locking
+      if (this._gravityActivated) {
+        // Check if Game Over condition is met (piece can't move down from spawn area)
+        if (this._currentPiece.position.y <= 0) {
+          this.GameOver();
+          return;
+        }
+        
+        // Lock the piece when gravity causes a collision
+        this._currentPiece.isLocked = true;
+        Logger.debug('Piece locked due to gravity collision');
       }
+      // If collision wasn't from gravity, just ignore the movement (don't update position)
+    } else {
+      // No collision, update the piece position
+      Logger.debug(`Moving piece to x=${newPos.x} y=${newPos.y}`);
+      this._currentPiece.position = newPos;
     }
-
-    Logger.debug(`Moving piece to x=${newPos.x} y=${newPos.y}`);
-    this._currentPiece.position = newPos;
+    
+    // Update the board (handles piece placement and spawning if needed)
     this.updateBoard();
+    
+    // Broadcast game state to connected clients
+    this.broadcastGameState();
   }
 
   private spawnNextPiece(): void {
     this._currentPiece = this.getNextPiece();
+    
+    // Check if the piece can be placed at spawn position by checking if any part would overlap
+    const spawnX = this._currentPiece.position.x;
+    const spawnY = this._currentPiece.position.y;
+    
+    for (const cell of this._currentPiece.getOccupiedCells()) {
+      const boardX = spawnX + cell.x;
+      const boardY = spawnY + cell.y;
+      
+      // Check if spawn position overlaps with existing pieces
+      if (boardY >= 0 && boardX >= 0 && boardX < this.settings.boardWidth && 
+          boardY < this.settings.boardHeight && this.board[boardY][boardX] !== 0) {
+        Logger.warn('Game over: Cannot spawn new piece - board is full');
+        this.state = GameState.Ended;
+        this.isAlive = false;
+        this.stopGame();
+        return;
+      }
+    }
+
     Logger.debug(
       `Spawned new piece at x=${this._currentPiece.position.x} y=${this._currentPiece.position.y}`,
     );
@@ -144,11 +239,25 @@ export class Game {
 
   private updateBoard(): void {
     Logger.info(`Updating board for player ${this.player.name}`);
-    let newBoard = this.board.map((row) => row.slice()); // Deep copy of the board
+    
+    // If piece is locked, place it permanently on the board and spawn next piece
+    if (this._currentPiece.isLocked) {
+      this.placePieceOnBoard();
+      this.spawnNextPiece();
+      return;
+    }
 
+    // Otherwise, just show the current piece position for display (temporary visualization)
+    this.displayCurrentBoard();
+  }
+
+  private placePieceOnBoard(): void {
+    Logger.debug(`Placing locked piece on board at x=${this._currentPiece.position.x} y=${this._currentPiece.position.y}`);
+    
     const posX = this._currentPiece.position.x;
     const posY = this._currentPiece.position.y;
 
+    // Place the piece permanently on the board
     for (const cell of this._currentPiece.getOccupiedCells()) {
       const boardX = posX + cell.x;
       const boardY = posY + cell.y;
@@ -158,16 +267,53 @@ export class Game {
         boardX >= 0 &&
         boardX < this.settings.boardWidth
       ) {
-        newBoard[boardY][boardX] = this._currentPiece.id + 1;
+        this.board[boardY][boardX] = this._currentPiece.id + 1;
       }
     }
 
-    if (this._currentPiece.isLocked) {
-      this.board = newBoard;
-      this.spawnNextPiece();
+    // Check for completed lines and clear them
+    this.checkAndClearLines();
+    
+    Logger.debug('Piece placed on board');
+  }
+
+  private displayCurrentBoard(): void {
+    // Create a temporary board for display that includes the current falling piece
+    let displayBoard = this.board.map((row) => row.slice()); // Deep copy of the board
+
+    const posX = this._currentPiece.position.x;
+    const posY = this._currentPiece.position.y;
+
+    // Add current piece to display board (temporarily)
+    for (const cell of this._currentPiece.getOccupiedCells()) {
+      const boardX = posX + cell.x;
+      const boardY = posY + cell.y;
+      if (
+        boardY >= 0 &&
+        boardY < this.settings.boardHeight &&
+        boardX >= 0 &&
+        boardX < this.settings.boardWidth
+      ) {
+        displayBoard[boardY][boardX] = this._currentPiece.id + 1;
+      }
     }
 
-    printBoard(newBoard);
+    printBoard(displayBoard);
+  }
+
+  private checkAndClearLines(): void {
+    const linesToClear: number[] = [];
+    
+    // Check each row for completed lines
+    for (let y = 0; y < this.settings.boardHeight; y++) {
+      if (this.board[y].every(cell => cell !== 0)) {
+        linesToClear.push(y);
+      }
+    }
+
+    if (linesToClear.length > 0) {
+      this.clearLines(linesToClear);
+    }
   }
 
   private playerInput(newPosition: Position): Position {
@@ -191,9 +337,10 @@ export class Game {
 
     if (input === GameAction.HARD_DROP) {
       // Handle hard drop - move piece down until it collides
-      // newPosition.y += this._hardDropDistance(this._currentPiece, this.board, this.settings.boardHeight);
-      // Logger.debug(`Hard drop to y=${this._currentPiece.position.y}`);
-      Logger.warn('Hard drop Not implemented');
+      const dropDistance = this.calculateHardDropDistance();
+      newPosition.y += dropDistance;
+      this._currentPiece.isLocked = true; // Immediately lock the piece after hard drop
+      Logger.debug(`Hard drop: moved piece down ${dropDistance} positions to y=${newPosition.y}`);
     }
 
     if (input === GameAction.MOVE_LEFT) {
@@ -212,24 +359,24 @@ export class Game {
   private checkCollision(x: number, y: number): boolean {
     Logger.debug(`Checking collision for piece at x=${x} y=${y}`);
     for (const cell of this._currentPiece.getOccupiedCells()) {
-      Logger.dump(cell);
       const boardX = x + cell.x;
       const boardY = y + cell.y;
 
+      // Check wall collisions
       if (boardX < 0 || boardX >= this.settings.boardWidth) {
         Logger.warn('Collision with wall at x:', boardX, 'y:', boardY);
         return true;
       }
 
-      if (boardY >= this.settings.boardHeight - 1) {
+      // Check floor collision
+      if (boardY >= this.settings.boardHeight) {
         Logger.warn('Collision with floor at x:', boardX, 'y:', boardY);
-        this._currentPiece.isLocked = true;
         return true;
       }
 
-      if (boardY >= 0 && this.board[boardY + 1][boardX] !== 0) {
+      // Check collision with existing pieces (only for valid board positions)
+      if (boardY >= 0 && boardX >= 0 && boardX < this.settings.boardWidth && this.board[boardY][boardX] !== 0) {
         Logger.warn('Collision with existing piece at x:', boardX, 'y:', boardY);
-        this._currentPiece.isLocked = true;
         return true;
       }
     }
@@ -267,20 +414,76 @@ export class Game {
     }
   }
 
-  private clearLines(lines: number[]): void {
-    Logger.info(`Clearing lines ${lines} for player ${this.player.name}`);
-    // Remove the cleared lines from the board
-    for (const line of lines) {
-      this.board.splice(line, 1); // Remove the cleared line
-      this.board.unshift(new Array(this.settings.boardWidth).fill(0)); // Add an empty line at the top
+  private clearLines(linesToClear: number[]): void {
+    Logger.info(`Clearing ${linesToClear.length} lines: ${linesToClear.join(', ')}`);
+    
+    // Remove cleared lines and add empty lines at the top
+    for (let i = linesToClear.length - 1; i >= 0; i--) {
+      const lineIndex = linesToClear[i];
+      this.board.splice(lineIndex, 1);
+      this.board.unshift(new Array(this.settings.boardWidth).fill(0));
     }
-    this.linesCleared += lines.length;
-    this.score += this.calculateScore(lines.length);
+    
+    // Update score based on lines cleared
+    this.updateScore(linesToClear.length);
+  }
+
+  private updateScore(linesCleared: number): void {
+    const points = [0, 40, 100, 300, 1200];
+    const scoreIncrease = points[linesCleared] * this.level;
+    this.score += scoreIncrease;
+    
+    // Update lines and level
+    this.lines += linesCleared;
+    const newLevel = Math.floor(this.lines / 10) + 1;
+    if (newLevel > this.level) {
+      this.level = newLevel;
+      // Speed up the game (reduce drop interval)
+      this.dropInterval = Math.max(50, 1000 - (this.level - 1) * 100);
+    }
+    
+    Logger.info(`Score updated: +${scoreIncrease} points (total: ${this.score}), Level: ${this.level}`);
   }
 
   private calculateScore(linesCleared: number): number {
     const scoreTable = [0, 100, 300, 500, 800]; // Example scoring for 0-4 lines cleared
     return scoreTable[linesCleared] || 0;
+  }
+
+  private calculateHardDropDistance(): number {
+    // Calculate how far down the current piece can fall before hitting something
+    let maxDropDistance = 0;
+    const currentX = this._currentPiece.position.x;
+    const currentY = this._currentPiece.position.y;
+
+    // Test each position downward until we hit something
+    for (let dropY = currentY + 1; dropY < this.settings.boardHeight; dropY++) {
+      if (this.checkCollision(currentX, dropY)) {
+        // We hit something, so the max drop distance is the previous position
+        maxDropDistance = dropY - currentY - 1;
+        break;
+      }
+      // If we reach the last testable position without collision
+      maxDropDistance = dropY - currentY;
+    }
+
+    return Math.max(0, maxDropDistance);
+  }
+
+  private calculateGhostPiece() {
+    if (!this._currentPiece) return null;
+    
+    const dropDistance = this.calculateHardDropDistance();
+    const ghostPosition = {
+      x: this._currentPiece.position.x,
+      y: this._currentPiece.position.y + dropDistance
+    };
+
+    return {
+      type: this._currentPiece.id,
+      position: ghostPosition,
+      shape: this._currentPiece.shape
+    };
   }
 
   // Helper methods

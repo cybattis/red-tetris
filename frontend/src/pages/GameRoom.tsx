@@ -25,9 +25,12 @@ import {
   selectCanStartGame,
   selectCountdown,
   selectGameStarted,
+  selectGameId,
   selectError,
   selectGameCreationData,
 } from "../store/slices/gameRoomSlice.js";
+import { selectSocket } from "../store/slices/connectionSlice.js";
+import { GameAction } from "@shared/types/game";
 
 import { Button, Panel } from "../components/UI";
 import {
@@ -38,7 +41,6 @@ import {
 } from "../components/Lobby";
 import { GameView } from "../components/Game";
 import { useGameInput } from "../hooks";
-import type { GameAction } from "../utils/keyBindings";
 
 export function GameRoom() {
   const { room, playerName } = useParams<{
@@ -57,8 +59,10 @@ export function GameRoom() {
   const canStartGameNow = useAppSelector(selectCanStartGame);
   const countdown = useAppSelector(selectCountdown);
   const gameStarted = useAppSelector(selectGameStarted);
+  const gameId = useAppSelector(selectGameId);
   const gameCreationData = useAppSelector(selectGameCreationData);
   const error = useAppSelector(selectError);
+  const socket = useAppSelector(selectSocket);
 
   // Derived state
   const isSoloGame = players.length === 1;
@@ -81,7 +85,7 @@ export function GameRoom() {
             },
           ],
           currentPlayerId: "1",
-          gameMode: "classic",
+          gameMode: "classic" as GameMode,
         }),
       );
 
@@ -180,10 +184,21 @@ export function GameRoom() {
   };
 
   // Handle game input actions - send to server
-  const handleGameAction = (action: GameActionType) => {
-    // TODO: When backend is ready, send action via socket
-    // socket.emit('game:action', { roomId: room, action });
-    console.log("Game action:", action);
+  const handleGameAction = (action: GameAction) => {
+    if (socket && socket.connected && gameStarted && gameId) {
+      socket.emit('PLAYER_INPUT', {
+        message: 'PLAYER_INPUT',
+        data: {
+          gameId: gameId,
+          playerId: socket.id,
+          input: action,
+        }
+      });
+      
+      console.log("Sent game action to server:", action, "for game:", gameId);
+    } else {
+      console.log("Game action (not ready):", action, "connected:", socket?.connected, "gameStarted:", gameStarted, "gameId:", gameId);
+    }
   };
 
   // Game input hook - only active when game has started

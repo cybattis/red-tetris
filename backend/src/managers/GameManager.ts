@@ -1,7 +1,8 @@
 import { Game } from '../classes/Game.js';
 import { Player } from '../classes/Player.js';
-import { GameSettings } from '@shared/types/game.js';
+import { GameSettings } from '../../../shared/types/game.js';
 import { Logger } from '../utils/helpers';
+import type { Socket } from 'socket.io';
 
 export class GameManager {
   private static _instance: GameManager | null = null;
@@ -17,9 +18,9 @@ export class GameManager {
     return GameManager._instance;
   }
 
-  public createGame(player: Player, settings: GameSettings, seed: number = Date.now()): Game {
+  public createGame(player: Player, settings: GameSettings, seed: number = Date.now(), socket?: Socket): Game {
     Logger.debug(`Creating game for player ${player.name} with settings:`, settings);
-    const game = new Game(player, seed, settings);
+    const game = new Game(player, seed, settings, socket);
     this._games.set(game.id, game);
     return game;
   }

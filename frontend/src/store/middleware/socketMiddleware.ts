@@ -135,12 +135,17 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
           }));
         });
 
-        socket.on('GAME_STARTED', () => {
-          dispatch(startGame());
+        socket.on('GAME_STARTED', (data) => {
+          dispatch(startGame({ gameId: data.gameId }));
           dispatch(showToast({ 
             message: 'Game started!', 
             type: 'success' 
           }));
+        });
+
+        socket.on('GAME_STATE_UPDATE', (gameState) => {
+          // Update the game slice with the new state from server
+          dispatch({ type: 'game/updateGameState', payload: gameState });
         });
 
         socket.on('ROOM_NOT_FOUND', (data) => {

@@ -5,9 +5,10 @@
     "moduleResolution": "bundler",
     "sourceMap": true,
     "outDir": "dist",
-    "baseUrl": ".",
+    "rootDir": "..",
+    "baseUrl": "..",
     "paths": {
-      "@shared/*": ["../shared/*"]
+      "@shared/*": ["shared/*"]
     },
     "typeRoots": ["./env.d.ts", "./node_modules/@types"],
     "esModuleInterop": true,

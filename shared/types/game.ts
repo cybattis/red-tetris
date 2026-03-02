@@ -42,6 +42,32 @@ export interface GameSettings {
   nextPieceCount: number;
 }
 
+// Game state interface for real-time updates
+export interface GameStateUpdate {
+  gameId: string;
+  board: number[][];
+  currentPiece: {
+    type: number;
+    position: { x: number; y: number };
+    shape: number[][];
+  } | null;
+  ghostPiece: {
+    type: number;
+    position: { x: number; y: number };
+    shape: number[][];
+  } | null;
+  nextPieces: number[];
+  score: number;
+  level: number;
+  linesCleared: number;
+  totalLinesCleared: number;
+  isPaused: boolean;
+  isGameOver: boolean;
+  gameOverReason: string | null;
+  boardWidth: number;
+  boardHeight: number;
+}
+
 // Backend communication interface for game creation
 export interface GameCreationData {
   roomId: string;
@@ -86,6 +112,9 @@ export interface SocketEventsType {
   GAME_STARTED: { gameId: string };
   ROOM_NOT_FOUND: { error: string };
   ROOM_FULL: { error: string };
+  
+  // Game state updates
+  GAME_STATE_UPDATE: GameStateUpdate;
 }
 
 // Game constants
