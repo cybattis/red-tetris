@@ -10,7 +10,11 @@ export interface Player {
   isReady: boolean;
 }
 
-export type GameMode = 'classic' | 'invisible' | 'sprint';
+export const enum GameMode {
+  Classic = 'classic',
+  Invisible = 'invisible',
+  Sprint = 'sprint',
+}
 
 export interface GameSettings {
   gravity: number;
@@ -42,7 +46,7 @@ export interface SocketEvents {
   CANCEL_START: { roomId: string };
   JOIN_ROOM: { roomId: string; playerName: string };
   LEAVE_ROOM: { roomId: string; playerId: string };
-  
+
   // Incoming events (server -> client)
   GAME_CREATED: { success: boolean; roomId: string; error?: string };
   SETTINGS_UPDATED: { settings: GameSettings };
@@ -66,27 +70,27 @@ export const DEFAULT_SETTINGS: GameSettings = {
   nextPieceCount: 1,
 };
 
-export const GAME_MODES: Array<{ 
-  id: GameMode; 
-  name: string; 
-  description: string; 
+export const GAME_MODES: Array<{
+  id: GameMode;
+  name: string;
+  description: string;
 }> = [
-  { 
-    id: 'classic', 
-    name: 'Classic', 
-    description: 'Traditional Tetris gameplay', 
-  },
-  { 
-    id: 'invisible', 
-    name: 'Invisible', 
-    description: 'Pieces disappear after landing', 
-  },
-  { 
-    id: 'sprint', 
-    name: 'Sprint', 
-    description: 'Game speeds up over time', 
-  },
-];
+    {
+      id: GameMode.Classic,
+      name: 'Classic',
+      description: 'Traditional Tetris gameplay',
+    },
+    {
+      id: GameMode.Invisible,
+      name: 'Invisible',
+      description: 'Pieces disappear after landing',
+    },
+    {
+      id: GameMode.Sprint,
+      name: 'Sprint',
+      description: 'Game speeds up over time',
+    },
+  ];
 
 // Room configuration
 export const ROOM_CONFIG = {

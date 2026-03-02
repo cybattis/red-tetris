@@ -10,9 +10,28 @@ export interface Player {
   isReady: boolean;
 }
 
-export type GameMode = 'classic' | 'invisible' | 'sprint';
+export enum GameMode {
+  Classic = "classic",
+  Invisible = "invisible",
+  Sprint = "sprint",
+}
 
-export type GameState = 'waiting' | 'starting' | 'in-progress' | 'ended';
+export enum GameState {
+  Waiting = "waiting",
+  Starting = "starting",
+  Playing = "playing",
+  Ended = "ended",
+}
+
+export const enum GameAction {
+  NO_INPUT = "NO_INPUT",
+  MOVE_LEFT = "MOVE_LEFT",
+  MOVE_RIGHT = "MOVE_RIGHT",
+  SOFT_DROP = "SOFT_DROP",
+  HARD_DROP = "HARD_DROP",
+  ROTATE_CW = "ROTATE_CW",
+  PAUSE = "PAUSE",
+}
 
 export interface GameSettings {
   gravity: number;
@@ -34,8 +53,15 @@ export interface GameCreationData {
   timestamp: number;
 }
 
+export interface SocketEvents<
+  T extends keyof SocketEventsType = keyof SocketEventsType,
+> {
+  message: T;
+  data: SocketEventsType[T];
+}
+
 // Socket event types for backend communication
-export interface SocketEvents {
+export interface SocketEventsType {
   // Outgoing events (client -> server)
   CREATE_GAME: GameCreationData;
   UPDATE_SETTINGS: { roomId: string; settings: GameSettings };
@@ -45,6 +71,8 @@ export interface SocketEvents {
   CANCEL_START: { roomId: string };
   JOIN_ROOM: { roomId: string; playerName: string };
   LEAVE_ROOM: { roomId: string; playerId: string };
+
+  PLAYER_INPUT: { gameId: string; playerId: string; input: GameAction };
 
   // Incoming events (server -> client)
   GAME_CREATED: { success: boolean; roomId: string; error?: string };
@@ -76,19 +104,19 @@ export const GAME_MODES: Array<{
   description: string;
 }> = [
   {
-    id: 'classic',
-    name: 'Classic',
-    description: 'Traditional Tetris gameplay',
+    id: GameMode.Classic,
+    name: "Classic",
+    description: "Traditional Tetris gameplay",
   },
   {
-    id: 'invisible',
-    name: 'Invisible',
-    description: 'Pieces disappear after landing',
+    id: GameMode.Invisible,
+    name: "Invisible",
+    description: "Pieces disappear after landing",
   },
   {
-    id: 'sprint',
-    name: 'Sprint',
-    description: 'Game speeds up over time',
+    id: GameMode.Sprint,
+    name: "Sprint",
+    description: "Game speeds up over time",
   },
 ];
 
@@ -104,11 +132,11 @@ export function prepareGameCreationData(
   roomId: string,
   gameMode: GameMode,
   settings: GameSettings,
-  players: Player[]
+  players: Player[],
 ): GameCreationData {
-  const hostPlayer = players.find(p => p.isHost);
+  const hostPlayer = players.find((p) => p.isHost);
   if (!hostPlayer) {
-    throw new Error('No host player found');
+    throw new Error("No host player found");
   }
 
   return {
@@ -123,7 +151,7 @@ export function prepareGameCreationData(
 }
 
 export function canStartGame(players: Player[]): boolean {
-  const allPlayersReady = players.every(p => p.isHost || p.isReady); // Host is always ready
+  const allPlayersReady = players.every((p) => p.isHost || p.isReady); // Host is always ready
   const hasMinPlayers = players.length >= ROOM_CONFIG.MIN_PLAYERS;
   return allPlayersReady && hasMinPlayers;
 }

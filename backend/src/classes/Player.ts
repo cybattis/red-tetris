@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 
 export class Player {
   public readonly id: string;
@@ -8,7 +8,7 @@ export class Player {
   public isReady: boolean = false;
 
   constructor(socketId: string) {
-    this.id = uuidv4();
+    this.id = randomUUID();
     this.socketId = socketId;
   }
 

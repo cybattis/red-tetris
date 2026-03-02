@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>WebSocket Keyboard Test</title>
+	<style>
+		:root {
+			color-scheme: light dark;
+		}
+
+		body {
+			font-family: system-ui, sans-serif;
+			margin: 1rem;
+		}
+
+		.row {
+			display: flex;
+			gap: .5rem;
+			align-items: center;
+			margin-bottom: .75rem;
+			flex-wrap: wrap;
+		}
+
+		input {
+			min-width: 22rem;
+			padding: .4rem;
+		}
+
+		button {
+			padding: .4rem .7rem;
+		}
+
+		#status {
+			font-weight: 600;
+		}
+
+		#log {
+			border: 1px solid #8886;
+			border-radius: .5rem;
+			padding: .5rem;
+			height: 16rem;
+			overflow: auto;
+			white-space: pre-wrap;
+			font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+			font-size: .85rem;
+		}
+
+		.hint {
+			opacity: .8;
+			font-size: .9rem;
+		}
+	</style>
+</head>
+
+<body>
+	<h1>Keyboard → WebSocket Test</h1>
+
+	<div class="row">
+		<label for="wsUrl">WS URL:</label>
+		<input id="wsUrl" type="text" value="ws://localhost:8000" />
+		<button id="connectBtn" type="button">Connect</button>
+		<button id="disconnectBtn" type="button" disabled>Disconnect</button>
+		<span>Status: <span id="status">disconnected</span></span>
+	</div>
+
+	<div class="row">
+		<label for="gameId">Game ID:</label>
+		<input id="gameId" type="text" value="" placeholder="(set by GAME_STARTED)" />
+		<label for="playerId">Player ID:</label>
+		<input id="playerId" type="text" value="test-player" />
+		<button id="startGameBtn" type="button" disabled>Start Game</button>
+		<button id="stopGameBtn" type="button" disabled>Stop Game</button>
+	</div>
+
+	<p class="hint">Click anywhere on the page, then press keys. Events are sent as JSON on keydown/keyup.</p>
+	<div id="log"></div>
+
+	<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+	<script>
+		let socket = null;
+
+		const wsUrl = document.getElementById('wsUrl');
+		const connectBtn = document.getElementById('connectBtn');
+		const disconnectBtn = document.getElementById('disconnectBtn');
+		const statusEl = document.getElementById('status');
+		const logEl = document.getElementById('log');
+		const gameIdEl = document.getElementById('gameId');
+		const playerIdEl = document.getElementById('playerId');
+		const startGameBtn = document.getElementById('startGameBtn');
+		const stopGameBtn = document.getElementById('stopGameBtn');
+
+		const KEY_TO_ACTION = {
+			ArrowLeft: 'MOVE_LEFT',
+			ArrowRight: 'MOVE_RIGHT',
+			ArrowDown: 'SOFT_DROP',
+			Space: 'HARD_DROP',
+			ArrowUp: 'ROTATE_CW',
+			KeyP: 'PAUSE',
+			Escape: 'PAUSE',
+		};
+
+		const PREVENT_DEFAULT_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp', 'Space']);
+
+		function log(message) {
+			const ts = new Date().toISOString().split('T')[1].replace('Z', '');
+			logEl.textContent += `[${ts}] ${message}\n`;
+			logEl.scrollTop = logEl.scrollHeight;
+		}
+
+		function setConnected(connected) {
+			statusEl.textContent = connected ? 'connected' : 'disconnected';
+			connectBtn.disabled = connected;
+			disconnectBtn.disabled = !connected;
+			startGameBtn.disabled = !connected;
+			stopGameBtn.disabled = !connected;
+		}
+
+		function connect() {
+			const rawUrl = wsUrl.value.trim();
+			const socketUrl = rawUrl.replace(/^ws(s?):\/\//, 'http$1://');
+
+			if (socket) {
+				socket.disconnect();
+				socket.removeAllListeners();
+			}
+
+			socket = io(socketUrl, {
+				autoConnect: false,
+				transports: ['websocket']
+			});
+
+			socket.on('connect', () => {
+				setConnected(true);
+				if (!playerIdEl.value.trim()) playerIdEl.value = socket.id;
+				log(`connected to ${socketUrl}`);
+			});
+
+			socket.on('disconnect', (reason) => {
+				setConnected(false);
+				log(`connection closed (${reason})`);
+			});
+
+			socket.on('connect_error', (err) => log(`connect error: ${err.message}`));
+			socket.on('message', (data) => {
+				log(`recv: ${typeof data === 'string' ? data : JSON.stringify(data)}`);
+			});
+			socket.on('GAME_STARTED', (payload) => {
+				const gameId = payload?.gameId;
+				if (!gameId) {
+					log(`recv GAME_STARTED without gameId: ${JSON.stringify(payload)}`);
+					return;
+				}
+				gameIdEl.value = gameId;
+				log(`recv GAME_STARTED: gameId=${gameId}`);
+			});
+
+			socket.connect();
+		}
+
+		function disconnect() {
+			if (!socket) return;
+			socket.disconnect();
+		}
+
+		function startGame() {
+			if (!socket || !socket.connected) return;
+			const payload = {
+				message: 'START_GAME',
+				data: { playerId: playerIdEl.value.trim() || socket.id || 'test-player' }
+			};
+			socket.emit('START_GAME', payload);
+			log(`sent START_GAME: ${JSON.stringify(payload)}`);
+		}
+
+		function stopGame() {
+			if (!socket || !socket.connected) return;
+
+			const gameId = gameIdEl.value.trim();
+			if (!gameId) {
+				log('skip STOP_GAME: no gameId to stop');
+				return;
+			}
+
+			const payload = {
+				message: 'STOP_GAME',
+				data: {
+					gameId,
+					playerId: playerIdEl.value.trim() || socket.id || 'test-player'
+				}
+			};
+
+			socket.emit('STOP_GAME', payload);
+			log(`sent STOP_GAME: ${JSON.stringify(payload)}`);
+			gameIdEl.value = '';
+		}
+
+		function sendKeyEvent(type, e) {
+			if (!socket || !socket.connected) return;
+			if (type !== 'keydown') return;
+			if (e.repeat) return;
+
+			const input = KEY_TO_ACTION[e.code];
+			if (!input) return;
+
+			if (PREVENT_DEFAULT_KEYS.has(e.code)) {
+				e.preventDefault();
+			}
+
+			const payload = {
+				message: 'PLAYER_INPUT',
+				data: {
+					gameId: gameIdEl.value.trim(),
+					playerId: playerIdEl.value.trim() || socket.id || 'test-player',
+					input,
+				}
+			};
+
+			if (!payload.data.gameId) {
+				log('skip PLAYER_INPUT: no gameId yet (click "Start Game")');
+				return;
+			}
+
+			socket.emit('PLAYER_INPUT', payload);
+			log(`sent PLAYER_INPUT: ${JSON.stringify(payload)}`);
+		}
+
+		connectBtn.addEventListener('click', connect);
+		disconnectBtn.addEventListener('click', disconnect);
+		startGameBtn.addEventListener('click', startGame);
+		stopGameBtn.addEventListener('click', stopGame);
+		window.addEventListener('keydown', (e) => sendKeyEvent('keydown', e));
+		window.addEventListener('keyup', (e) => sendKeyEvent('keyup', e));
+
+		setConnected(false);
+	</script>
+</body>
+
+</html>
