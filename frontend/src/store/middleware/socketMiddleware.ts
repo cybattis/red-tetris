@@ -148,6 +148,11 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
           dispatch({ type: 'game/updateGameState', payload: gameState });
         });
 
+        socket.on('GAME_ANIMATION', (animationData) => {
+          // Handle game animations from server
+          dispatch({ type: 'game/handleAnimation', payload: animationData });
+        });
+
         socket.on('ROOM_NOT_FOUND', (data) => {
           dispatch(joinRoomError(data.error));
         });

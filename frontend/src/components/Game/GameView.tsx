@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import styles from './GameView.module.css';
 import { PlayerBoard } from './PlayerBoard';
 import { GameOverOverlay } from './GameOverOverlay';
@@ -19,10 +19,14 @@ import {
   selectClearingRows,
   selectPenaltyRows,
   selectGameOverReason,
+  selectLockedCells,
+  selectHardDropTrail,
   setClearingRows,
   clearClearingRows,
   setPenaltyRows,
   clearPenaltyRows,
+  clearLockedCells,
+  clearHardDropTrail,
   gameOver,
   resetGame,
 } from '../../store/slices/gameSlice';
@@ -57,14 +61,87 @@ export function GameView({
   const { width, height } = useAppSelector(selectBoardDimensions);
   const clearingRows = useAppSelector(selectClearingRows);
   const penaltyRows = useAppSelector(selectPenaltyRows);
+  
+  // Animation data from server
+  const lockedCells = useAppSelector(selectLockedCells);
+  const hardDropTrail = useAppSelector(selectHardDropTrail);
 
-  // Local state for debug animations (lock and hard drop)
+  // Local state for debug animations (keep for debugging)
   const [debugLockedCells, setDebugLockedCells] = useState<{ x: number; y: number; type: number }[]>([]);
   const [debugHardDropTrail, setDebugHardDropTrail] = useState<{ x: number; startY: number; endY: number; type: number }[]>([]);
 
   // Determine game mode based on opponents
   const isSoloGame = opponents.length === 0;
   const opponent = opponents[0]; // For 1v1, we only have one opponent
+
+  // Use refs to prevent multiple overlapping animations
+  const lockedCellsTimeoutRef = useRef<number | null>(null);
+  const hardDropTimeoutRef = useRef<number | null>(null);
+  const lineClearTimeoutRef = useRef<number | null>(null);
+
+  // Handle animation clearing with timeouts
+  useEffect(() => {
+    if (lockedCells.length > 0) {
+      // If there's already an animation in progress, don't start a new one
+      if (lockedCellsTimeoutRef.current) {
+        return;
+      }
+      
+      lockedCellsTimeoutRef.current = setTimeout(() => {
+        dispatch(clearLockedCells());
+        lockedCellsTimeoutRef.current = null;
+      }, 400);
+      
+      return () => {
+        if (lockedCellsTimeoutRef.current) {
+          clearTimeout(lockedCellsTimeoutRef.current);
+          lockedCellsTimeoutRef.current = null;
+        }
+      };
+    }
+  }, [lockedCells, dispatch]); // Depend on the actual array, not just length
+
+  useEffect(() => {
+    if (hardDropTrail.length > 0) {
+      // If there's already an animation in progress, don't start a new one
+      if (hardDropTimeoutRef.current) {
+        return;
+      }
+      
+      hardDropTimeoutRef.current = setTimeout(() => {
+        dispatch(clearHardDropTrail());
+        hardDropTimeoutRef.current = null;
+      }, 500);
+      
+      return () => {
+        if (hardDropTimeoutRef.current) {
+          clearTimeout(hardDropTimeoutRef.current);
+          hardDropTimeoutRef.current = null;
+        }
+      };
+    }
+  }, [hardDropTrail, dispatch]); // Depend on the actual array, not just length
+
+  useEffect(() => {
+    if (clearingRows.length > 0) {
+      // If there's already an animation in progress, don't start a new one
+      if (lineClearTimeoutRef.current) {
+        return;
+      }
+      
+      lineClearTimeoutRef.current = setTimeout(() => {
+        dispatch(clearClearingRows());
+        lineClearTimeoutRef.current = null;
+      }, 1100);
+      
+      return () => {
+        if (lineClearTimeoutRef.current) {
+          clearTimeout(lineClearTimeoutRef.current);
+          lineClearTimeoutRef.current = null;
+        }
+      };
+    }
+  }, [clearingRows, dispatch]);
 
   // === DEBUG HANDLERS ===
   const handleDebugLineClear = () => {
@@ -162,8 +239,8 @@ export function GameView({
             isGameOver={isGameOver}
             clearingRows={clearingRows}
             penaltyRows={penaltyRows}
-            lockedCells={debugLockedCells}
-            hardDropTrail={debugHardDropTrail}
+            lockedCells={lockedCells.length > 0 ? lockedCells : debugLockedCells}
+            hardDropTrail={hardDropTrail.length > 0 ? hardDropTrail : debugHardDropTrail}
             size="normal"
           />
         </div>
@@ -188,16 +265,19 @@ export function GameView({
         </div>
       </footer>
 
-      <div className={styles.debugPanel}>
-        <span className={styles.debugTitle}>🛠 Debug</span>
-        <button onClick={handleDebugLineClear}>Line Clear</button>
-        <button onClick={handleDebugPenaltyLines}>Penalty Lines</button>
-        <button onClick={handleDebugLockPiece}>Lock Piece</button>
-        <button onClick={handleDebugHardDrop}>Hard Drop</button>
-        <button onClick={handleDebugGameOver}>Game Over</button>
-        <button onClick={handleDebugWin}>Win</button>
-        <button onClick={handleDebugReset}>Reset</button>
-      </div>
+      {/* Debug panel - only show in development */}
+      {import.meta.env.DEV && (
+        <div className={styles.debugPanel}>
+          <span className={styles.debugTitle}>🛠 Debug</span>
+          <button onClick={handleDebugLineClear}>Line Clear</button>
+          <button onClick={handleDebugPenaltyLines}>Penalty Lines</button>
+          <button onClick={handleDebugLockPiece}>Lock Piece</button>
+          <button onClick={handleDebugHardDrop}>Hard Drop</button>
+          <button onClick={handleDebugGameOver}>Game Over</button>
+          <button onClick={handleDebugWin}>Win</button>
+          <button onClick={handleDebugReset}>Reset</button>
+        </div>
+      )}
     </div>
   );
 }

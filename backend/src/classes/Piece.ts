@@ -14,8 +14,8 @@ export class Piece implements IPiece {
     this.type = piece.type;
     this.id = piece.id;
     this.shape = this.getInitialShape(piece.type);
-    this.width = this.shape[0].length;
-    this.height = this.shape.length;
+    this.width = this.getRealWidth();
+    this.height = this.getRealHeight();
   }
 
   private cloneMatrix(matrix: number[][]): number[][] {
@@ -111,5 +111,14 @@ export class Piece implements IPiece {
 
   public checkPosition(newPos: Position): boolean {
     return this.position.x === newPos.x && this.position.y === newPos.y;
+  }
+
+  public getTopMostOccupiedRow(): number {
+    for (let r = 0; r < this.shape.length; r++) {
+      if (this.shape[r].some((cell) => cell === 1)) {
+        return r;
+      }
+    }
+    return 0; // Fallback if no occupied cells found
   }
 }

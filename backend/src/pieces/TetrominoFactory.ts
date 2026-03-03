@@ -2,7 +2,7 @@ import { IPiece, PieceType } from '../types/IPiece';
 
 export const T_PIECE: IPiece = {
   type: PieceType.T,
-  id: 1,
+  id: 3,
   shape: [
     [0, 1, 0],
     [1, 1, 1],
@@ -12,7 +12,7 @@ export const T_PIECE: IPiece = {
 
 export const I_PIECE: IPiece = {
   type: PieceType.I,
-  id: 2,
+  id: 1,
   shape: [
     [0, 0, 0, 0],
     [1, 1, 1, 1],
@@ -23,7 +23,7 @@ export const I_PIECE: IPiece = {
 
 export const J_PIECE: IPiece = {
   type: PieceType.J,
-  id: 3,
+  id: 6,
   shape: [
     [1, 0, 0],
     [1, 1, 1],
@@ -33,7 +33,7 @@ export const J_PIECE: IPiece = {
 
 export const L_PIECE: IPiece = {
   type: PieceType.L,
-  id: 4,
+  id: 7,
   shape: [
     [0, 0, 1],
     [1, 1, 1],
@@ -43,7 +43,7 @@ export const L_PIECE: IPiece = {
 
 export const O_PIECE: IPiece = {
   type: PieceType.O,
-  id: 5,
+  id: 2,
   shape: [
     [1, 1],
     [1, 1],
@@ -52,7 +52,7 @@ export const O_PIECE: IPiece = {
 
 export const S_PIECE: IPiece = {
   type: PieceType.S,
-  id: 6,
+  id: 4,
   shape: [
     [0, 1, 1],
     [1, 1, 0],
@@ -62,7 +62,7 @@ export const S_PIECE: IPiece = {
 
 export const Z_PIECE: IPiece = {
   type: PieceType.Z,
-  id: 7,
+  id: 5,
   shape: [
     [1, 1, 0],
     [0, 1, 1],

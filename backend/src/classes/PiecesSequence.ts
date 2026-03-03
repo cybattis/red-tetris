@@ -58,4 +58,13 @@ export class PiecesSequence {
     }
     return this._pieces[this._currentIndex++];
   }
+
+  public peekNextPieces(count: number): PieceType[] {
+    this.ensurePieceBuffer(count);
+    const peeked: PieceType[] = [];
+    for (let i = 0; i < count && (this._currentIndex + i) < this._pieces.length; i++) {
+      peeked.push(this._pieces[this._currentIndex + i]);
+    }
+    return peeked;
+  }
 }

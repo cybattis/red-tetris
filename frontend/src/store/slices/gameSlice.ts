@@ -10,7 +10,7 @@ import { createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
 
 /**
- * Piece state as received from server
+ * Game state update as received from server
  */
 export interface PieceState {
   type: number;
@@ -66,6 +66,13 @@ export interface GameState {
   // Animation state (for visual effects)
   clearingRows: number[];  // Row indices currently being cleared
   penaltyRows: number[];   // Row indices that are penalty lines (for animation)
+  
+  // Animation data from server
+  lockedCells: { x: number; y: number; type: number; id?: string }[];
+  hardDropTrail: { x: number; startY: number; endY: number; type: number; id?: string }[];
+  
+  // Animation deduplication
+  lastAnimationTimestamp: { [key: string]: number };
 }
 
 /**
@@ -150,6 +157,13 @@ const initialState: GameState = {
   // Animation state
   clearingRows: [],
   penaltyRows: [],
+  
+  // Animation data from server
+  lockedCells: [],
+  hardDropTrail: [],
+  
+  // Animation deduplication
+  lastAnimationTimestamp: {},
 };
 
 /**
@@ -321,6 +335,62 @@ const gameSlice = createSlice({
     },
 
     /**
+     * Handle game animations from server
+     */
+    handleAnimation: (state, action: PayloadAction<{ type: string; data: any }>) => {
+      const { type, data } = action.payload;
+      const timestamp = data.timestamp || Date.now();
+      
+      // Prevent duplicate animations by checking timestamp
+      if (state.lastAnimationTimestamp[type] === timestamp) {
+        return; // Skip duplicate animation
+      }
+      
+      state.lastAnimationTimestamp[type] = timestamp;
+      
+      switch (type) {
+        case 'PIECE_LOCK':
+          // Clear any existing lock animation first
+          state.lockedCells = [];
+          // Show piece lock animation with unique timestamp-based keys
+          state.lockedCells = data.cells.map((cell: any, index: number) => ({
+            ...cell,
+            id: `lock-${timestamp}-${index}`
+          }));
+          break;
+          
+        case 'HARD_DROP':
+          // Clear any existing trail animation first
+          state.hardDropTrail = [];
+          // Show hard drop trail animation with unique timestamp-based keys
+          state.hardDropTrail = data.trail.map((trail: any, index: number) => ({
+            ...trail,
+            id: `trail-${timestamp}-${index}`
+          }));
+          break;
+          
+        case 'LINE_CLEAR':
+          // Show line clear animation (only set once, don't clear first)
+          state.clearingRows = data.rows;
+          break;
+      }
+    },
+
+    /**
+     * Clear locked cells animation
+     */
+    clearLockedCells: (state) => {
+      state.lockedCells = [];
+    },
+
+    /**
+     * Clear hard drop trail animation
+     */
+    clearHardDropTrail: (state) => {
+      state.hardDropTrail = [];
+    },
+
+    /**
      * Reset game state
      */
     resetGame: () => {
@@ -343,6 +413,9 @@ export const {
   clearClearingRows,
   setPenaltyRows,
   clearPenaltyRows,
+  handleAnimation,
+  clearLockedCells,
+  clearHardDropTrail,
   resetGame,
 } = gameSlice.actions;
 
@@ -370,3 +443,5 @@ export const selectBoardDimensions = (state: { game: GameState }) => ({
 });
 export const selectClearingRows = (state: { game: GameState }) => state.game.clearingRows;
 export const selectPenaltyRows = (state: { game: GameState }) => state.game.penaltyRows;
+export const selectLockedCells = (state: { game: GameState }) => state.game.lockedCells;
+export const selectHardDropTrail = (state: { game: GameState }) => state.game.hardDropTrail;
