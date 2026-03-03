@@ -19,7 +19,6 @@ export class GameManager {
   }
 
   public createGame(player: Player, settings: GameSettings, seed: number = Date.now(), socket?: Socket): Game {
-    Logger.debug(`Creating game for player ${player.name} with settings:`, settings);
     const game = new Game(player, seed, settings, socket);
     this._games.set(game.id, game);
     return game;
@@ -35,5 +34,37 @@ export class GameManager {
 
   public getAllGames(): Game[] {
     return Array.from(this._games.values());
+  }
+
+  public getGamesByPlayerId(playerId: string): Game[] {
+    return this.getAllGames().filter(game => game.player.id === playerId);
+  }
+
+  public stopGamesByPlayerId(playerId: string): number {
+    const playerGames = this.getGamesByPlayerId(playerId);
+    let stoppedCount = 0;
+    
+    for (const game of playerGames) {
+      game.stopGame();
+      this._games.delete(game.id);
+      stoppedCount++;
+      Logger.info(`Stopped and removed game ${game.id} for player ${playerId}`);
+    }
+    
+    return stoppedCount;
+  }
+
+  public stopAllGames(): number {
+    let stoppedCount = 0;
+    
+    for (const game of this._games.values()) {
+      game.stopGame();
+      stoppedCount++;
+    }
+    
+    this._games.clear();
+    Logger.info(`Stopped and removed all ${stoppedCount} games`);
+    
+    return stoppedCount;
   }
 }

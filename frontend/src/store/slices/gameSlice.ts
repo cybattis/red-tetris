@@ -82,76 +82,29 @@ const createEmptyBoard = (width: number, height: number): number[][] => {
   return Array.from({ length: height }, () => Array(width).fill(0));
 };
 
-/**
- * Create a mock board with some placed pieces for testing
- */
-const createMockBoard = (): number[][] => {
-  const board = createEmptyBoard(10, 20);
-  
-  // Add some placed pieces at the bottom (simulating mid-game)
-  // Row 19 (bottom) - almost complete line
-  board[19] = [1, 2, 3, 4, 0, 5, 6, 7, 1, 2];
-  // Row 18
-  board[18] = [0, 1, 2, 0, 0, 0, 3, 4, 5, 6];
-  // Row 17
-  board[17] = [0, 0, 1, 0, 0, 0, 0, 2, 3, 4];
-  // Row 16
-  board[16] = [0, 0, 0, 0, 0, 0, 0, 1, 2, 0];
-  
-  return board;
-};
-
 const initialState: GameState = {
-  board: createMockBoard(),
+  board: createEmptyBoard(10, 20),
   boardWidth: 10,
   boardHeight: 20,
 
-  // Mock current piece (T-piece falling) - type 3 = T piece (purple)
-  currentPiece: {
-    type: 3,
-    position: { x: 4, y: 2 },
-    shape: [
-      [0, 1, 0],
-      [1, 1, 1],
-      [0, 0, 0],
-    ],
-    rotation: 0,
-  },
-  
-  // Ghost piece (where it will land) - same type as current piece
-  ghostPiece: {
-    type: 3,
-    position: { x: 4, y: 14 },
-    shape: [
-      [0, 1, 0],
-      [1, 1, 1],
-      [0, 0, 0],
-    ],
-    rotation: 0,
-  },
+  // No pieces until game starts
+  currentPiece: null,
+  ghostPiece: null,
 
-  // Next pieces queue: I(1)
-  nextPieces: [1, 5 , 4, 1, 2, 4, 7],
+  // Empty next pieces queue
+  nextPieces: [],
 
-  score: 4850,
-  level: 3,
-  linesCleared: 2,
-  totalLinesCleared: 12,
+  score: 0,
+  level: 1,
+  linesCleared: 0,
+  totalLinesCleared: 0,
 
   isPaused: false,
   isGameOver: false,
   gameOverReason: null,
 
-  // Mock opponent for testing 2-player layout (remove for production)
-  opponents: [
-    {
-      playerId: 'opponent-1',
-      playerName: 'Opponent',
-      spectrum: [3, 5, 7, 4, 6, 8, 5, 3, 4, 6],
-      score: 1250,
-      isEliminated: false,
-    },
-  ],
+  // No opponents for solo games (will be populated for multiplayer)
+  opponents: [],
   pendingPenaltyLines: 0,
   
   // Animation state

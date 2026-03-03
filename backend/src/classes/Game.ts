@@ -7,8 +7,9 @@ import { Logger, printBoard } from '../utils/helpers';
 import { TETROMINO_DICTIONARY } from '../pieces/TetrominoFactory';
 import { Position } from '../types/IPiece';
 import type { Socket } from 'socket.io';
+import { EventEmitter } from 'events';
 
-export class Game {
+export class Game extends EventEmitter {
   // Game state and public properties
   public readonly id: string;
   public readonly player: Player;
@@ -42,6 +43,7 @@ export class Game {
   private _socket: Socket | null = null;
 
   constructor(player: Player, seed: number, settings: GameSettings, socket?: Socket) {
+    super();
     this.id = randomUUID();
     this.player = player;
     this.settings = settings;
@@ -425,10 +427,30 @@ export class Game {
 
   private GameOver(): void {
     this.isAlive = false;
+    this.state = GameState.Ended;
+    
+    // Broadcast final game state to the client
+    this.broadcastGameState();
+    
+    // Emit GAME_ENDED event to notify the server/room management
+    if (this._socket) {
+      this._socket.emit('GAME_ENDED', {
+        gameId: this.id,
+        playerId: this.player.id,
+        reason: 'Game Over'
+      });
+    }
+    
+    // Emit internal game ended event for GameManager/Room to listen
+    this.emit('gameEnded', {
+      gameId: this.id,
+      playerId: this.player.id,
+      reason: 'Game Over'
+    });
+    
     this.stopGame();
-    // Send elimination message to client here
-
-    // End-of-game logic and cleanup here
+    
+    Logger.info(`Game ${this.id} ended for player ${this.player.name}`);
   }
 
   private addPenaltyLines(count: number): void {

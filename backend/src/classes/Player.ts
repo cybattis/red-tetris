@@ -8,7 +8,7 @@ export class Player {
   public isReady: boolean = false;
 
   constructor(socketId: string) {
-    this.id = randomUUID();
+    this.id = socketId; // Use socket ID as player ID for consistency
     this.socketId = socketId;
   }
 

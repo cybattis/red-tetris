@@ -3,7 +3,14 @@ import { Server as HttpServer } from 'node:http';
 import { Server, Socket } from 'socket.io';
 import { Player } from '../classes/Player.js';
 import { GameManager } from '../managers/GameManager.js';
+import { RoomManager } from '../managers/RoomManager.js';
 import { Logger, toStringFormat } from '../utils/helpers.js';
+import { 
+  JoinRoomEvent,
+  LeaveRoomEvent,
+  StartGameEvent,
+  RestartGameEvent 
+} from '../../../shared/types/room.js';
 
 export class WebSocketManager {
   public io: Server;
@@ -20,11 +27,28 @@ export class WebSocketManager {
     this.io.on('connection', (socket: Socket) => {
       Logger.info(`Client connected: ${socket.id}`);
 
-      wsRoomHandler(socket);
+      wsRoomHandler(socket, this.io);
       wsGameHandler(socket);
 
       socket.on('disconnect', () => {
         Logger.info(`Client disconnected: ${socket.id}`);
+        
+        // Handle room cleanup on disconnect
+        const roomManager = RoomManager.getInstance();
+        const leaveResult = roomManager.leaveRoom(socket.id, socket);
+        
+        if (leaveResult.roomUpdate) {
+          // Notify remaining players in room
+          const roomId = leaveResult.playerLeft?.roomId;
+          if (roomId) {
+            socket.to(roomId).emit('ROOM_STATE_UPDATE', leaveResult.roomUpdate);
+            socket.to(roomId).emit('PLAYER_LEFT', leaveResult.playerLeft);
+            
+            if (leaveResult.hostTransfer) {
+              socket.to(roomId).emit('HOST_TRANSFER', leaveResult.hostTransfer);
+            }
+          }
+        }
       });
     });
   }
@@ -34,36 +58,90 @@ export class WebSocketManager {
   }
 }
 
-function wsRoomHandler(socket: Socket) {
-  socket.on('JOIN_ROOM', (data: { roomId: string; playerName: string }) => {
-    Logger.debug(`Player ${data.playerName} joining room: ${data.roomId}`);
+function wsRoomHandler(socket: Socket, io: Server) {
+  const roomManager = RoomManager.getInstance();
+
+  socket.on('JOIN_ROOM', (data: JoinRoomEvent) => {
+    const { roomId, playerName } = data;
     
-    // For now, just join the socket room and acknowledge
-    socket.join(data.roomId);
+    // Create player with socket ID
+    const player = new Player(socket.id);
+    player.name = playerName;
     
-    // Emit success response with basic room data
-    socket.emit('GAME_CREATED', {
-      success: true,
-      roomId: data.roomId,
-      players: [{
-        id: socket.id,
-        name: data.playerName,
-        isHost: true,
-        isReady: true,
-      }],
-      currentPlayerId: socket.id,
-      gameMode: 'classic',
-      settings: {
-        gravity: 1,
-        gameSpeed: 1,
-        ghostPiece: true,
-        boardWidth: 10,
-        boardHeight: 20,
-        nextPieceCount: 3,
-      }
-    });
+    // Join room through RoomManager
+    const result = roomManager.joinRoom(roomId, player, socket);
     
-    Logger.info(`Player ${data.playerName} joined room ${data.roomId}`);
+    if (!result.success) {
+      // Send error to the requesting client
+      socket.emit('ROOM_ERROR', result.error);
+      return;
+    }
+
+    // Send room state to the joining player
+    socket.emit('ROOM_STATE_UPDATE', result.roomUpdate);
+    
+    // Notify other players in the room about the new player
+    if (result.playerJoined) {
+      socket.to(roomId).emit('PLAYER_JOINED', result.playerJoined);
+    }
+    
+    Logger.info(`Player ${playerName} (${socket.id}) joined room ${roomId}`);
+  });
+
+  socket.on('LEAVE_ROOM', (data: LeaveRoomEvent) => {
+    const { roomId } = data;
+    
+    const result = roomManager.leaveRoom(socket.id, socket);
+    
+    if (result.roomUpdate) {
+      // Notify remaining players
+      socket.to(roomId).emit('ROOM_STATE_UPDATE', result.roomUpdate);
+    }
+    
+    if (result.playerLeft) {
+      socket.to(roomId).emit('PLAYER_LEFT', result.playerLeft);
+    }
+    
+    if (result.hostTransfer) {
+      socket.to(roomId).emit('HOST_TRANSFER', result.hostTransfer);
+    }
+    
+    // Confirm to the leaving player
+    socket.emit('LEFT_ROOM', { roomId });
+  });
+
+  socket.on('START_GAME', (data: StartGameEvent) => {
+    const { roomId, gameSettings } = data;
+    
+    const result = roomManager.startGame(roomId, socket.id, gameSettings);
+    
+    if (!result.success) {
+      socket.emit('ROOM_ERROR', result.error);
+      return;
+    }
+    
+    // Broadcast game start to all players in room
+    if (result.roomUpdate) {
+      io.to(roomId).emit('ROOM_STATE_UPDATE', result.roomUpdate);
+      io.to(roomId).emit('GAME_STARTED', { roomId });
+    }
+  });
+
+  socket.on('RESTART_GAME', (data: RestartGameEvent) => {
+    const { roomId } = data;
+    
+    const result = roomManager.resetGame(roomId, socket.id);
+    
+    if (!result.success) {
+      socket.emit('ROOM_ERROR', result.error);
+      return;
+    }
+    
+    // Broadcast game reset to all players in room
+    if (result.roomUpdate) {
+      io.to(roomId).emit('ROOM_STATE_UPDATE', result.roomUpdate);
+      io.to(roomId).emit('GAME_RESET', { roomId });
+    }
   });
 
   // Handle ping/pong for latency measurement
@@ -71,17 +149,14 @@ function wsRoomHandler(socket: Socket) {
     socket.emit('pong', timestamp);
   });
 
-  // Legacy room handler for testing
+  // Legacy handlers for backward compatibility - can be removed later
   socket.on('room', (data: any) => {
-    Logger.debug(`Received room message: ${data}`);
     socket.emit('message', `Echo: ${data}`);
   });
 }
 
 function wsGameHandler(socket: Socket) {
   socket.on('START_GAME', (data: SocketEvents<'START_GAME'>) => {
-    Logger.debug(`Received game message: ${toStringFormat(data)}`);
-
     const seed = Date.now(); // For example, use current timestamp as seed
     const player = new Player(socket.id);
     const game = GameManager.getInstance().createGame(
@@ -104,8 +179,6 @@ function wsGameHandler(socket: Socket) {
   });
 
   socket.on('STOP_GAME', (data: SocketEvents) => {
-    Logger.debug('', toStringFormat(data));
-
     const { gameId } = data.data as { gameId: string };
     const game = GameManager.getInstance().getGame(gameId);
     if (game) {
@@ -117,8 +190,6 @@ function wsGameHandler(socket: Socket) {
   });
 
   socket.on('PLAYER_INPUT', (payload: SocketEvents<'PLAYER_INPUT'>) => {
-    Logger.debug('', toStringFormat(payload));
-
     const { gameId, input } = payload.data;
     const game = GameManager.getInstance().getGame(gameId)?.setPlayerInput(input);
     if (!game) {
@@ -126,21 +197,41 @@ function wsGameHandler(socket: Socket) {
     }
   });
 
+  // Handle game ended event (from Game class)
+  socket.on('GAME_ENDED', (data: { gameId: string; playerId: string; reason: string }) => {
+    Logger.info(`Game ended: ${data.gameId} for player ${data.playerId} - reason: ${data.reason}`);
+    
+    const roomManager = RoomManager.getInstance();
+    
+    // Find which room this player belongs to
+    const room = roomManager.findRoomByPlayerId(data.playerId);
+    if (room) {
+      // Notify room that game ended
+      const result = roomManager.handleGameEnd(room.id, data.playerId, data.reason);
+      if (result.success && result.roomUpdate) {
+        // Broadcast room state update to all players in the room
+        // For now, we'll rely on the ROOM_STATE_UPDATE being sent elsewhere
+        // TODO: Fix the io scope issue to enable proper broadcasting
+        console.log('Game ended, room state should be updated for room:', room.id);
+      }
+    }
+    
+    // Clean up the game from GameManager
+    GameManager.getInstance().removeGame(data.gameId);
+  });
+
   // Additional socket event handlers for room management
   socket.on('UPDATE_SETTINGS', (data: SocketEvents<'UPDATE_SETTINGS'>) => {
-    Logger.debug(`Received UPDATE_SETTINGS: ${toStringFormat(data)}`);
     // TODO: Implement settings update logic
     socket.emit('SETTINGS_UPDATED', { settings: data.data.settings });
   });
 
   socket.on('UPDATE_GAME_MODE', (data: SocketEvents<'UPDATE_GAME_MODE'>) => {
-    Logger.debug(`Received UPDATE_GAME_MODE: ${toStringFormat(data)}`);
     // TODO: Implement game mode update logic
     socket.emit('GAME_MODE_UPDATED', { gameMode: data.data.gameMode });
   });
 
   socket.on('PLAYER_READY', (data: SocketEvents<'PLAYER_READY'>) => {
-    Logger.debug(`Received PLAYER_READY: ${toStringFormat(data)}`);
     // TODO: Implement player ready logic
     socket.emit('PLAYER_READY_STATUS', { 
       playerId: data.data.playerId, 
@@ -149,7 +240,6 @@ function wsGameHandler(socket: Socket) {
   });
 
   socket.on('CANCEL_START', (data: SocketEvents<'CANCEL_START'>) => {
-    Logger.debug(`Received CANCEL_START: ${toStringFormat(data)}`);
     // TODO: Implement cancel start logic
     socket.emit('GAME_START_CANCELED', {});
   });

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import styles from "./GameRoom.module.css";
 import type { GameMode, GameSettings } from "../types/game";
@@ -6,8 +6,7 @@ import type { GameMode, GameSettings } from "../types/game";
 // Redux imports
 import { useAppDispatch, useAppSelector } from "../store/index.js";
 import {
-  joinRoomSuccess,
-  addPlayer,
+  joinRoom,
   leaveRoom,
   updatePlayerReady,
   updateGameMode,
@@ -29,7 +28,7 @@ import {
   selectError,
   selectGameCreationData,
 } from "../store/slices/gameRoomSlice.js";
-import { selectSocket } from "../store/slices/connectionSlice.js";
+import { selectSocket, selectConnectionStatus } from "../store/slices/connectionSlice.js";
 import { GameAction } from "@shared/types/game";
 
 import { Button, Panel } from "../components/UI";
@@ -63,57 +62,33 @@ export function GameRoom() {
   const gameCreationData = useAppSelector(selectGameCreationData);
   const error = useAppSelector(selectError);
   const socket = useAppSelector(selectSocket);
+  const connectionStatus = useAppSelector(selectConnectionStatus);
 
   // Derived state
   const isSoloGame = players.length === 1;
+  
+  // Ref to prevent duplicate room joining
+  const hasJoinedRoom = useRef(false);
 
   useEffect(() => {
-    if (room && playerName) {
-      // TEMPORARY: Local initialization for testing without backend.
-      // When backend is ready, this will be replaced with socket-based room joining.
-      // The roomId is passed here as a workaround since joinRoom (which sets roomId)
-      // requires an active socket connection to the backend.
-      dispatch(
-        joinRoomSuccess({
-          roomId: room, // TODO: Remove after backend integration - roomId will come from joinRoom action
-          players: [
-            {
-              id: "1",
-              name: playerName,
-              isHost: true,
-              isReady: true,
-            },
-          ],
-          currentPlayerId: "1",
-          gameMode: "classic" as GameMode,
-        }),
-      );
-
-      // TODO: When backend is ready, replace above with:
-      // if (isConnected) {
-      //   dispatch(joinRoom({ roomId: room, playerName }));
-      // }
+    if (room && playerName && connectionStatus === 'connected' && !hasJoinedRoom.current) {
+      // Join room using the new room management system
+      hasJoinedRoom.current = true;
+      dispatch(joinRoom({ roomId: room, playerName }));
     }
-  }, [dispatch, room, playerName]);
+  }, [dispatch, room, playerName, connectionStatus]);
 
-  // Placeholder: Add a second player after 3 seconds (for testing)
+  // Reset join flag when room or player changes
   useEffect(() => {
-    // Just for demo - will be replaced with real socket events
-    const timer = setTimeout(() => {
-      if (players.length === 1) {
-        // Add a test opponent to see multiplayer functionality
-        dispatch(
-          addPlayer({
-            id: "2",
-            name: "Opponent",
-            isHost: false,
-            isReady: true,
-          }),
-        );
-      }
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, [players.length, dispatch]);
+    hasJoinedRoom.current = false;
+  }, [room, playerName]);
+
+  // Navigate back to home if no room or player name
+  useEffect(() => {
+    if (!room || !playerName) {
+      navigate('/');
+    }
+  }, [room, playerName, navigate]);
 
   // Handle countdown interval
   useEffect(() => {

@@ -12,15 +12,26 @@ import {
   canStartGame, 
   prepareGameCreationData 
 } from '../../types/game';
+import type {
+  RoomInfo,
+  RoomState as BackendRoomState,
+  PlayerJoinedEvent,
+  PlayerLeftEvent,
+  HostTransferEvent,
+  RoomErrorEvent
+} from '../../../../shared/types/room';
 
 export type GameRoomStatus = 'lobby' | 'countdown' | 'playing' | 'finished' | 'error';
 
 export interface GameRoomState {
   roomId: string | null;
   roomStatus: GameRoomStatus;
+  backendRoomState: BackendRoomState | null;
   
   players: Player[];
+  spectators: Player[];
   currentPlayerId: string | null;
+  hostId: string | null;
   maxPlayers: number;
   
   gameMode: GameMode;
@@ -34,13 +45,18 @@ export interface GameRoomState {
   
   isJoiningRoom: boolean;
   isUpdatingSettings: boolean;
+  isHost: boolean;
+  isSpectator: boolean;
 }
 
 const initialState: GameRoomState = {
   roomId: null,
   roomStatus: 'lobby',
+  backendRoomState: null,
   players: [],
+  spectators: [],
   currentPlayerId: null,
+  hostId: null,
   maxPlayers: ROOM_CONFIG.MAX_PLAYERS,
   gameMode: 'classic' as GameMode,
   settings: DEFAULT_SETTINGS,
@@ -50,6 +66,8 @@ const initialState: GameRoomState = {
   error: null,
   isJoiningRoom: false,
   isUpdatingSettings: false,
+  isHost: false,
+  isSpectator: false,
 };
 
 const gameRoomSlice = createSlice({
@@ -147,9 +165,9 @@ const gameRoomSlice = createSlice({
       state.roomStatus = 'lobby';
     },
     
-    startGame: (state, action?: PayloadAction<{ gameId: string }>) => {
+    startGame: (state, action: PayloadAction<{ gameId?: string }>) => {
       state.gameStarted = true;
-      state.gameId = action?.payload?.gameId || null;
+      state.gameId = action.payload?.gameId || null;
       state.countdown = null;
       state.roomStatus = 'playing';
     },
@@ -186,6 +204,110 @@ const gameRoomSlice = createSlice({
     setUpdatingSettings: (state, action: PayloadAction<boolean>) => {
       state.isUpdatingSettings = action.payload;
     },
+
+    // New room management actions
+    updateRoomState: (state, action: PayloadAction<RoomInfo>) => {
+      const roomInfo = action.payload;
+      console.log('Updating room state:', roomInfo);
+      
+      state.roomId = roomInfo.id;
+      state.backendRoomState = roomInfo.state;
+      state.hostId = roomInfo.hostId;
+      state.maxPlayers = roomInfo.maxPlayers;
+      
+      // Convert backend players to frontend players
+      state.players = roomInfo.players.filter(p => !p.isSpectator).map(p => ({
+        id: p.id,
+        name: p.name,
+        isHost: p.isHost,
+        isReady: p.isReady,
+      }));
+      
+      console.log('Frontend players after conversion:', state.players);
+      console.log('Current player ID:', state.currentPlayerId);
+      
+      state.spectators = roomInfo.spectators.map(p => ({
+        id: p.id,
+        name: p.name,
+        isHost: false,
+        isReady: false,
+      }));
+      
+      // Update current player status
+      if (state.currentPlayerId) {
+        const currentRoomPlayer = [...roomInfo.players, ...roomInfo.spectators].find(p => p.id === state.currentPlayerId);
+        if (currentRoomPlayer) {
+          state.isHost = currentRoomPlayer.isHost;
+          state.isSpectator = currentRoomPlayer.isSpectator;
+          console.log('Updated current player status: isHost=', state.isHost, 'isSpectator=', state.isSpectator);
+        }
+      }
+      
+      // Update room status based on backend state
+      if (roomInfo.state === 'waiting') {
+        state.roomStatus = 'lobby';
+        state.gameStarted = false;
+      } else if (roomInfo.state === 'playing') {
+        state.roomStatus = 'playing';
+        state.gameStarted = true;
+      } else if (roomInfo.state === 'ended') {
+        state.roomStatus = 'finished';
+        state.gameStarted = false;
+      }
+    },
+
+    playerJoined: (state, action: PayloadAction<PlayerJoinedEvent>) => {
+      const { player, isSpectator } = action.payload;
+      const newPlayer: Player = {
+        id: player.id,
+        name: player.name,
+        isHost: player.isHost,
+        isReady: player.isReady,
+      };
+
+      if (isSpectator) {
+        // Add to spectators if not already present
+        if (!state.spectators.find(p => p.id === player.id)) {
+          state.spectators.push(newPlayer);
+        }
+      } else {
+        // Add to players if not already present
+        if (!state.players.find(p => p.id === player.id)) {
+          state.players.push(newPlayer);
+        }
+      }
+    },
+
+    playerLeft: (state, action: PayloadAction<PlayerLeftEvent>) => {
+      const { playerId } = action.payload;
+      
+      // Remove from players or spectators
+      state.players = state.players.filter(p => p.id !== playerId);
+      state.spectators = state.spectators.filter(p => p.id !== playerId);
+    },
+
+    hostTransferred: (state, action: PayloadAction<HostTransferEvent>) => {
+      const { newHostId } = action.payload;
+      
+      // Update host status for all players
+      state.players.forEach(player => {
+        player.isHost = player.id === newHostId;
+      });
+      
+      state.hostId = newHostId;
+      state.isHost = state.currentPlayerId === newHostId;
+    },
+
+    roomError: (state, action: PayloadAction<RoomErrorEvent>) => {
+      state.error = action.payload.error;
+      state.roomStatus = 'error';
+      state.isJoiningRoom = false;
+    },
+
+    // Helper action to set current player ID
+    setCurrentPlayerId: (state, action: PayloadAction<string>) => {
+      state.currentPlayerId = action.payload;
+    },
   },
 });
 
@@ -210,6 +332,13 @@ export const {
   setError,
   clearError,
   setUpdatingSettings,
+  // New room management actions
+  updateRoomState,
+  playerJoined,
+  playerLeft,
+  hostTransferred,
+  roomError,
+  setCurrentPlayerId,
 } = gameRoomSlice.actions;
 
 export default gameRoomSlice.reducer;
@@ -217,18 +346,23 @@ export default gameRoomSlice.reducer;
 export const selectGameRoom = (state: { gameRoom: GameRoomState }) => state.gameRoom;
 export const selectRoomId = (state: { gameRoom: GameRoomState }) => state.gameRoom.roomId;
 export const selectPlayers = (state: { gameRoom: GameRoomState }) => state.gameRoom.players;
+export const selectSpectators = (state: { gameRoom: GameRoomState }) => state.gameRoom.spectators;
+export const selectHostId = (state: { gameRoom: GameRoomState }) => state.gameRoom.hostId;
+export const selectBackendRoomState = (state: { gameRoom: GameRoomState }) => state.gameRoom.backendRoomState;
 export const selectCurrentPlayer = (state: { gameRoom: GameRoomState }) => {
   if (!state.gameRoom.currentPlayerId) return null;
   return state.gameRoom.players.find(p => p.id === state.gameRoom.currentPlayerId) || null;
 };
 export const selectIsHost = (state: { gameRoom: GameRoomState }) => {
-  const currentPlayer = selectCurrentPlayer(state);
-  return currentPlayer?.isHost ?? false;
+  return state.gameRoom.isHost;
+};
+export const selectIsSpectator = (state: { gameRoom: GameRoomState }) => {
+  return state.gameRoom.isSpectator;
 };
 export const selectGameMode = (state: { gameRoom: GameRoomState }) => state.gameRoom.gameMode;
 export const selectGameSettings = (state: { gameRoom: GameRoomState }) => state.gameRoom.settings;
 export const selectCanStartGame = (state: { gameRoom: GameRoomState }) => {
-  return canStartGame(state.gameRoom.players);
+  return state.gameRoom.isHost && canStartGame(state.gameRoom.players);
 };
 export const selectCountdown = (state: { gameRoom: GameRoomState }) => state.gameRoom.countdown;
 export const selectGameStarted = (state: { gameRoom: GameRoomState }) => state.gameRoom.gameStarted;

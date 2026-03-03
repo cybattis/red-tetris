@@ -110,6 +110,7 @@ export interface SocketEventsType {
   GAME_STARTING: { countdown: number };
   GAME_START_CANCELED: {};
   GAME_STARTED: { gameId: string };
+  GAME_ENDED: { gameId: string; playerId: string; reason: string };
   ROOM_NOT_FOUND: { error: string };
   ROOM_FULL: { error: string };
   

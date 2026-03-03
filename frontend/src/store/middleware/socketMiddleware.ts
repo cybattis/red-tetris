@@ -10,11 +10,10 @@ import {
   setConnectionError,
   updateLatency,
 } from '../slices/connectionSlice.js';
+import { resetGame } from '../slices/gameSlice.js';
 import {
   joinRoomSuccess,
   joinRoomError,
-  addPlayer,
-  removePlayer,
   updatePlayerReady,
   updateGameMode,
   updateSettings,
@@ -22,6 +21,12 @@ import {
   updateCountdown,
   cancelCountdown,
   startGame,
+  // New room management actions
+  updateRoomState,
+  playerJoined,
+  playerLeft,
+  hostTransferred,
+  roomError,
 } from '../slices/gameRoomSlice.js';
 import { showToast } from '../slices/uiSlice.js';
 
@@ -78,6 +83,61 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
           dispatch(showToast({ message: 'Reconnected to server', type: 'success' }));
         });
 
+        // New room management event handlers
+        socket.on('ROOM_STATE_UPDATE', (data) => {
+          dispatch(updateRoomState(data.room));
+          
+          // Set current player ID if not already set (when first joining)
+          const currentState = store.getState();
+          if (!currentState.gameRoom.currentPlayerId && socket.id) {
+            // Find the player in the room data that matches our socket ID
+            const currentPlayer = [...data.room.players, ...data.room.spectators].find(p => p.id === socket.id);
+            if (currentPlayer) {
+              dispatch({ type: 'gameRoom/setCurrentPlayerId', payload: socket.id });
+            }
+          }
+        });
+
+        socket.on('PLAYER_JOINED', (data) => {
+          dispatch(playerJoined(data));
+          dispatch(showToast({ 
+            message: `${data.player.name} joined the room${data.isSpectator ? ' as spectator' : ''}`, 
+            type: 'info' 
+          }));
+        });
+
+        socket.on('PLAYER_LEFT', (data) => {
+          dispatch(playerLeft(data));
+          dispatch(showToast({ 
+            message: 'A player left the room', 
+            type: 'warning' 
+          }));
+        });
+
+        socket.on('HOST_TRANSFER', (data) => {
+          dispatch(hostTransferred(data));
+          dispatch(showToast({ 
+            message: 'Host has been transferred', 
+            type: 'info' 
+          }));
+        });
+
+        socket.on('ROOM_ERROR', (data) => {
+          dispatch(roomError(data));
+          dispatch(showToast({ 
+            message: `Room Error: ${data.error}`, 
+            type: 'error' 
+          }));
+        });
+
+        socket.on('LEFT_ROOM', () => {
+          dispatch(showToast({ 
+            message: 'Left the room', 
+            type: 'info' 
+          }));
+        });
+
+        // Legacy room event handlers (keeping for backward compatibility)
         socket.on('GAME_CREATED', (data) => {
           if (data.success) {
             dispatch(joinRoomSuccess({
@@ -89,22 +149,6 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
           } else {
             dispatch(joinRoomError(data.error || 'Failed to create game'));
           }
-        });
-
-        socket.on('PLAYER_JOINED', (data) => {
-          dispatch(addPlayer(data.player));
-          dispatch(showToast({ 
-            message: `${data.player.name} joined the room`, 
-            type: 'info' 
-          }));
-        });
-
-        socket.on('PLAYER_LEFT', (data) => {
-          dispatch(removePlayer(data.playerId));
-          dispatch(showToast({ 
-            message: 'A player left the room', 
-            type: 'warning' 
-          }));
         });
 
         socket.on('PLAYER_READY_STATUS', (data) => {
@@ -151,6 +195,16 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
         socket.on('GAME_ANIMATION', (animationData) => {
           // Handle game animations from server
           dispatch({ type: 'game/handleAnimation', payload: animationData });
+        });
+
+        socket.on('GAME_ENDED', (data: { gameId: string; playerId: string; reason: string }) => {
+          console.log(`Game ended: ${data.gameId} for player ${data.playerId} - reason: ${data.reason}`);
+          // The game over state should already be set by the final GAME_STATE_UPDATE
+          // The room state will be updated via ROOM_STATE_UPDATE event
+          dispatch(showToast({ 
+            message: `Game ended: ${data.reason}`, 
+            type: 'info' 
+          }));
         });
 
         socket.on('ROOM_NOT_FOUND', (data) => {
@@ -236,10 +290,18 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
       }
 
       case 'gameRoom/startCountdown': {
+        // Don't emit START_GAME immediately - wait for countdown to finish
+        // The countdown will trigger START_GAME when it reaches 0
+        break;
+      }
+
+      case 'gameRoom/updateCountdown': {
         const socket = state.connection.socket;
-        if (socket && socket.connected) {
+        if (socket && socket.connected && action.payload <= 0) {
+          // Countdown finished - now start the game on the server
           socket.emit('START_GAME', {
             roomId: state.gameRoom.roomId,
+            gameSettings: state.gameRoom.settings,
           });
         }
         break;
@@ -249,6 +311,29 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
         const socket = state.connection.socket;
         if (socket && socket.connected) {
           socket.emit('CANCEL_START', {
+            roomId: state.gameRoom.roomId,
+          });
+        }
+        break;
+      }
+
+      case 'gameRoom/leaveRoom': {
+        const socket = state.connection.socket;
+        if (socket && socket.connected) {
+          socket.emit('LEAVE_ROOM', {
+            roomId: state.gameRoom.roomId,
+          });
+        }
+        break;
+      }
+
+      case 'gameRoom/resetToLobby': {
+        // Reset the game state when returning to lobby
+        dispatch(resetGame());
+        
+        const socket = state.connection.socket;
+        if (socket && socket.connected) {
+          socket.emit('RESTART_GAME', {
             roomId: state.gameRoom.roomId,
           });
         }
