@@ -17,7 +17,6 @@ export interface PlayerBoardProps {
   nextPieces?: number[];
   maxNextDisplay?: number;
   score?: number;
-  level?: number;
   linesCleared?: number;
   isPaused?: boolean;
   isGameOver?: boolean;
@@ -43,7 +42,6 @@ export const PlayerBoard = memo(function PlayerBoard({
   maxNextDisplay = 3,
   
   score = 0,
-  level = 1,
   linesCleared = 0,
   
   isPaused = false,
@@ -93,7 +91,7 @@ export const PlayerBoard = memo(function PlayerBoard({
 
         <aside className={styles.sidebar}>
           <NextPiece pieces={nextPieces} maxDisplay={maxNextDisplay} />
-          <ScoreDisplay score={score} level={level} linesCleared={linesCleared} />
+          <ScoreDisplay score={score} linesCleared={linesCleared} />
         </aside>
       </div>
     </div>

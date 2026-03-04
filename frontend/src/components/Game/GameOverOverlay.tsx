@@ -3,7 +3,6 @@ import styles from './GameOverOverlay.module.css';
 
 export interface GameOverStats {
   score: number;
-  level: number;
   linesCleared: number;
   placement?: number;
   totalPlayers?: number;
@@ -69,11 +68,6 @@ export const GameOverOverlay = memo(function GameOverOverlay({
           <div className={styles.statItem}>
             <span className={styles.statValue}>{stats.score.toLocaleString()}</span>
             <span className={styles.statLabel}>Score</span>
-          </div>
-          <div className={styles.statDivider} />
-          <div className={styles.statItem}>
-            <span className={styles.statValue}>{stats.level}</span>
-            <span className={styles.statLabel}>Level</span>
           </div>
           <div className={styles.statDivider} />
           <div className={styles.statItem}>

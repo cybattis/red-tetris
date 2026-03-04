@@ -103,7 +103,7 @@ export class Game extends EventEmitter {
       score: this.score,
       level: 1,
       linesCleared: this.linesCleared,
-      totalLinesCleared: this.linesCleared,
+      totalLinesCleared: this.lines,
       isPaused: this.state !== GameState.Playing,
       isGameOver: !this.isAlive,
       gameOverReason: !this.isAlive ? 'Game Over' : null,
@@ -359,6 +359,10 @@ export class Game extends EventEmitter {
       const startY = this._currentPiece.position.y;
       const endY = startY + dropDistance;
       
+      // Award hard drop bonus points (rows covered + 1)
+      const hardDropBonus = dropDistance + 1;
+      this.addHardDropBonus(hardDropBonus);
+      
       // Create hard drop trail data for each column of the piece
       const trailData = [];
       for (const cell of this._currentPiece.getOccupiedCells()) {
@@ -502,6 +506,11 @@ export class Game extends EventEmitter {
     
     // Update score based on lines cleared
     this.updateScore(linesToClear.length);
+  }
+
+  private addHardDropBonus(bonus: number): void {
+    this.score += bonus;
+    Logger.info(`Hard drop bonus: +${bonus} points (total: ${this.score})`);
   }
 
   private updateScore(linesCleared: number): void {

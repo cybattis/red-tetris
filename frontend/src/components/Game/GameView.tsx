@@ -10,8 +10,7 @@ import {
   selectGhostPiece,
   selectNextPieces,
   selectScore,
-  selectLevel,
-  selectLinesCleared,
+  selectTotalLinesCleared,
   selectIsPaused,
   selectIsGameOver,
   selectOpponents,
@@ -53,8 +52,7 @@ export function GameView({
   const ghostPiece = useAppSelector(selectGhostPiece);
   const nextPieces = useAppSelector(selectNextPieces);
   const score = useAppSelector(selectScore);
-  const level = useAppSelector(selectLevel);
-  const linesCleared = useAppSelector(selectLinesCleared);
+  const totalLinesCleared = useAppSelector(selectTotalLinesCleared);
   const isPaused = useAppSelector(selectIsPaused);
   const isGameOver = useAppSelector(selectIsGameOver);
   const gameOverReason = useAppSelector(selectGameOverReason);
@@ -202,8 +200,7 @@ export function GameView({
         isWinner={gameOverReason === 'Victory!'}
         stats={{
           score,
-          level,
-          linesCleared,
+          linesCleared: totalLinesCleared,
           placement: opponents.length > 0 ? 1 : undefined,
           totalPlayers: opponents.length > 0 ? opponents.length + 1 : undefined,
         }}
@@ -236,8 +233,7 @@ export function GameView({
             nextPieces={nextPieces}
             maxNextDisplay={gameSettings.nextPieceCount}
             score={score}
-            level={level}
-            linesCleared={linesCleared}
+            linesCleared={totalLinesCleared}
             isPaused={isPaused}
             isGameOver={isGameOver}
             clearingRows={clearingRows}
