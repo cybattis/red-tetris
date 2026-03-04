@@ -8,7 +8,6 @@ import { TETROMINO_DICTIONARY } from '../../src/pieces/TetrominoFactory';
 
 const settings: GameSettings = {
   gravity: 1,
-  gameSpeed: 1,
   ghostPiece: true,
   boardWidth: 10,
   boardHeight: 20,

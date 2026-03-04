@@ -13,7 +13,6 @@ import {
 // Default game settings for rooms
 const DEFAULT_GAME_SETTINGS: GameSettings = {
   gravity: 1,
-  gameSpeed: 1,
   ghostPiece: true,
   boardWidth: 10,
   boardHeight: 20,
@@ -186,7 +185,7 @@ export class Room {
   }
 
   // Game management
-  public startGame(customSettings?: Partial<GameSettings>): { success: boolean; reason?: string } {
+  public startGame(customSettings?: Partial<GameSettings>): { success: boolean; reason?: string; gameIds?: string[] } {
     if (this._state !== 'waiting') {
       return { success: false, reason: 'Game already in progress or ended' };
     }
@@ -204,6 +203,8 @@ export class Room {
       ...customSettings
     };
 
+    const gameIds: string[] = [];
+
     // Create games for each player using GameManager
     for (const player of this._players.values()) {
       try {
@@ -220,6 +221,7 @@ export class Room {
 
         // Start the game
         game.start();
+        gameIds.push(game.id);
         
         Logger.info(`Created and started game ${game.id} for player ${player.name} in room ${this.id} with settings:`, gameSettings);
       } catch (error) {
@@ -229,7 +231,7 @@ export class Room {
     }
 
     Logger.info(`Game started in room ${this.id} with ${this._players.size} players`);
-    return { success: true };
+    return { success: true, gameIds };
   }
 
   public endGame(): void {

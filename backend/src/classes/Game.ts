@@ -31,7 +31,7 @@ export class Game extends EventEmitter {
   // Timing constants
   private static readonly TICK_RATE = 60;
   private static readonly TICK_INTERVAL_MS = 1000 / Game.TICK_RATE;
-  private static readonly GRAVITY_INTERVAL_MS = 1000;
+  private static readonly BASE_GRAVITY_INTERVAL_MS = 1000;
 
   private _gameLoop: NodeJS.Timeout | null = null;
   // Internal state
@@ -51,6 +51,7 @@ export class Game extends EventEmitter {
     this.piecesSequence = new PiecesSequence(seed, 7);
     this.board = this.createEmptyBoard();
     this._currentPiece = this.getNextPiece();
+    this.updateDropInterval();
   }
 
   // Game actions
@@ -97,10 +98,10 @@ export class Game extends EventEmitter {
             shape: this._currentPiece.shape,
           }
         : null,
-      ghostPiece: this.calculateGhostPiece(),
+      ghostPiece: this.settings.ghostPiece ? this.calculateGhostPiece() : null,
       nextPieces: this.getNextPiecesPreview(),
       score: this.score,
-      level: Math.floor(this.linesCleared / 10) + 1, // Simple level calculation
+      level: 1,
       linesCleared: this.linesCleared,
       totalLinesCleared: this.linesCleared,
       isPaused: this.state !== GameState.Playing,
@@ -112,8 +113,7 @@ export class Game extends EventEmitter {
   }
 
   private getNextPiecesPreview(): number[] {
-    const maxPreview = Math.min(this.settings.nextPieceCount, 5);
-    const nextPieceTypes = this.piecesSequence.peekNextPieces(maxPreview);
+    const nextPieceTypes = this.piecesSequence.peekNextPieces(this.settings.nextPieceCount);
     
     return nextPieceTypes.map(pieceType => {
       const pieceDef = TETROMINO_DICTIONARY[pieceType];
@@ -125,6 +125,11 @@ export class Game extends EventEmitter {
   // ============================================
   public setSocket(socket: Socket): void {
     this._socket = socket;
+    
+    // Broadcast initial game state
+    if (this.state === GameState.Playing) {
+      this.broadcastGameState();
+    }
   }
 
   private broadcastGameState(): void {
@@ -500,20 +505,14 @@ export class Game extends EventEmitter {
   }
 
   private updateScore(linesCleared: number): void {
+    // Calculate and add score (simplified for single level)
     const points = [0, 40, 100, 300, 1200];
-    const scoreIncrease = points[linesCleared] * this.level;
+    const scoreIncrease = points[linesCleared];
     this.score += scoreIncrease;
     
-    // Update lines and level
     this.lines += linesCleared;
-    const newLevel = Math.floor(this.lines / 10) + 1;
-    if (newLevel > this.level) {
-      this.level = newLevel;
-      // Speed up the game (reduce drop interval)
-      this.dropInterval = Math.max(50, 1000 - (this.level - 1) * 100);
-    }
     
-    Logger.info(`Score updated: +${scoreIncrease} points (total: ${this.score}), Level: ${this.level}`);
+    Logger.info(`Score updated: +${scoreIncrease} points (total: ${this.score}), Lines: ${this.lines}`);
   }
 
   private calculateScore(linesCleared: number): number {
@@ -553,6 +552,14 @@ export class Game extends EventEmitter {
       position: ghostPosition,
       shape: this._currentPiece.shape
     };
+  }
+
+  private calculateDropInterval(): number {
+    return Math.max(50, Game.BASE_GRAVITY_INTERVAL_MS / this.settings.gravity);
+  }
+
+  private updateDropInterval(): void {
+    this.dropInterval = this.calculateDropInterval();
   }
 
   // Helper methods

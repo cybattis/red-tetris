@@ -372,7 +372,18 @@ export const selectError = (state: { gameRoom: GameRoomState }) => state.gameRoo
 
 export const selectGameCreationData = (state: { gameRoom: GameRoomState }): GameCreationData | null => {
   const { roomId, gameMode, settings, players } = state.gameRoom;
-  if (!roomId) return null;
+  
+  // Return null if room isn't ready or no players yet
+  if (!roomId || players.length === 0) {
+    return null;
+  }
+  
+  // Check if there's actually a host player before calling prepareGameCreationData
+  const hasHost = players.some(p => p.isHost);
+  if (!hasHost) {
+    // Don't log error for this case - it's normal during room initialization
+    return null;
+  }
   
   try {
     return prepareGameCreationData(roomId, gameMode, settings, players);

@@ -200,7 +200,7 @@ export class RoomManager {
     return result;
   }
 
-  public startGame(roomId: string, hostId: string, gameSettings?: Partial<GameSettings>): { success: boolean; error?: RoomErrorEvent; roomUpdate?: RoomStateUpdateEvent } {
+  public startGame(roomId: string, hostId: string, gameSettings?: Partial<GameSettings>): { success: boolean; error?: RoomErrorEvent; roomUpdate?: RoomStateUpdateEvent; gameIds?: string[] } {
     const room = this.getRoom(roomId);
     if (!room) {
       return {
@@ -239,7 +239,8 @@ export class RoomManager {
 
     return {
       success: true,
-      roomUpdate: { room: room.toRoomInfo() }
+      roomUpdate: { room: room.toRoomInfo() },
+      gameIds: startResult.gameIds
     };
   }
 

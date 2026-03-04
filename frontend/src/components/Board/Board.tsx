@@ -69,8 +69,6 @@ function createDisplayBoard(
         if (currentPiece.shape[py][px] !== 0) {
           const boardX = currentPiece.position.x + px;
           const boardY = currentPiece.position.y + py;
-          // Allow rendering pieces that extend above the board (negative Y)
-          // but only place them on valid board positions
           if (boardY >= 0 && boardY < height && boardX >= 0 && boardX < width) {
             cells[boardY][boardX] = currentPiece.type;
             ghostCells.delete(`${boardX},${boardY}`);
@@ -89,7 +87,6 @@ export const Board = memo(function Board({
   ghostPiece,
   width,
   height,
-  cellSize = CELL_SIZE,
   isPaused = false,
   isGameOver = false,
   clearingRows = [],
@@ -100,13 +97,26 @@ export const Board = memo(function Board({
   const boardHeight = height ?? board.length;
   const boardWidth = width ?? (board[0]?.length ?? 10);
 
+  const standardWidth = 10;
+  const standardCellSize = CELL_SIZE;
+  
+  const widthRatio = boardWidth / standardWidth;
+  
+  let scaleFactor = 1;
+  if (widthRatio < 1) {
+    scaleFactor = Math.min(1.2, 1 + (1 - widthRatio) * 0.3);
+  } else if (widthRatio > 1) {
+    scaleFactor = Math.max(0.8, 1 - (widthRatio - 1) * 0.15);
+  }
+  
+  const actualCellSize = Math.round(standardCellSize * scaleFactor);
+
   const [isPenaltyWarning, setIsPenaltyWarning] = useState(false);
   const [isLockImpact, setIsLockImpact] = useState(false);
   const [particles, setParticles] = useState<Particle[]>([]);
   const [lockFlashCells, setLockFlashCells] = useState<Set<string>>(new Set());
   const [lastClearRows, setLastClearRows] = useState<string>('');
 
-  // Remove clearingRowSet since we're not using cell-level clearing effects anymore
   const penaltyRowSet = useMemo(() => new Set(penaltyRows), [penaltyRows]);
 
   const generateLineClearParticles = useCallback((rows: number[]) => {
@@ -118,18 +128,15 @@ export const Board = memo(function Board({
     
     const sparkleColors = ['#fff', '#ffff00', '#00ffff', '#ff00ff', ...colors];
     
-    // Generate particles from each cell in each cleared row
     rows.forEach((row, rowIndex) => {
-      const rowY = row * (cellSize + CELL_GAP) + cellSize / 2;
+      const rowY = row * (actualCellSize + CELL_GAP) + actualCellSize / 2;
       
-      // Loop through each cell in the row
       for (let cellX = 0; cellX < boardWidth; cellX++) {
         const cellValue = board[row]?.[cellX];
         if (cellValue && cellValue !== 0) { // Only create particles from filled cells
-          const cellCenterX = cellX * (cellSize + CELL_GAP) + cellSize / 2;
+          const cellCenterX = cellX * (actualCellSize + CELL_GAP) + actualCellSize / 2;
           const cellColor = getCellColor(cellValue, false);
           
-          // Create just 1 particle per filled cell for cleaner effect
           const angle = Math.random() * Math.PI * 2;
           const speed = 50 + Math.random() * 50;
           const dx = Math.cos(angle) * speed;
@@ -149,14 +156,13 @@ export const Board = memo(function Board({
       }
     });
     
-    // Add some extra sparkle effects across the cleared rows
     for (let i = 0; i < 6; i++) {
       const row = rows[Math.floor(Math.random() * rows.length)];
-      const rowY = row * (cellSize + CELL_GAP) + cellSize / 2;
+      const rowY = row * (actualCellSize + CELL_GAP) + actualCellSize / 2;
       
       newParticles.push({
         id: `sparkle-${Date.now()}-${i}`,
-        x: Math.random() * boardWidth * (cellSize + CELL_GAP),
+        x: Math.random() * boardWidth * (actualCellSize + CELL_GAP),
         y: rowY,
         dx: (Math.random() - 0.5) * 120,
         dy: (Math.random() - 0.5) * 120,
@@ -167,7 +173,7 @@ export const Board = memo(function Board({
     }
     
     return newParticles;
-  }, [board, boardWidth, cellSize]);
+  }, [board, boardWidth, actualCellSize]);
 
   const generateHardDropParticles = useCallback((trails: { x: number; startY: number; endY: number; type: number; id?: string }[]) => {
     const newParticles: Particle[] = [];
@@ -175,14 +181,14 @@ export const Board = memo(function Board({
     
     trails.forEach((trail, trailIndex) => {
       const color = getCellColor(trail.type, false);
-      const x = trail.x * (cellSize + CELL_GAP) + cellSize / 2;
+      const x = trail.x * (actualCellSize + CELL_GAP) + actualCellSize / 2;
       
       const distance = trail.endY - trail.startY;
       const particleCount = Math.min(distance * 2, 20);
       
       for (let i = 0; i < particleCount; i++) {
         const progress = i / particleCount;
-        const y = (trail.startY + progress * distance) * (cellSize + CELL_GAP) + cellSize / 2;
+        const y = (trail.startY + progress * distance) * (actualCellSize + CELL_GAP) + actualCellSize / 2;
         
         newParticles.push({
           id: `trail-${baseTimestamp}-${trailIndex}-${i}`,
@@ -198,7 +204,7 @@ export const Board = memo(function Board({
     });
     
     return newParticles;
-  }, [cellSize]);
+  }, [actualCellSize]);
 
   const generateLockImpactParticles = useCallback((cells: { x: number; y: number; type: number; id?: string }[]) => {
     const newParticles: Particle[] = [];
@@ -206,8 +212,8 @@ export const Board = memo(function Board({
     
     cells.forEach((cell, cellIndex) => {
       const color = getCellColor(cell.type, false);
-      const x = cell.x * (cellSize + CELL_GAP) + cellSize / 2;
-      const y = cell.y * (cellSize + CELL_GAP) + cellSize / 2;
+      const x = cell.x * (actualCellSize + CELL_GAP) + actualCellSize / 2;
+      const y = cell.y * (actualCellSize + CELL_GAP) + actualCellSize / 2;
       
       for (let i = 0; i < 6; i++) {
         const angle = (i / 6) * Math.PI * 2 + Math.random() * 0.5;
@@ -227,11 +233,10 @@ export const Board = memo(function Board({
     });
     
     return newParticles;
-  }, [cellSize]);
+  }, [actualCellSize]);
 
   useEffect(() => {
     if (clearingRows.length > 0) {
-      // Create a unique key for this line clear event to prevent duplicates
       // Make a copy before sorting to avoid mutating the read-only array
       const clearKey = [...clearingRows].sort((a, b) => a - b).join(',');
       if (clearKey === lastClearRows) {
@@ -240,7 +245,6 @@ export const Board = memo(function Board({
       
       setLastClearRows(clearKey);
       
-      // Only generate particles - no shaking or cell effects
       const newParticles = generateLineClearParticles(clearingRows);
       setParticles(prev => {
         // Clear any existing line clear particles first
@@ -248,10 +252,9 @@ export const Board = memo(function Board({
         return [...filteredParticles, ...newParticles];
       });
       
-      // Shorter timer since we're only showing particles
       const timer = setTimeout(() => {
         setParticles(prev => prev.filter(p => p.type !== 'explosion'));
-        setLastClearRows(''); // Reset after animation completes
+        setLastClearRows('');
       }, 800);
       
       return () => {
@@ -306,9 +309,10 @@ export const Board = memo(function Board({
   );
 
   const gridStyle: React.CSSProperties = {
-    gridTemplateColumns: `repeat(${boardWidth}, ${cellSize}px)`,
-    gridTemplateRows: `repeat(${boardHeight}, ${cellSize}px)`,
+    gridTemplateColumns: `repeat(${boardWidth}, ${actualCellSize}px)`,
+    gridTemplateRows: `repeat(${boardHeight}, ${actualCellSize}px)`,
     gap: `${CELL_GAP}px`,
+    backgroundSize: `${actualCellSize + CELL_GAP}px ${actualCellSize + CELL_GAP}px`,
   };
 
   const containerClasses = [
@@ -324,7 +328,6 @@ export const Board = memo(function Board({
           row.map((cellValue, x) => {
             const key = `${x},${y}`;
             const isGhost = ghostCells.has(key);
-            // Removed isClearing since we're not doing cell-level clearing effects
             const isPenalty = penaltyRowSet.has(y);
             const isLocked = lockFlashCells.has(key);
 
@@ -335,10 +338,10 @@ export const Board = memo(function Board({
                 key={key}
                 value={displayValue}
                 isGhost={isGhost}
-                isClearing={false} // Always false now - no cell clearing effects
+                isClearing={false}
                 isPenalty={isPenalty}
                 isLocked={isLocked}
-                size={cellSize}
+                size={actualCellSize}
               />
             );
           })

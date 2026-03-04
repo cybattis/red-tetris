@@ -3,6 +3,12 @@
  * Shared between frontend components and backend communication
  */
 
+// Import shared types
+import type { GameSettings as SharedGameSettings } from '../../../shared/types/game';
+
+// Re-export shared types
+export type GameSettings = SharedGameSettings;
+
 export interface Player {
   id: string;
   name: string;
@@ -14,14 +20,6 @@ export const enum GameMode {
   Classic = 'classic',
   Invisible = 'invisible',
   Sprint = 'sprint',
-}
-
-export interface GameSettings {
-  gravity: number;
-  ghostPiece: boolean;
-  boardWidth: number;
-  boardHeight: number;
-  nextPieceCount: number;
 }
 
 // Backend communication interface for game creation
@@ -67,7 +65,7 @@ export const DEFAULT_SETTINGS: GameSettings = {
   ghostPiece: true,
   boardWidth: 10,
   boardHeight: 20,
-  nextPieceCount: 1,
+  nextPieceCount: 3,
 };
 
 export const GAME_MODES: Array<{
@@ -131,8 +129,8 @@ export function canStartGame(players: Player[]): boolean {
 export function validateGameSettings(settings: GameSettings): boolean {
   return (
     settings.gravity > 0 &&
-    settings.boardWidth > 0 &&
-    settings.boardHeight > 0 &&
-    settings.nextPieceCount >= 0
+    settings.boardWidth >= 4 && settings.boardWidth <= 40 && // Min 4 for I-piece, max 40 for sanity
+    settings.boardHeight >= 4 && settings.boardHeight <= 50 && // Min 4 for pieces, max 50 for performance
+    settings.nextPieceCount >= 0 && settings.nextPieceCount <= 10 // Max 10 next pieces for UI sanity
   );
 }

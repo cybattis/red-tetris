@@ -5,7 +5,6 @@ import { GameSettings } from '../../../shared/types/game';
 
 const settings: GameSettings = {
 	gravity: 1,
-	gameSpeed: 1,
 	ghostPiece: true,
 	boardWidth: 10,
 	boardHeight: 20,

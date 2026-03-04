@@ -27,6 +27,7 @@ import {
   playerLeft,
   hostTransferred,
   roomError,
+  setCurrentPlayerId,
 } from '../slices/gameRoomSlice.js';
 import { showToast } from '../slices/uiSlice.js';
 
@@ -93,7 +94,7 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
             // Find the player in the room data that matches our socket ID
             const currentPlayer = [...data.room.players, ...data.room.spectators].find(p => p.id === socket.id);
             if (currentPlayer) {
-              dispatch({ type: 'gameRoom/setCurrentPlayerId', payload: socket.id });
+              dispatch(setCurrentPlayerId(socket.id));
             }
           }
         });

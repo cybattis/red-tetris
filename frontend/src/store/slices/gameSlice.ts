@@ -131,6 +131,8 @@ export interface GameStateUpdate {
   level?: number;
   linesCleared?: number;
   totalLinesCleared?: number;
+  boardWidth?: number;
+  boardHeight?: number;
 }
 
 const gameSlice = createSlice({
@@ -182,6 +184,8 @@ const gameSlice = createSlice({
       if (update.linesCleared !== undefined) state.linesCleared = update.linesCleared;
       if (update.totalLinesCleared !== undefined)
         state.totalLinesCleared = update.totalLinesCleared;
+      if (update.boardWidth !== undefined) state.boardWidth = update.boardWidth;
+      if (update.boardHeight !== undefined) state.boardHeight = update.boardHeight;
     },
 
     /**

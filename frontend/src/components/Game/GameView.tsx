@@ -30,6 +30,7 @@ import {
   gameOver,
   resetGame,
 } from '../../store/slices/gameSlice';
+import { selectGameSettings } from '../../store/slices/gameRoomSlice';
 
 export interface GameViewProps {
   roomName?: string;
@@ -61,6 +62,7 @@ export function GameView({
   const { width, height } = useAppSelector(selectBoardDimensions);
   const clearingRows = useAppSelector(selectClearingRows);
   const penaltyRows = useAppSelector(selectPenaltyRows);
+  const gameSettings = useAppSelector(selectGameSettings);
   
   // Animation data from server
   const lockedCells = useAppSelector(selectLockedCells);
@@ -232,6 +234,7 @@ export function GameView({
             currentPiece={currentPiece}
             ghostPiece={ghostPiece}
             nextPieces={nextPieces}
+            maxNextDisplay={gameSettings.nextPieceCount}
             score={score}
             level={level}
             linesCleared={linesCleared}
@@ -250,6 +253,7 @@ export function GameView({
             <OpponentBoard
               opponent={opponent}
               boardHeight={height}
+              maxNextDisplay={gameSettings.nextPieceCount}
             />
           </div>
         )}
@@ -293,9 +297,10 @@ interface OpponentBoardProps {
     nextPieces?: number[];
   };
   boardHeight: number;
+  maxNextDisplay: number;
 }
 
-function OpponentBoard({ opponent, boardHeight }: OpponentBoardProps) {
+function OpponentBoard({ opponent, boardHeight, maxNextDisplay }: OpponentBoardProps) {
   
   if (opponent.board) {
     return (
@@ -306,6 +311,7 @@ function OpponentBoard({ opponent, boardHeight }: OpponentBoardProps) {
         width={10}
         height={boardHeight}
         nextPieces={opponent.nextPieces}
+        maxNextDisplay={maxNextDisplay}
         score={opponent.score}
         isGameOver={opponent.isEliminated}
         size="normal"

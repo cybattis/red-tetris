@@ -1,4 +1,4 @@
-import { SocketEvents } from '../../../shared/types/game.js';
+import { SocketEvents, GameSettings, GameMode } from '../../../shared/types/game.js';
 import { Server as HttpServer } from 'node:http';
 import { Server, Socket } from 'socket.io';
 import { Player } from '../classes/Player.js';
@@ -120,10 +120,29 @@ function wsRoomHandler(socket: Socket, io: Server) {
       return;
     }
     
-    // Broadcast game start to all players in room
-    if (result.roomUpdate) {
+    // Set up socket connections for each created game
+    if (result.gameIds && result.roomUpdate) {
+      const room = roomManager.getRoom(roomId);
+      if (room) {
+        const gameManager = GameManager.getInstance();
+        
+        // Connect each game to its player's socket
+        for (const gameId of result.gameIds) {
+          const game = gameManager.getGame(gameId);
+          if (game) {
+            // Find the socket for this game's player
+            const playerSocket = io.sockets.sockets.get(game.player.socketId);
+            if (playerSocket) {
+              game.setSocket(playerSocket);
+              // Emit game started with the specific gameId to this player
+              playerSocket.emit('GAME_STARTED', { gameId });
+            }
+          }
+        }
+      }
+      
+      // Broadcast room state update to all players
       io.to(roomId).emit('ROOM_STATE_UPDATE', result.roomUpdate);
-      io.to(roomId).emit('GAME_STARTED', { roomId });
     }
   });
 
@@ -156,28 +175,9 @@ function wsRoomHandler(socket: Socket, io: Server) {
 }
 
 function wsGameHandler(socket: Socket) {
-  socket.on('START_GAME', (data: SocketEvents<'START_GAME'>) => {
-    const seed = Date.now(); // For example, use current timestamp as seed
-    const player = new Player(socket.id);
-    const game = GameManager.getInstance().createGame(
-      player,
-      {
-        gravity: 1,
-        gameSpeed: 1,
-        ghostPiece: true,
-        boardWidth: 10,
-        boardHeight: 20,
-        nextPieceCount: 5,
-      },
-      seed,
-      socket // Pass the socket to the game
-    );
-
-    game.start();
-
-    socket.emit('GAME_STARTED', { gameId: game.id });
-  });
-
+  // Remove the START_GAME handler from here as it's now handled by wsRoomHandler
+  // The room system manages game creation through rooms
+  
   socket.on('STOP_GAME', (data: SocketEvents) => {
     const { gameId } = data.data as { gameId: string };
     const game = GameManager.getInstance().getGame(gameId);
@@ -221,26 +221,53 @@ function wsGameHandler(socket: Socket) {
   });
 
   // Additional socket event handlers for room management
-  socket.on('UPDATE_SETTINGS', (data: SocketEvents<'UPDATE_SETTINGS'>) => {
-    // TODO: Implement settings update logic
-    socket.emit('SETTINGS_UPDATED', { settings: data.data.settings });
+  socket.on('UPDATE_SETTINGS', (data: { roomId: string; settings: GameSettings }) => {
+    // TODO: Implement proper settings update logic with room management
+    const { roomId, settings } = data;
+    
+    // For now, just broadcast the settings update to the room
+    if (roomId && settings) {
+      socket.to(roomId).emit('SETTINGS_UPDATED', { settings });
+      socket.emit('SETTINGS_UPDATED', { settings });
+    }
   });
 
-  socket.on('UPDATE_GAME_MODE', (data: SocketEvents<'UPDATE_GAME_MODE'>) => {
-    // TODO: Implement game mode update logic
-    socket.emit('GAME_MODE_UPDATED', { gameMode: data.data.gameMode });
+  socket.on('UPDATE_GAME_MODE', (data: { roomId: string; gameMode: GameMode }) => {
+    // TODO: Implement proper game mode update logic with room management
+    const { roomId, gameMode } = data;
+    
+    // For now, just broadcast the game mode update to the room
+    if (roomId && gameMode) {
+      socket.to(roomId).emit('GAME_MODE_UPDATED', { gameMode });
+      socket.emit('GAME_MODE_UPDATED', { gameMode });
+    }
   });
 
-  socket.on('PLAYER_READY', (data: SocketEvents<'PLAYER_READY'>) => {
-    // TODO: Implement player ready logic
-    socket.emit('PLAYER_READY_STATUS', { 
-      playerId: data.data.playerId, 
-      isReady: data.data.isReady 
-    });
+  socket.on('PLAYER_READY', (data: { roomId: string; playerId: string; isReady: boolean }) => {
+    // TODO: Implement proper player ready logic with room management
+    const { roomId, playerId, isReady } = data;
+    
+    // For now, just broadcast the player ready status to the room
+    if (roomId && playerId !== undefined && isReady !== undefined) {
+      socket.to(roomId).emit('PLAYER_READY_STATUS', { 
+        playerId, 
+        isReady 
+      });
+      socket.emit('PLAYER_READY_STATUS', { 
+        playerId, 
+        isReady 
+      });
+    }
   });
 
-  socket.on('CANCEL_START', (data: SocketEvents<'CANCEL_START'>) => {
-    // TODO: Implement cancel start logic
-    socket.emit('GAME_START_CANCELED', {});
+  socket.on('CANCEL_START', (data: { roomId: string }) => {
+    // TODO: Implement proper cancel start logic with room management
+    const { roomId } = data;
+    
+    // For now, just broadcast the game start cancellation to the room
+    if (roomId) {
+      socket.to(roomId).emit('GAME_START_CANCELED', {});
+      socket.emit('GAME_START_CANCELED', {});
+    }
   });
 }

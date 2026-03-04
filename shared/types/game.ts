@@ -35,7 +35,6 @@ export const enum GameAction {
 
 export interface GameSettings {
   gravity: number;
-  gameSpeed: number;
   ghostPiece: boolean;
   boardWidth: number;
   boardHeight: number;
@@ -121,7 +120,6 @@ export interface SocketEventsType {
 // Game constants
 export const DEFAULT_SETTINGS: GameSettings = {
   gravity: 1,
-  gameSpeed: 1,
   ghostPiece: true,
   boardWidth: 10,
   boardHeight: 20,
@@ -189,9 +187,8 @@ export function canStartGame(players: Player[]): boolean {
 export function validateGameSettings(settings: GameSettings): boolean {
   return (
     settings.gravity > 0 &&
-    settings.gameSpeed > 0 &&
-    settings.boardWidth > 0 &&
-    settings.boardHeight > 0 &&
-    settings.nextPieceCount >= 0
+    settings.boardWidth >= 4 && settings.boardWidth <= 40 && // Min 4 for I-piece, max 40 for sanity
+    settings.boardHeight >= 4 && settings.boardHeight <= 50 && // Min 4 for pieces, max 50 for performance
+    settings.nextPieceCount >= 0 && settings.nextPieceCount <= 10 // Max 10 next pieces for UI sanity
   );
 }
