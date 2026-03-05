@@ -29,7 +29,7 @@ import {
   gameOver,
   resetGame,
 } from '../../store/slices/gameSlice';
-import { selectGameSettings } from '../../store/slices/gameRoomSlice';
+import { selectGameSettings, selectGameMode } from '../../store/slices/gameRoomSlice';
 
 export interface GameViewProps {
   roomName?: string;
@@ -61,6 +61,7 @@ export function GameView({
   const clearingRows = useAppSelector(selectClearingRows);
   const penaltyRows = useAppSelector(selectPenaltyRows);
   const gameSettings = useAppSelector(selectGameSettings);
+  const gameMode = useAppSelector(selectGameMode);
   
   // Animation data from server
   const lockedCells = useAppSelector(selectLockedCells);
@@ -240,6 +241,7 @@ export function GameView({
             penaltyRows={penaltyRows}
             lockedCells={lockedCells.length > 0 ? lockedCells : debugLockedCells}
             hardDropTrail={hardDropTrail.length > 0 ? hardDropTrail : debugHardDropTrail}
+            gameMode={gameMode}
             size="normal"
           />
         </div>

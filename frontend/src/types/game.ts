@@ -5,21 +5,17 @@
 
 // Import shared types
 import type { GameSettings as SharedGameSettings } from '../../../shared/types/game';
+import { GameMode } from '../../../shared/types/game';
 
 // Re-export shared types
 export type GameSettings = SharedGameSettings;
+export { GameMode };
 
 export interface Player {
   id: string;
   name: string;
   isHost: boolean;
   isReady: boolean;
-}
-
-export const enum GameMode {
-  Classic = 'classic',
-  Invisible = 'invisible',
-  Sprint = 'sprint',
 }
 
 // Backend communication interface for game creation
@@ -61,6 +57,7 @@ export interface SocketEvents {
 
 // Game constants
 export const DEFAULT_SETTINGS: GameSettings = {
+  gameMode: GameMode.Classic,
   gravity: 1,
   ghostPiece: true,
   boardWidth: 10,

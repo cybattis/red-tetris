@@ -4,6 +4,7 @@ import { Board } from '../Board';
 import { NextPiece } from './NextPiece';
 import { ScoreDisplay } from './ScoreDisplay';
 import type { PieceState } from '../../store/slices/gameSlice';
+import { GameMode } from '../../../../shared/types/game';
 
 export interface PlayerBoardProps {
   playerName: string;
@@ -25,6 +26,7 @@ export interface PlayerBoardProps {
   penaltyRows?: number[];
   lockedCells?: { x: number; y: number; type: number }[];
   hardDropTrail?: { x: number; startY: number; endY: number; type: number }[];
+  gameMode?: GameMode;
 }
 
 export const PlayerBoard = memo(function PlayerBoard({
@@ -53,6 +55,7 @@ export const PlayerBoard = memo(function PlayerBoard({
   penaltyRows = [],
   lockedCells = [],
   hardDropTrail = [],
+  gameMode,
 }: PlayerBoardProps) {
   const cellSize = size === 'small' ? 20 : 28;
   
@@ -73,6 +76,7 @@ export const PlayerBoard = memo(function PlayerBoard({
             penaltyRows={penaltyRows}
             lockedCells={lockedCells}
             hardDropTrail={hardDropTrail}
+            gameMode={gameMode}
           />
 
           <div className={`${styles.playerCard} ${isCurrentPlayer ? styles.currentPlayer : ''} ${isGameOver ? styles.eliminated : ''}`}>

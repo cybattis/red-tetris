@@ -2,7 +2,7 @@ import { Player } from './Player';
 import { Game } from './Game';
 import { Logger } from '../utils/helpers';
 import { GameManager } from '../managers/GameManager';
-import { GameSettings } from '../../../shared/types/game';
+import { GameSettings, GameMode } from '../../../shared/types/game';
 import { 
   RoomState, 
   RoomPlayer, 
@@ -12,6 +12,7 @@ import {
 
 // Default game settings for rooms
 const DEFAULT_GAME_SETTINGS: GameSettings = {
+  gameMode: GameMode.Classic,
   gravity: 1,
   ghostPiece: true,
   boardWidth: 10,
@@ -194,6 +195,9 @@ export class Room {
       return { success: false, reason: 'No players in room' };
     }
 
+    // Clean up any existing games from previous rounds
+    this.cleanupGames();
+
     this._state = 'playing';
     this._gameStartedAt = new Date();
 
@@ -219,6 +223,9 @@ export class Room {
           // socket will be set up separately if needed
         );
 
+        // Store game in Room's map for tracking
+        this._games.set(player.id, game);
+        
         // Start the game
         game.start();
         gameIds.push(game.id);
@@ -237,11 +244,8 @@ export class Room {
   public endGame(): void {
     this._state = 'ended';
     
-    // Stop all games
-    for (const game of this._games.values()) {
-      game.stopGame();
-    }
-    this._games.clear();
+    // Clean up all games properly
+    this.cleanupGames();
 
     Logger.info(`Game ended in room ${this.id}`);
   }
@@ -254,11 +258,8 @@ export class Room {
     this._state = 'waiting';
     this._gameStartedAt = undefined;
     
-    // Clean up any remaining games
-    for (const game of this._games.values()) {
-      game.stopGame();
-    }
-    this._games.clear();
+    // Clean up any remaining games properly
+    this.cleanupGames();
 
     Logger.info(`Game reset in room ${this.id}`);
     return { success: true };
@@ -266,6 +267,31 @@ export class Room {
 
   public getGame(playerId: string): Game | null {
     return this._games.get(playerId) || null;
+  }
+
+  /**
+   * Clean up all games for players in this room
+   * This ensures no orphaned game loops or memory leaks
+   */
+  private cleanupGames(): void {
+    const gameManager = GameManager.getInstance();
+    
+    // Stop and remove games from Room's map
+    for (const game of this._games.values()) {
+      game.stopGame();
+      gameManager.removeGame(game.id);
+    }
+    this._games.clear();
+    
+    // Also clean up any games in GameManager that belong to players in this room
+    for (const player of this._players.values()) {
+      const playerGames = gameManager.getGamesByPlayerId(player.id);
+      for (const game of playerGames) {
+        Logger.info(`Cleaning up orphaned game ${game.id} for player ${player.name}`);
+        game.stopGame();
+        gameManager.removeGame(game.id);
+      }
+    }
   }
 
   // Room info serialization

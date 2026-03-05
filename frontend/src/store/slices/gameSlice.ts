@@ -264,6 +264,16 @@ const gameSlice = createSlice({
     },
 
     /**
+     * Handle game ended from server - stops input and cleans up state
+     */
+    gameEnded: (state, action: PayloadAction<{ gameId: string; reason: string }>) => {
+      state.isGameOver = true;
+      state.gameOverReason = action.payload.reason;
+      state.isPaused = true; // Stop the game loop
+      // Don't reset gameId here as it might be needed for cleanup
+    },
+
+    /**
      * Set rows that are being cleared (for line clear animation)
      */
     setClearingRows: (state, action: PayloadAction<number[]>) => {
@@ -366,6 +376,7 @@ export const {
   setPaused,
   togglePause,
   gameOver,
+  gameEnded,
   setClearingRows,
   clearClearingRows,
   setPenaltyRows,

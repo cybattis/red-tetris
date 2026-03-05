@@ -8,6 +8,8 @@ import { TETROMINO_DICTIONARY } from '../pieces/TetrominoFactory';
 import { Position } from '../types/IPiece';
 import type { Socket } from 'socket.io';
 import { EventEmitter } from 'events';
+import { GameModeStrategy } from '../game-modes/GameModeStrategy.js';
+import { GameModeFactory } from '../game-modes/GameModeFactory.js';
 
 export class Game extends EventEmitter {
   // Game state and public properties
@@ -15,6 +17,7 @@ export class Game extends EventEmitter {
   public readonly player: Player;
   public readonly settings: GameSettings;
   public readonly piecesSequence: PiecesSequence;
+  public readonly gameMode: GameModeStrategy;
 
   public state: GameState = GameState.Waiting;
   public board: number[][];
@@ -41,12 +44,17 @@ export class Game extends EventEmitter {
   private _currentPiece: Piece;
   private _playerInput: GameAction = GameAction.NO_INPUT;
   private _socket: Socket | null = null;
+  
+  // Broadcast throttling for performance
+  private lastBroadcastTime: number = 0;
+  private readonly BROADCAST_THROTTLE_MS = 33; // ~30 FPS max (reduced from 60 FPS to improve performance)
 
   constructor(player: Player, seed: number, settings: GameSettings, socket?: Socket) {
     super();
     this.id = randomUUID();
     this.player = player;
     this.settings = settings;
+    this.gameMode = GameModeFactory.createStrategy(settings.gameMode);
     this._socket = socket || null;
     this.piecesSequence = new PiecesSequence(seed, 7);
     this.board = this.createEmptyBoard();
@@ -78,6 +86,14 @@ export class Game extends EventEmitter {
       clearInterval(this._gameLoop);
       this._gameLoop = null;
     }
+    
+    // Clear socket reference to prevent memory leaks
+    this._socket = null;
+    
+    // Remove all event listeners from this EventEmitter
+    this.removeAllListeners();
+    
+    Logger.info(`Game ${this.id} stopped and cleaned up`);
   }
 
   public setPlayerInput(input: GameAction): void {
@@ -109,6 +125,7 @@ export class Game extends EventEmitter {
       gameOverReason: !this.isAlive ? 'Game Over' : null,
       boardWidth: this.settings.boardWidth,
       boardHeight: this.settings.boardHeight,
+      gameMode: this.settings.gameMode,
     };
   }
 
@@ -133,15 +150,23 @@ export class Game extends EventEmitter {
   }
 
   private broadcastGameState(): void {
-    if (this._socket) {
-      const gameState = this.getGameState();
-      this._socket.emit('GAME_STATE_UPDATE', gameState);
+    if (!this._socket) return;
+    
+    // Throttle broadcasts to prevent excessive network traffic and improve performance
+    const now = Date.now();
+    if (now - this.lastBroadcastTime < this.BROADCAST_THROTTLE_MS) {
+      return; // Skip broadcast if within throttle window
     }
+    
+    this.lastBroadcastTime = now;
+    const gameState = this.getGameState();
+    this._socket.emit('GAME_STATE_UPDATE', gameState);
   }
 
   private broadcastAnimation(animationType: string, data: any): void {
     if (this._socket) {
-      Logger.info(`Broadcasting ${animationType} animation to client - timestamp: ${data.timestamp}`);
+      // Remove excessive logging for performance
+      // Logger.info(`Broadcasting ${animationType} animation to client - timestamp: ${data.timestamp}`);
       this._socket.emit('GAME_ANIMATION', {
         type: animationType,
         data: data
@@ -157,8 +182,9 @@ export class Game extends EventEmitter {
       return;
     }
 
-    // Update timing
     const now = Date.now();
+
+    // Update timing
     const deltaTime = now - this._lastTickAt;
     this._lastTickAt = now;
     this._gravityAccumulatorMs += deltaTime;
@@ -295,6 +321,9 @@ export class Game extends EventEmitter {
       timestamp: Date.now()
     });
 
+    // Apply game mode specific effects after piece placement
+    this.board = this.gameMode.onPiecePlaced(this.board, lockedCells);
+
     this.checkAndClearLines();
   }
 
@@ -359,7 +388,6 @@ export class Game extends EventEmitter {
       const startY = this._currentPiece.position.y;
       const endY = startY + dropDistance;
       
-      // Award hard drop bonus points (rows covered + 1)
       const hardDropBonus = dropDistance + 1;
       this.addHardDropBonus(hardDropBonus);
       
@@ -498,19 +526,38 @@ export class Game extends EventEmitter {
     // Replace the board with the new one
     this.board = newBoard;
     
+    // Apply game mode specific effects for line clearing
+    const modeEffects = this.gameMode.onLinesCleared(linesToClear.length, this.board);
     
-    // Log the board state after clearing
-    for (let i = 0; i < Math.min(10, this.board.length); i++) {
-      Logger.info(`   ${i}: ${this.board[i].join(' ')}`);
+    // Broadcast any mode-specific animations
+    if (modeEffects.animations) {
+      modeEffects.animations.forEach(animation => {
+        this.broadcastAnimation(animation.type, animation.data);
+      });
     }
+    
+    // Apply any board modifications from the game mode
+    if (modeEffects.boardModifications) {
+      this.board = modeEffects.boardModifications;
+    }
+    
+    // Reduce excessive board logging for performance
+    // Only log in debug mode or for significant events
+    // for (let i = 0; i < Math.min(10, this.board.length); i++) {
+    //   Logger.info(`   ${i}: ${this.board[i].join(' ')}`);
+    // }
     
     // Update score based on lines cleared
     this.updateScore(linesToClear.length);
+    
+    // Update drop interval after clearing lines (for speed-based modes like Sprint)
+    this.updateDropInterval();
   }
 
   private addHardDropBonus(bonus: number): void {
     this.score += bonus;
-    Logger.info(`Hard drop bonus: +${bonus} points (total: ${this.score})`);
+    // Reduce logging for performance - only log significant events
+    // Logger.info(`Hard drop bonus: +${bonus} points (total: ${this.score})`);
   }
 
   private updateScore(linesCleared: number): void {
@@ -521,7 +568,10 @@ export class Game extends EventEmitter {
     
     this.lines += linesCleared;
     
-    Logger.info(`Score updated: +${scoreIncrease} points (total: ${this.score}), Lines: ${this.lines}`);
+    // Reduce logging for performance - only log significant scoring events
+    if (linesCleared >= 3) {  // Only log for triple+ line clears
+      Logger.info(`Score updated: +${scoreIncrease} points (total: ${this.score}), Lines: ${this.lines}`);
+    }
   }
 
   private calculateScore(linesCleared: number): number {
@@ -564,11 +614,20 @@ export class Game extends EventEmitter {
   }
 
   private calculateDropInterval(): number {
-    return Math.max(50, Game.BASE_GRAVITY_INTERVAL_MS / this.settings.gravity);
+    const baseInterval = Math.max(50, Game.BASE_GRAVITY_INTERVAL_MS / this.settings.gravity);
+    
+    // Use game mode strategy to calculate the final drop interval
+    return this.gameMode.calculateDropInterval(baseInterval, this.lines, this.score);
   }
 
   private updateDropInterval(): void {
-    this.dropInterval = this.calculateDropInterval();
+    const newDropInterval = this.calculateDropInterval();
+    
+    // Only update if the change is significant (> 5ms difference)
+    // This prevents excessive interval updates that can cause lag
+    if (Math.abs(newDropInterval - this.dropInterval) > 5) {
+      this.dropInterval = newDropInterval;
+    }
   }
 
   // Helper methods
@@ -618,4 +677,5 @@ export class Game extends EventEmitter {
     this._currentPiece.width = originalWidth;
     this._currentPiece.height = originalHeight;
   }
+
 }

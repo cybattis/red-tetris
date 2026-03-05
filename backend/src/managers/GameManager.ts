@@ -21,6 +21,7 @@ export class GameManager {
   public createGame(player: Player, settings: GameSettings, seed: number = Date.now(), socket?: Socket): Game {
     const game = new Game(player, seed, settings, socket);
     this._games.set(game.id, game);
+    Logger.info(`GameManager: Created game ${game.id} for player ${player.name}. Total active games: ${this._games.size}`);
     return game;
   }
 
@@ -29,7 +30,11 @@ export class GameManager {
   }
 
   public removeGame(gameId: string): boolean {
-    return this._games.delete(gameId);
+    const result = this._games.delete(gameId);
+    if (result) {
+      Logger.info(`GameManager: Removed game ${gameId}. Total active games: ${this._games.size}`);
+    }
+    return result;
   }
 
   public getAllGames(): Game[] {

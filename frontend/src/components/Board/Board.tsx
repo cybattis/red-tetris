@@ -2,6 +2,7 @@ import { memo, useMemo, useState, useEffect, useCallback } from 'react';
 import styles from './Board.module.css';
 import { Cell } from './Cell';
 import { CELL_SIZE, CELL_GAP, getCellColor } from '../../utils/colors';
+import { GameMode } from '../../../../shared/types/game';
 
 export interface PieceState {
   type: number;
@@ -22,6 +23,7 @@ export interface BoardProps {
   penaltyRows?: number[];
   lockedCells?: { x: number; y: number; type: number; id?: string }[];
   hardDropTrail?: { x: number; startY: number; endY: number; type: number; id?: string }[];
+  gameMode?: GameMode;
 }
 
 interface Particle {
@@ -38,7 +40,8 @@ interface Particle {
 function createDisplayBoard(
   board: number[][],
   currentPiece: PieceState | null | undefined,
-  ghostPiece: PieceState | null | undefined
+  ghostPiece: PieceState | null | undefined,
+  gameMode?: GameMode
 ): {
   cells: number[][];
   ghostCells: Set<string>;
@@ -46,7 +49,12 @@ function createDisplayBoard(
   const height = board.length;
   const width = board[0]?.length ?? 10;
 
-  const cells = board.map((row) => [...row]);
+  // For invisible mode, start with empty board (hide locked pieces)
+  // For other modes, copy the existing board
+  const cells = gameMode === GameMode.Invisible 
+    ? Array.from({ length: height }, () => Array(width).fill(0))
+    : board.map((row) => [...row]);
+    
   const ghostCells = new Set<string>();
 
   if (ghostPiece?.shape) {
@@ -93,6 +101,7 @@ export const Board = memo(function Board({
   penaltyRows = [],
   lockedCells = [],
   hardDropTrail = [],
+  gameMode,
 }: BoardProps) {
   const boardHeight = height ?? board.length;
   const boardWidth = width ?? (board[0]?.length ?? 10);
@@ -116,6 +125,26 @@ export const Board = memo(function Board({
   const [particles, setParticles] = useState<Particle[]>([]);
   const [lockFlashCells, setLockFlashCells] = useState<Set<string>>(new Set());
   const [lastClearRows, setLastClearRows] = useState<string>('');
+  const [lastBoardSignature, setLastBoardSignature] = useState<string>('');
+
+  // Reset local state when a new game starts (detected by board becoming mostly empty)
+  useEffect(() => {
+    // Create a simple signature of the board to detect major changes
+    const filledCells = board.flat().filter(cell => cell !== 0).length;
+    const signature = `${boardWidth}x${boardHeight}:${filledCells}`;
+    
+    // If board is nearly empty and we had content before, likely a new game
+    if (filledCells <= 4 && lastBoardSignature && lastBoardSignature !== signature) {
+      // Reset all animation state
+      setParticles([]);
+      setLockFlashCells(new Set());
+      setLastClearRows('');
+      setIsPenaltyWarning(false);
+      setIsLockImpact(false);
+    }
+    
+    setLastBoardSignature(signature);
+  }, [board, boardWidth, boardHeight, lastBoardSignature]);
 
   const penaltyRowSet = useMemo(() => new Set(penaltyRows), [penaltyRows]);
 
@@ -304,8 +333,8 @@ export const Board = memo(function Board({
   }, [penaltyRows]);
 
   const { cells, ghostCells } = useMemo(
-    () => createDisplayBoard(board, currentPiece, ghostPiece),
-    [board, currentPiece, ghostPiece]
+    () => createDisplayBoard(board, currentPiece, ghostPiece, gameMode),
+    [board, currentPiece, ghostPiece, gameMode]
   );
 
   const gridStyle: React.CSSProperties = {
@@ -331,6 +360,7 @@ export const Board = memo(function Board({
             const isPenalty = penaltyRowSet.has(y);
             const isLocked = lockFlashCells.has(key);
 
+            // Display logic is now handled entirely in createDisplayBoard
             const displayValue = isGhost && ghostPiece ? ghostPiece.type : cellValue;
 
             return (

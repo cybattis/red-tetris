@@ -32,16 +32,35 @@ import {
 import { showToast } from '../slices/uiSlice.js';
 
 export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootState> => {
+  // Track if socket has been initialized to prevent duplicate initialization
+  let socketInitialized = false;
+  // Track if START_GAME has been emitted for current countdown to prevent duplicates
+  let startGameEmitted = false;
+  
   return (store) => (next) => (action: any) => {
+    // Get state BEFORE action is processed for certain checks
+    const prevState = store.getState();
+    
     const result = next(action);
     const state = store.getState();
     const dispatch = store.dispatch as AppDispatch;
 
     switch (action.type) {
       case 'connection/initSocket': {
+        // Prevent duplicate socket initialization
+        if (socketInitialized && state.connection.socket) {
+          console.log('[DEBUG] Socket already initialized, skipping');
+          break;
+        }
+        
         if (state.connection.socket) {
+          console.log('[DEBUG] Disconnecting existing socket');
+          state.connection.socket.removeAllListeners();
           state.connection.socket.disconnect();
         }
+        
+        socketInitialized = true;
+        console.log('[DEBUG] Initializing new socket');
 
         dispatch(setConnecting());
         
@@ -181,6 +200,9 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
         });
 
         socket.on('GAME_STARTED', (data) => {
+          console.log('[DEBUG] GAME_STARTED received:', data);
+          // Reset game state before starting a new game to clear any leftover state
+          dispatch(resetGame());
           dispatch(startGame({ gameId: data.gameId }));
           dispatch(showToast({ 
             message: 'Game started!', 
@@ -200,8 +222,17 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
 
         socket.on('GAME_ENDED', (data: { gameId: string; playerId: string; reason: string }) => {
           console.log(`Game ended: ${data.gameId} for player ${data.playerId} - reason: ${data.reason}`);
-          // The game over state should already be set by the final GAME_STATE_UPDATE
-          // The room state will be updated via ROOM_STATE_UPDATE event
+          
+          // Properly end the game in the frontend state
+          dispatch({ type: 'game/gameEnded', payload: { 
+            gameId: data.gameId, 
+            reason: data.reason 
+          }});
+          
+          // End the game in the room state (stops input)
+          dispatch({ type: 'gameRoom/endGame' });
+          
+          // Show toast notification
           dispatch(showToast({ 
             message: `Game ended: ${data.reason}`, 
             type: 'info' 
@@ -239,9 +270,12 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
       case 'connection/disconnectSocket': {
         const socket = state.connection.socket;
         if (socket) {
+          console.log('[DEBUG] Disconnecting socket and removing listeners');
+          socket.removeAllListeners();
           socket.disconnect();
           dispatch(setSocket(null));
         }
+        socketInitialized = false;
         break;
       }
 
@@ -291,6 +325,8 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
       }
 
       case 'gameRoom/startCountdown': {
+        // Reset the startGameEmitted flag when a new countdown starts
+        startGameEmitted = false;
         // Don't emit START_GAME immediately - wait for countdown to finish
         // The countdown will trigger START_GAME when it reaches 0
         break;
@@ -298,7 +334,13 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
 
       case 'gameRoom/updateCountdown': {
         const socket = state.connection.socket;
-        if (socket && socket.connected && action.payload <= 0) {
+        // Only emit START_GAME when countdown reaches exactly 0
+        // Use prevState to check gameStarted BEFORE the reducer updated it
+        // Also use startGameEmitted flag to prevent duplicate emissions
+        console.log(`[DEBUG] updateCountdown: payload=${action.payload}, prevGameStarted=${prevState.gameRoom.gameStarted}, startGameEmitted=${startGameEmitted}`);
+        if (socket && socket.connected && action.payload === 0 && !prevState.gameRoom.gameStarted && !startGameEmitted) {
+          startGameEmitted = true;
+          console.log('[DEBUG] Countdown reached 0, emitting START_GAME with settings:', state.gameRoom.settings);
           // Countdown finished - now start the game on the server
           socket.emit('START_GAME', {
             roomId: state.gameRoom.roomId,

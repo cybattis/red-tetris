@@ -131,6 +131,8 @@ const gameRoomSlice = createSlice({
     
     updateGameMode: (state, action: PayloadAction<GameMode>) => {
       state.gameMode = action.payload;
+      // Also update the settings so it's sent to the backend correctly
+      state.settings.gameMode = action.payload;
     },
     
     updateSettings: (state, action: PayloadAction<Partial<GameSettings>>) => {

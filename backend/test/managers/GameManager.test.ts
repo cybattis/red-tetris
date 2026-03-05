@@ -1,9 +1,10 @@
 import { describe, expect, it } from '@jest/globals';
 import { GameManager } from '../../src/managers/GameManager';
 import { Player } from '../../src/classes/Player';
-import { GameSettings } from '../../../shared/types/game';
+import { GameMode, GameSettings } from '../../../shared/types/game';
 
 const settings: GameSettings = {
+	gameMode: GameMode.Classic,
 	gravity: 1,
 	ghostPiece: true,
 	boardWidth: 10,

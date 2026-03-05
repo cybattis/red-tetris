@@ -113,12 +113,17 @@ function wsRoomHandler(socket: Socket, io: Server) {
   socket.on('START_GAME', (data: StartGameEvent) => {
     const { roomId, gameSettings } = data;
     
+    Logger.info(`[START_GAME] Received from socket ${socket.id} for room ${roomId} with settings:`, gameSettings);
+    
     const result = roomManager.startGame(roomId, socket.id, gameSettings);
     
     if (!result.success) {
+      Logger.warn(`[START_GAME] Failed for room ${roomId}: ${result.error?.error}`);
       socket.emit('ROOM_ERROR', result.error);
       return;
     }
+    
+    Logger.info(`[START_GAME] Success for room ${roomId}, created ${result.gameIds?.length} games`);
     
     // Set up socket connections for each created game
     if (result.gameIds && result.roomUpdate) {
@@ -191,8 +196,10 @@ function wsGameHandler(socket: Socket) {
 
   socket.on('PLAYER_INPUT', (payload: SocketEvents<'PLAYER_INPUT'>) => {
     const { gameId, input } = payload.data;
-    const game = GameManager.getInstance().getGame(gameId)?.setPlayerInput(input);
-    if (!game) {
+    const game = GameManager.getInstance().getGame(gameId);
+    if (game) {
+      game.setPlayerInput(input);
+    } else {
       Logger.warn(`Game not found: ${gameId}`);
     }
   });

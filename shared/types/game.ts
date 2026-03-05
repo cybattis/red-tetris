@@ -34,6 +34,7 @@ export const enum GameAction {
 }
 
 export interface GameSettings {
+  gameMode: GameMode;
   gravity: number;
   ghostPiece: boolean;
   boardWidth: number;
@@ -119,6 +120,7 @@ export interface SocketEventsType {
 
 // Game constants
 export const DEFAULT_SETTINGS: GameSettings = {
+  gameMode: GameMode.Classic,
   gravity: 1,
   ghostPiece: true,
   boardWidth: 10,

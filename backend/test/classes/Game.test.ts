@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals
 import { Game } from '../../src/classes/Game';
 import { Player } from '../../src/classes/Player';
 import { Piece } from '../../src/classes/Piece';
-import { GameAction, GameSettings, GameState } from '../../../shared/types/game';
+import { GameAction, GameMode, GameSettings, GameState } from '../../../shared/types/game';
 import { PieceType } from '../../src/types/IPiece';
 import { TETROMINO_DICTIONARY } from '../../src/pieces/TetrominoFactory';
 
@@ -12,6 +12,7 @@ const settings: GameSettings = {
   boardWidth: 10,
   boardHeight: 20,
   nextPieceCount: 3,
+  gameMode: GameMode.Classic,
 };
 
 function createGame(seed = 123): Game {
