@@ -210,9 +210,9 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
           }));
         });
 
-        socket.on('GAME_STATE_UPDATE', (gameState) => {
-          // Update the game slice with the new state from server
-          dispatch({ type: 'game/updateGameState', payload: gameState });
+        socket.on('GAME_STATE_UPDATE', (data) => {
+          console.log('🎮 Frontend received GAME_STATE_UPDATE:', data);
+          dispatch({ type: 'game/updateGameState', payload: data });
         });
 
         socket.on('GAME_ANIMATION', (animationData) => {
@@ -229,14 +229,13 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
             reason: data.reason 
           }});
           
-          // End the game in the room state (stops input)
-          dispatch({ type: 'gameRoom/endGame' });
-          
           // Show toast notification
           dispatch(showToast({ 
             message: `Game ended: ${data.reason}`, 
             type: 'info' 
           }));
+          
+          // Don't automatically end the game room - let the user choose via Game Over overlay buttons
         });
 
         socket.on('ROOM_NOT_FOUND', (data) => {

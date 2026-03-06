@@ -133,6 +133,9 @@ export interface GameStateUpdate {
   totalLinesCleared?: number;
   boardWidth?: number;
   boardHeight?: number;
+  isPaused?: boolean;
+  isGameOver?: boolean;
+  gameOverReason?: string | null;
 }
 
 const gameSlice = createSlice({
@@ -174,6 +177,7 @@ const gameSlice = createSlice({
      */
     updateGameState: (state, action: PayloadAction<GameStateUpdate>) => {
       const update = action.payload;
+      console.log('🔄 Redux updateGameState called with:', update);
 
       if (update.board !== undefined) state.board = update.board;
       if (update.currentPiece !== undefined) state.currentPiece = update.currentPiece;
@@ -186,6 +190,24 @@ const gameSlice = createSlice({
         state.totalLinesCleared = update.totalLinesCleared;
       if (update.boardWidth !== undefined) state.boardWidth = update.boardWidth;
       if (update.boardHeight !== undefined) state.boardHeight = update.boardHeight;
+      if (update.isGameOver !== undefined) {
+        console.log('🏁 Setting isGameOver to:', update.isGameOver);
+        state.isGameOver = update.isGameOver;
+      }
+      if (update.gameOverReason !== undefined) {
+        console.log('💀 Setting gameOverReason to:', update.gameOverReason);
+        state.gameOverReason = update.gameOverReason;
+      }
+      if (update.isPaused !== undefined) {
+        console.log('⏸️ Setting isPaused to:', update.isPaused);
+        state.isPaused = update.isPaused;
+      }
+      
+      console.log('✅ Final Redux state after updateGameState:', {
+        isGameOver: state.isGameOver,
+        gameOverReason: state.gameOverReason,
+        isPaused: state.isPaused
+      });
     },
 
     /**
@@ -405,10 +427,22 @@ export const selectGameOverReason = (state: { game: GameState }) => state.game.g
 export const selectOpponents = (state: { game: GameState }) => state.game.opponents;
 export const selectPendingPenaltyLines = (state: { game: GameState }) =>
   state.game.pendingPenaltyLines;
-export const selectBoardDimensions = (state: { game: GameState }) => ({
-  width: state.game.boardWidth,
-  height: state.game.boardHeight,
-});
+
+// Memoized selector: returns a stable reference unless width/height actually change
+let _lastBoardWidth = 0;
+let _lastBoardHeight = 0;
+let _lastBoardDimensions = { width: 0, height: 0 };
+export const selectBoardDimensions = (state: { game: GameState }) => {
+  const w = state.game.boardWidth;
+  const h = state.game.boardHeight;
+  if (w !== _lastBoardWidth || h !== _lastBoardHeight) {
+    _lastBoardWidth = w;
+    _lastBoardHeight = h;
+    _lastBoardDimensions = { width: w, height: h };
+  }
+  return _lastBoardDimensions;
+};
+
 export const selectClearingRows = (state: { game: GameState }) => state.game.clearingRows;
 export const selectPenaltyRows = (state: { game: GameState }) => state.game.penaltyRows;
 export const selectLockedCells = (state: { game: GameState }) => state.game.lockedCells;

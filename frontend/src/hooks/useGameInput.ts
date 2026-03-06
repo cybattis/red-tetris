@@ -43,12 +43,12 @@ export function useGameInput({
   // Track held keys for repeat functionality
   const heldKeysRef = useRef<Map<string, HeldKeyState>>(new Map());
 
-  // Actions that support key repeat (holding)
-  const repeatableActions = new Set<GameAction>([
+  // Actions that support key repeat (holding) - stable reference to avoid re-renders
+  const repeatableActionsRef = useRef(new Set<GameAction>([
     GameAction.MOVE_LEFT,
     GameAction.MOVE_RIGHT,
     GameAction.SOFT_DROP,
-  ]);
+  ]));
 
   const clearKeyRepeat = useCallback((key: string) => {
     const state = heldKeysRef.current.get(key);
@@ -79,7 +79,7 @@ export function useGameInput({
       onActionStart?.(action);
 
       // Set up key repeat for repeatable actions
-      if (repeatableActions.has(action)) {
+      if (repeatableActionsRef.current.has(action)) {
         const timeoutId = setTimeout(() => {
           // Start repeating after delay
           const intervalId = setInterval(() => {
@@ -113,7 +113,6 @@ export function useGameInput({
       onActionStart,
       repeatDelay,
       repeatInterval,
-      repeatableActions,
     ],
   );
 

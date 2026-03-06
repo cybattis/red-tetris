@@ -4,7 +4,9 @@
   border-radius: 3px;
   border: 1px solid transparent;
   box-sizing: border-box;
-  transition: background-color 0.05s ease, box-shadow 0.1s ease;
+  /* CSS containment: each cell is self-contained, so Firefox doesn't need to 
+     recalculate layout for all 200 cells when one changes. Major Firefox perf fix. */
+  contain: strict;
 }
 
 .empty {
@@ -13,10 +15,10 @@
 }
 
 .filled {
-  box-shadow: 
-    inset 2px 2px 4px rgba(255, 255, 255, 0.2),
-    inset -1px -1px 3px rgba(0, 0, 0, 0.3);
-  border-color: transparent;
+  /* Use a simple border highlight instead of expensive inset box-shadows on every filled cell */
+  border-color: rgba(255, 255, 255, 0.15);
+  border-bottom-color: rgba(0, 0, 0, 0.2);
+  border-right-color: rgba(0, 0, 0, 0.2);
 }
 
 .ghost {
@@ -39,25 +41,17 @@
 @keyframes lineClear {
   0% {
     opacity: 1;
-    transform: scale(1);
-    filter: brightness(1);
   }
   20% {
     opacity: 1;
-    transform: scale(1.15);
-    filter: brightness(3);
     background-color: white !important;
-    box-shadow: 0 0 20px white, 0 0 40px rgba(255, 255, 255, 0.8);
+    border-color: white;
   }
   40% {
-    opacity: 1;
-    transform: scale(1.1);
-    filter: brightness(2);
+    opacity: 0.8;
   }
   100% {
     opacity: 0;
-    transform: scale(0) rotate(45deg);
-    filter: brightness(0);
   }
 }
 
@@ -68,49 +62,30 @@
 @keyframes penaltyAppear {
   0% {
     opacity: 0;
-    transform: translateY(200%) scale(0.8);
-    filter: brightness(2) saturate(2);
-    box-shadow: 0 0 20px rgba(255, 0, 0, 0.8);
+    background-color: rgba(255, 0, 0, 0.6);
   }
   50% {
     opacity: 1;
-    transform: translateY(-10%) scale(1.05);
-    filter: brightness(1.5) saturate(1.5);
-    box-shadow: 0 0 15px rgba(255, 100, 0, 0.6);
-  }
-  70% {
-    transform: translateY(5%) scale(0.98);
+    background-color: rgba(255, 0, 0, 0.3);
   }
   100% {
     opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: brightness(1) saturate(1);
-    box-shadow: none;
   }
 }
 
 .locked {
-  animation: lockImpact 0.25s ease-out;
+  animation: lockImpact 0.2s ease-out;
 }
 
 @keyframes lockImpact {
   0% {
-    transform: scale(1.1);
-    filter: brightness(1.5);
-  }
-  30% {
-    transform: scale(0.95);
-    filter: brightness(1.2);
-  }
-  60% {
-    transform: scale(1.02);
-    filter: brightness(1.1);
+    opacity: 0.7;
+    border-color: rgba(255, 255, 255, 0.6);
   }
   100% {
-    transform: scale(1);
-    filter: brightness(1);
-    box-shadow: 
-      inset 2px 2px 4px rgba(255, 255, 255, 0.2),
-      inset -1px -1px 3px rgba(0, 0, 0, 0.3);
+    opacity: 1;
+    border-color: rgba(255, 255, 255, 0.15);
+    border-bottom-color: rgba(0, 0, 0, 0.2);
+    border-right-color: rgba(0, 0, 0, 0.2);
   }
 }

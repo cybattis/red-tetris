@@ -12,8 +12,8 @@ export interface Player {
 
 export enum GameMode {
   Classic = "classic",
-  Invisible = "invisible",
   Sprint = "sprint",
+  Invisible = "invisible",
 }
 
 export enum GameState {
@@ -139,14 +139,14 @@ export const GAME_MODES: Array<{
     description: "Traditional Tetris gameplay",
   },
   {
-    id: GameMode.Invisible,
-    name: "Invisible",
-    description: "Pieces disappear after landing",
-  },
-  {
     id: GameMode.Sprint,
     name: "Sprint",
     description: "Game speeds up over time",
+  },
+  {
+    id: GameMode.Invisible,
+    name: "Invisible",
+    description: "Locked pieces disappear from view",
   },
 ];
 

@@ -1,5 +1,5 @@
 import { Player } from './Player';
-import { GameAction, GameSettings, GameState, GameStateUpdate } from '../../../shared/types/game.js';
+import { GameAction, GameSettings, GameState, GameStateUpdate, GameMode } from '../../../shared/types/game.js';
 import { randomUUID } from 'node:crypto';
 import { PiecesSequence } from './PiecesSequence';
 import { Piece } from './Piece';
@@ -8,8 +8,6 @@ import { TETROMINO_DICTIONARY } from '../pieces/TetrominoFactory';
 import { Position } from '../types/IPiece';
 import type { Socket } from 'socket.io';
 import { EventEmitter } from 'events';
-import { GameModeStrategy } from '../game-modes/GameModeStrategy.js';
-import { GameModeFactory } from '../game-modes/GameModeFactory.js';
 
 export class Game extends EventEmitter {
   // Game state and public properties
@@ -17,7 +15,6 @@ export class Game extends EventEmitter {
   public readonly player: Player;
   public readonly settings: GameSettings;
   public readonly piecesSequence: PiecesSequence;
-  public readonly gameMode: GameModeStrategy;
 
   public state: GameState = GameState.Waiting;
   public board: number[][];
@@ -30,6 +27,14 @@ export class Game extends EventEmitter {
 
   // Game timing
   public dropInterval: number = 1000; // milliseconds
+  
+  // Store original gravity and current effective gravity for Sprint mode
+  private readonly originalGravity: number;
+  private currentGravity: number; // Current effective gravity (modified during Sprint mode)
+
+  // Sprint mode constants - simplified approach using gravity acceleration
+  private static readonly SPRINT_GRAVITY_INCREASE_PER_LINE = 0.05; // Gravity increases by 0.05 per line cleared
+  private static readonly SPRINT_MAX_GRAVITY = 20.0; // Cap gravity at 20x the base value
 
   // Timing constants
   private static readonly TICK_RATE = 60;
@@ -53,8 +58,9 @@ export class Game extends EventEmitter {
     super();
     this.id = randomUUID();
     this.player = player;
-    this.settings = settings;
-    this.gameMode = GameModeFactory.createStrategy(settings.gameMode);
+    this.settings = { ...settings }; // Create a copy to avoid modifying the original settings
+    this.originalGravity = settings.gravity; // Store original gravity for restoration
+    this.currentGravity = settings.gravity; // Initialize current gravity to original value
     this._socket = socket || null;
     this.piecesSequence = new PiecesSequence(seed, 7);
     this.board = this.createEmptyBoard();
@@ -87,6 +93,10 @@ export class Game extends EventEmitter {
       this._gameLoop = null;
     }
     
+    // Reset gravity to original value to prevent persistent effects
+    this.currentGravity = this.originalGravity;
+    this.settings.gravity = this.originalGravity;
+    
     // Clear socket reference to prevent memory leaks
     this._socket = null;
     
@@ -104,7 +114,7 @@ export class Game extends EventEmitter {
   // Game state serialization for frontend
   // ============================================
   public getGameState() {
-    return {
+    const gameState = {
       gameId: this.id,
       board: this.board,
       currentPiece: this._currentPiece
@@ -127,6 +137,16 @@ export class Game extends EventEmitter {
       boardHeight: this.settings.boardHeight,
       gameMode: this.settings.gameMode,
     };
+    
+    console.log('🎮 Backend getGameState() returning:', {
+      isAlive: this.isAlive,
+      state: this.state,
+      isGameOver: gameState.isGameOver,
+      gameOverReason: gameState.gameOverReason,
+      isPaused: gameState.isPaused
+    });
+    
+    return gameState;
   }
 
   private getNextPiecesPreview(): number[] {
@@ -165,8 +185,6 @@ export class Game extends EventEmitter {
 
   private broadcastAnimation(animationType: string, data: any): void {
     if (this._socket) {
-      // Remove excessive logging for performance
-      // Logger.info(`Broadcasting ${animationType} animation to client - timestamp: ${data.timestamp}`);
       this._socket.emit('GAME_ANIMATION', {
         type: animationType,
         data: data
@@ -253,9 +271,7 @@ export class Game extends EventEmitter {
       if (boardY >= 0 && boardX >= 0 && boardX < this.settings.boardWidth && 
           boardY < this.settings.boardHeight && this.board[boardY][boardX] !== 0) {
         Logger.warn('Game over: Cannot spawn new piece - board is full');
-        this.state = GameState.Ended;
-        this.isAlive = false;
-        this.stopGame();
+        this.GameOver();
         return;
       }
     }
@@ -321,8 +337,7 @@ export class Game extends EventEmitter {
       timestamp: Date.now()
     });
 
-    // Apply game mode specific effects after piece placement
-    this.board = this.gameMode.onPiecePlaced(this.board, lockedCells);
+    // All game modes use standard piece placement logic
 
     this.checkAndClearLines();
   }
@@ -463,8 +478,14 @@ export class Game extends EventEmitter {
   }
 
   private GameOver(): void {
+    console.log('💀 Backend GameOver() called - setting isAlive to false');
     this.isAlive = false;
     this.state = GameState.Ended;
+    
+    console.log('💀 Backend GameOver() - current state:', {
+      isAlive: this.isAlive,
+      state: this.state
+    });
     
     // Broadcast final game state to the client
     this.broadcastGameState();
@@ -526,19 +547,13 @@ export class Game extends EventEmitter {
     // Replace the board with the new one
     this.board = newBoard;
     
-    // Apply game mode specific effects for line clearing
-    const modeEffects = this.gameMode.onLinesCleared(linesToClear.length, this.board);
-    
-    // Broadcast any mode-specific animations
-    if (modeEffects.animations) {
-      modeEffects.animations.forEach(animation => {
-        this.broadcastAnimation(animation.type, animation.data);
+    // Apply Sprint mode specific effects for line clearing
+    if (this.settings.gameMode === GameMode.Sprint && linesToClear.length >= 3) {
+      // Add speed boost animation for significant line clears in Sprint mode
+      this.broadcastAnimation('SPEED_BOOST', {
+        multiplier: linesToClear.length,
+        timestamp: Date.now()
       });
-    }
-    
-    // Apply any board modifications from the game mode
-    if (modeEffects.boardModifications) {
-      this.board = modeEffects.boardModifications;
     }
     
     // Reduce excessive board logging for performance
@@ -614,10 +629,30 @@ export class Game extends EventEmitter {
   }
 
   private calculateDropInterval(): number {
-    const baseInterval = Math.max(50, Game.BASE_GRAVITY_INTERVAL_MS / this.settings.gravity);
+    // Use the current effective gravity (which includes Sprint modifications)
+    const effectiveGravity = this.settings.gameMode === GameMode.Sprint 
+      ? this.getCurrentSprintGravity() 
+      : this.originalGravity;
     
-    // Use game mode strategy to calculate the final drop interval
-    return this.gameMode.calculateDropInterval(baseInterval, this.lines, this.score);
+    const baseInterval = Math.max(50, Game.BASE_GRAVITY_INTERVAL_MS / effectiveGravity);
+    return baseInterval;
+  }
+
+  private getCurrentSprintGravity(): number {
+    // Calculate current gravity for Sprint mode without modifying settings
+    const gravityIncrease = this.lines * Game.SPRINT_GRAVITY_INCREASE_PER_LINE;
+    return Math.min(this.originalGravity + gravityIncrease, Game.SPRINT_MAX_GRAVITY);
+  }
+
+  /**
+   * Get the current gravity multiplier for Sprint mode (useful for display purposes)
+   */
+  public getSprintGravityMultiplier(): number {
+    if (this.settings.gameMode !== GameMode.Sprint) {
+      return 1.0;
+    }
+    
+    return this.getCurrentSprintGravity() / this.originalGravity;
   }
 
   private updateDropInterval(): void {

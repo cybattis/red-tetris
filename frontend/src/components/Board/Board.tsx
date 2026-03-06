@@ -1,8 +1,7 @@
-import { memo, useMemo, useState, useEffect, useCallback } from 'react';
+import { memo, useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import styles from './Board.module.css';
 import { Cell } from './Cell';
 import { CELL_SIZE, CELL_GAP, getCellColor } from '../../utils/colors';
-import { GameMode } from '../../../../shared/types/game';
 
 export interface PieceState {
   type: number;
@@ -19,11 +18,11 @@ export interface BoardProps {
   cellSize?: number;
   isPaused?: boolean;
   isGameOver?: boolean;
+  isInvisible?: boolean;
   clearingRows?: number[];
   penaltyRows?: number[];
   lockedCells?: { x: number; y: number; type: number; id?: string }[];
   hardDropTrail?: { x: number; startY: number; endY: number; type: number; id?: string }[];
-  gameMode?: GameMode;
 }
 
 interface Particle {
@@ -41,7 +40,7 @@ function createDisplayBoard(
   board: number[][],
   currentPiece: PieceState | null | undefined,
   ghostPiece: PieceState | null | undefined,
-  gameMode?: GameMode
+  isInvisible: boolean
 ): {
   cells: number[][];
   ghostCells: Set<string>;
@@ -49,14 +48,15 @@ function createDisplayBoard(
   const height = board.length;
   const width = board[0]?.length ?? 10;
 
-  // For invisible mode, start with empty board (hide locked pieces)
-  // For other modes, copy the existing board
-  const cells = gameMode === GameMode.Invisible 
+  // In invisible mode, start with an empty board (hide all locked pieces)
+  // In normal mode, copy the existing board with locked pieces
+  const cells = isInvisible
     ? Array.from({ length: height }, () => Array(width).fill(0))
     : board.map((row) => [...row]);
     
   const ghostCells = new Set<string>();
 
+  // Add ghost piece
   if (ghostPiece?.shape) {
     for (let py = 0; py < ghostPiece.shape.length; py++) {
       for (let px = 0; px < ghostPiece.shape[py].length; px++) {
@@ -71,6 +71,7 @@ function createDisplayBoard(
     }
   }
 
+  // Add current falling piece
   if (currentPiece?.shape) {
     for (let py = 0; py < currentPiece.shape.length; py++) {
       for (let px = 0; px < currentPiece.shape[py].length; px++) {
@@ -97,11 +98,11 @@ export const Board = memo(function Board({
   height,
   isPaused = false,
   isGameOver = false,
+  isInvisible = false,
   clearingRows = [],
   penaltyRows = [],
   lockedCells = [],
   hardDropTrail = [],
-  gameMode,
 }: BoardProps) {
   const boardHeight = height ?? board.length;
   const boardWidth = width ?? (board[0]?.length ?? 10);
@@ -124,35 +125,44 @@ export const Board = memo(function Board({
   const [isLockImpact, setIsLockImpact] = useState(false);
   const [particles, setParticles] = useState<Particle[]>([]);
   const [lockFlashCells, setLockFlashCells] = useState<Set<string>>(new Set());
-  const [lastClearRows, setLastClearRows] = useState<string>('');
-  const [lastBoardSignature, setLastBoardSignature] = useState<string>('');
+  
+  // Use refs for deduplication to avoid triggering re-renders
+  const lastClearRowsRef = useRef<string>('');
+  const lastBoardSignatureRef = useRef<string>('');
+
+  // Maximum concurrent particles to prevent performance degradation
+  const MAX_PARTICLES = 40;
 
   // Reset local state when a new game starts (detected by board becoming mostly empty)
   useEffect(() => {
-    // Create a simple signature of the board to detect major changes
     const filledCells = board.flat().filter(cell => cell !== 0).length;
     const signature = `${boardWidth}x${boardHeight}:${filledCells}`;
     
     // If board is nearly empty and we had content before, likely a new game
-    if (filledCells <= 4 && lastBoardSignature && lastBoardSignature !== signature) {
+    if (filledCells <= 4 && lastBoardSignatureRef.current && lastBoardSignatureRef.current !== signature) {
       // Reset all animation state
       setParticles([]);
       setLockFlashCells(new Set());
-      setLastClearRows('');
+      lastClearRowsRef.current = '';
       setIsPenaltyWarning(false);
       setIsLockImpact(false);
     }
     
-    setLastBoardSignature(signature);
-  }, [board, boardWidth, boardHeight, lastBoardSignature]);
+    lastBoardSignatureRef.current = signature;
+  }, [board, boardWidth, boardHeight]);
 
   const penaltyRowSet = useMemo(() => new Set(penaltyRows), [penaltyRows]);
 
+  // Use a ref for board data in particle generation to avoid recreating callbacks on every board change
+  const boardRef = useRef(board);
+  boardRef.current = board;
+
   const generateLineClearParticles = useCallback((rows: number[]) => {
+    const currentBoard = boardRef.current;
     const newParticles: Particle[] = [];
     
     const colors = rows.flatMap(row => 
-      board[row]?.map(cell => getCellColor(cell, false)) ?? []
+      currentBoard[row]?.map(cell => getCellColor(cell, false)) ?? []
     ).filter(c => c !== 'transparent');
     
     const sparkleColors = ['#fff', '#ffff00', '#00ffff', '#ff00ff', ...colors];
@@ -160,8 +170,8 @@ export const Board = memo(function Board({
     rows.forEach((row, rowIndex) => {
       const rowY = row * (actualCellSize + CELL_GAP) + actualCellSize / 2;
       
-      for (let cellX = 0; cellX < boardWidth; cellX++) {
-        const cellValue = board[row]?.[cellX];
+      for (let cellX = 0; cellX < boardWidth; cellX += 2) {  // Every other cell for performance
+        const cellValue = currentBoard[row]?.[cellX];
         if (cellValue && cellValue !== 0) { // Only create particles from filled cells
           const cellCenterX = cellX * (actualCellSize + CELL_GAP) + actualCellSize / 2;
           const cellColor = getCellColor(cellValue, false);
@@ -185,7 +195,7 @@ export const Board = memo(function Board({
       }
     });
     
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 3; i++) {
       const row = rows[Math.floor(Math.random() * rows.length)];
       const rowY = row * (actualCellSize + CELL_GAP) + actualCellSize / 2;
       
@@ -202,7 +212,7 @@ export const Board = memo(function Board({
     }
     
     return newParticles;
-  }, [board, boardWidth, actualCellSize]);
+  }, [boardWidth, actualCellSize]);
 
   const generateHardDropParticles = useCallback((trails: { x: number; startY: number; endY: number; type: number; id?: string }[]) => {
     const newParticles: Particle[] = [];
@@ -244,8 +254,9 @@ export const Board = memo(function Board({
       const x = cell.x * (actualCellSize + CELL_GAP) + actualCellSize / 2;
       const y = cell.y * (actualCellSize + CELL_GAP) + actualCellSize / 2;
       
-      for (let i = 0; i < 6; i++) {
-        const angle = (i / 6) * Math.PI * 2 + Math.random() * 0.5;
+      // Reduced from 6 to 3 particles per cell for performance
+      for (let i = 0; i < 3; i++) {
+        const angle = (i / 3) * Math.PI * 2 + Math.random() * 0.5;
         const speed = 30 + Math.random() * 50;
         
         newParticles.push({
@@ -268,33 +279,38 @@ export const Board = memo(function Board({
     if (clearingRows.length > 0) {
       // Make a copy before sorting to avoid mutating the read-only array
       const clearKey = [...clearingRows].sort((a, b) => a - b).join(',');
-      if (clearKey === lastClearRows) {
+      if (clearKey === lastClearRowsRef.current) {
         return; // Skip if this is the same line clear event
       }
       
-      setLastClearRows(clearKey);
+      lastClearRowsRef.current = clearKey;
       
       const newParticles = generateLineClearParticles(clearingRows);
       setParticles(prev => {
         // Clear any existing line clear particles first
         const filteredParticles = prev.filter(p => !p.id.startsWith('lineclear-') && !p.id.startsWith('sparkle-'));
-        return [...filteredParticles, ...newParticles];
+        const combined = [...filteredParticles, ...newParticles];
+        // Cap total particles to prevent performance degradation
+        return combined.slice(-MAX_PARTICLES);
       });
       
       const timer = setTimeout(() => {
         setParticles(prev => prev.filter(p => p.type !== 'explosion'));
-        setLastClearRows('');
+        lastClearRowsRef.current = '';
       }, 800);
       
       return () => {
         clearTimeout(timer);
       };
     }
-  }, [clearingRows, lastClearRows, generateLineClearParticles]);
+  }, [clearingRows, generateLineClearParticles]);
 
   useEffect(() => {
     if (hardDropTrail.length > 0) {
-      setParticles(prev => [...prev, ...generateHardDropParticles(hardDropTrail)]);
+      setParticles(prev => {
+        const combined = [...prev, ...generateHardDropParticles(hardDropTrail)];
+        return combined.slice(-MAX_PARTICLES);
+      });
       
       const timer = setTimeout(() => {
         setParticles(prev => prev.filter(p => p.type !== 'trail'));
@@ -308,7 +324,10 @@ export const Board = memo(function Board({
     if (lockedCells.length > 0) {
       setIsLockImpact(true);
       setLockFlashCells(new Set(lockedCells.map(c => `${c.x},${c.y}`)));
-      setParticles(prev => [...prev, ...generateLockImpactParticles(lockedCells)]);
+      setParticles(prev => {
+        const combined = [...prev, ...generateLockImpactParticles(lockedCells)];
+        return combined.slice(-MAX_PARTICLES);
+      });
       
       const timer = setTimeout(() => {
         setIsLockImpact(false);
@@ -333,8 +352,8 @@ export const Board = memo(function Board({
   }, [penaltyRows]);
 
   const { cells, ghostCells } = useMemo(
-    () => createDisplayBoard(board, currentPiece, ghostPiece, gameMode),
-    [board, currentPiece, ghostPiece, gameMode]
+    () => createDisplayBoard(board, currentPiece, ghostPiece, isInvisible),
+    [board, currentPiece, ghostPiece, isInvisible]
   );
 
   const gridStyle: React.CSSProperties = {
@@ -389,10 +408,8 @@ export const Board = memo(function Board({
                   width: particle.size,
                   height: particle.size,
                   backgroundColor: particle.color,
-                  boxShadow: `0 0 ${particle.size}px ${particle.color}`,
-                  '--dx': `${particle.dx}px`,
-                  '--dy': `${particle.dy}px`,
-                } as React.CSSProperties}
+                  transform: `translate(${particle.dx}px, ${particle.dy}px)`,
+                }}
               />
             ))}
           </div>

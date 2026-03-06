@@ -36,6 +36,8 @@ export interface GameViewProps {
   playerName?: string;
   isHost?: boolean;
   onLeave?: () => void;
+  onPlayAgain?: () => void;
+  onReturnHome?: () => void;
 }
 
 export function GameView({ 
@@ -43,6 +45,8 @@ export function GameView({
   playerName = 'Player',
   isHost = false,
   onLeave,
+  onPlayAgain,
+  onReturnHome,
 }: GameViewProps) {
   const dispatch = useAppDispatch();
 
@@ -62,6 +66,16 @@ export function GameView({
   const penaltyRows = useAppSelector(selectPenaltyRows);
   const gameSettings = useAppSelector(selectGameSettings);
   const gameMode = useAppSelector(selectGameMode);
+  
+  // Debug log game over state
+  console.log('🎮 GameView render - Game Over State:', {
+    isGameOver,
+    gameOverReason,
+    isPaused
+  });
+  
+  // Determine if invisible mode is active
+  const isInvisible = gameMode === 'invisible';
   
   // Animation data from server
   const lockedCells = useAppSelector(selectLockedCells);
@@ -205,8 +219,9 @@ export function GameView({
           placement: opponents.length > 0 ? 1 : undefined,
           totalPlayers: opponents.length > 0 ? opponents.length + 1 : undefined,
         }}
-        onPlayAgain={handleDebugReset}
+        onPlayAgain={onPlayAgain}
         onReturnToLobby={onLeave}
+        onReturnHome={onReturnHome}
       />
 
       <header className={styles.header}>
@@ -237,11 +252,11 @@ export function GameView({
             linesCleared={totalLinesCleared}
             isPaused={isPaused}
             isGameOver={isGameOver}
+            isInvisible={isInvisible}
             clearingRows={clearingRows}
             penaltyRows={penaltyRows}
             lockedCells={lockedCells.length > 0 ? lockedCells : debugLockedCells}
             hardDropTrail={hardDropTrail.length > 0 ? hardDropTrail : debugHardDropTrail}
-            gameMode={gameMode}
             size="normal"
           />
         </div>

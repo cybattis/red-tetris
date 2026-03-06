@@ -5,9 +5,10 @@
   background: rgba(0, 0, 0, 0.6);
   border: 2px solid rgba(0, 212, 255, 0.3);
   border-radius: 8px;
-  box-shadow: 
-    0 0 20px rgba(0, 212, 255, 0.1),
-    inset 0 0 30px rgba(0, 0, 0, 0.5);
+  /* Promote to own compositing layer so container animations don't
+     invalidate the layout of the 200 grid children (Firefox perf fix) */
+  will-change: transform;
+  contain: layout style;
 }
 
 .boardContainer.shaking {
@@ -53,11 +54,9 @@
 @keyframes penaltyFlash {
   0% { 
     background: rgba(255, 0, 0, 0.5);
-    box-shadow: inset 0 0 50px rgba(255, 0, 0, 0.8);
   }
   100% { 
     background: transparent;
-    box-shadow: none;
   }
 }
 
@@ -77,6 +76,9 @@
   background: 
     linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  /* CSS containment: tell Firefox the grid content doesn't affect
+     anything outside, so it can skip expensive ancestor invalidations */
+  contain: content;
 }
 
 .particles {
@@ -90,115 +92,26 @@
 .particle {
   position: absolute;
   border-radius: 50%;
-  animation: particleExplode 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
-  filter: blur(0.5px);
+  pointer-events: none;
+  /* Single simple animation — avoid calc(var()) which is very slow in Firefox.
+     The actual movement is done via inline transform set from JS. */
+  animation: particleFade 0.6s ease-out forwards;
 }
 
-.particle::after {
-  content: '';
-  position: absolute;
-  inset: -2px;
-  border-radius: 50%;
-  background: inherit;
-  filter: blur(3px);
-  opacity: 0.6;
-}
-
-@keyframes particleExplode {
+@keyframes particleFade {
   0% {
     opacity: 1;
-    transform: translate(0, 0) scale(1.5);
-    filter: blur(0px) brightness(2);
-  }
-  20% {
-    opacity: 1;
-    filter: blur(0.5px) brightness(1.5);
-  }
-  50% {
-    opacity: 0.8;
-    transform: translate(calc(var(--dx) * 0.6), calc(var(--dy) * 0.6)) scale(1);
+    scale: 1.3;
   }
   100% {
     opacity: 0;
-    transform: translate(var(--dx), var(--dy)) scale(0.2);
-    filter: blur(2px) brightness(0.5);
+    scale: 0.2;
   }
 }
 
-.particle:nth-child(3n) {
-  animation: particleSparkle 0.6s ease-out forwards;
-}
-
-@keyframes particleSparkle {
-  0% {
-    opacity: 1;
-    transform: translate(0, 0) scale(2) rotate(0deg);
-    filter: brightness(3);
-  }
-  50% {
-    opacity: 1;
-    transform: translate(calc(var(--dx) * 0.3), calc(var(--dy) * 0.3)) scale(1.2) rotate(180deg);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(var(--dx), var(--dy)) scale(0) rotate(360deg);
-    filter: brightness(0);
-  }
-}
-
-.particle:nth-child(5n) {
-  animation: particleTrail 1s ease-out forwards;
-}
-
-@keyframes particleTrail {
-  0% {
-    opacity: 1;
-    transform: translate(0, 0) scale(1);
-  }
-  30% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-    transform: translate(calc(var(--dx) * 1.5), calc(var(--dy) * 1.5 + 50px)) scale(0.1);
-  }
-}
-
-.particle:nth-child(7n) {
-  animation: particleFall 0.4s ease-in forwards;
-}
-
-@keyframes particleFall {
-  0% {
-    opacity: 0.8;
-    transform: translate(0, 0) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(var(--dx), calc(var(--dy) + 80px)) scale(0.3);
-  }
-}
-
-.particle:nth-child(11n) {
-  animation: particleImpact 0.25s ease-out forwards;
-}
-
-@keyframes particleImpact {
-  0% {
-    opacity: 1;
-    transform: translate(0, 0) scale(1.5);
-    filter: brightness(2);
-  }
-  50% {
-    opacity: 0.8;
-    transform: translate(calc(var(--dx) * 0.5), calc(var(--dy) * 0.5)) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(var(--dx), var(--dy)) scale(0.2);
-    filter: brightness(0.5);
-  }
-}
+/* Removed all nth-child animation overrides (particleSparkle, particleTrail,
+   particleFall, particleImpact) — Firefox re-resolves nth-child selectors on
+   every DOM mutation inside the particles container, causing major lag. */
 
 .overlay {
   position: absolute;
@@ -209,8 +122,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.85);
+  /* Removed backdrop-filter: blur(4px) — very expensive compositing operation */
   border-radius: 6px;
   z-index: 10;
 }

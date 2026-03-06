@@ -187,13 +187,26 @@ export class Room {
 
   // Game management
   public startGame(customSettings?: Partial<GameSettings>): { success: boolean; reason?: string; gameIds?: string[] } {
-    if (this._state !== 'waiting') {
-      return { success: false, reason: 'Game already in progress or ended' };
+    console.log(`🎮 Room.startGame() called for room ${this.id}, current state: ${this._state}`);
+    
+    if (this._state === 'playing') {
+      console.log(`❌ Cannot start game - already playing`);
+      return { success: false, reason: 'Game already in progress' };
+    }
+
+    // If the previous game ended, reset to waiting state to allow a new game
+    if (this._state === 'ended') {
+      console.log(`🔄 Resetting room ${this.id} from 'ended' to 'waiting' to start new game`);
+      Logger.info(`Resetting room ${this.id} from 'ended' to 'waiting' to start new game`);
+      this._state = 'waiting';
     }
 
     if (this._players.size === 0) {
+      console.log(`❌ Cannot start game - no players`);
       return { success: false, reason: 'No players in room' };
     }
+
+    console.log(`✅ Room ${this.id} ready to start game with ${this._players.size} players`);
 
     // Clean up any existing games from previous rounds
     this.cleanupGames();
@@ -226,6 +239,20 @@ export class Room {
         // Store game in Room's map for tracking
         this._games.set(player.id, game);
         
+        // Listen for game ended event to update room state
+        game.once('gameEnded', (data) => {
+          console.log(`🎮 Game ${data.gameId} ended in room ${this.id}, calling endGame()`);
+          Logger.info(`Game ${data.gameId} ended in room ${this.id}`);
+          
+          // Only end the room if this is the last active game
+          const activeGames = Array.from(this._games.values()).filter(g => g.isAlive);
+          console.log(`🔍 Active games remaining in room ${this.id}: ${activeGames.length}`);
+          
+          if (activeGames.length <= 1) { // Including the game that just ended
+            this.endGame();
+          }
+        });
+        
         // Start the game
         game.start();
         gameIds.push(game.id);
@@ -242,6 +269,7 @@ export class Room {
   }
 
   public endGame(): void {
+    console.log(`🏁 Room.endGame() called for room ${this.id}, changing state from '${this._state}' to 'ended'`);
     this._state = 'ended';
     
     // Clean up all games properly

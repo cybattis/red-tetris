@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import styles from "./GameRoom.module.css";
 import type { GameMode, GameSettings } from "../types/game";
@@ -15,7 +15,6 @@ import {
   startCountdown,
   updateCountdown,
   cancelCountdown,
-  resetToLobby,
   selectPlayers,
   selectCurrentPlayer,
   selectIsHost,
@@ -29,6 +28,7 @@ import {
   selectGameCreationData,
 } from "../store/slices/gameRoomSlice.js";
 import { selectSocket, selectConnectionStatus } from "../store/slices/connectionSlice.js";
+import { resetGame } from "../store/slices/gameSlice.js";
 import { GameAction } from "@shared/types/game";
 
 import { Button, Panel } from "../components/UI";
@@ -158,8 +158,36 @@ export function GameRoom() {
     navigate("/");
   };
 
+  const handlePlayAgain = useCallback(() => {
+    // End the current game state and immediately start a new game
+    dispatch({ type: 'gameRoom/endGame' });
+    dispatch(resetGame());
+    
+    // Automatically start a new game with the same settings
+    setTimeout(() => {
+      if (gameCreationData) {
+        dispatch(startCountdown());
+      }
+    }, 100); // Small delay to ensure state is updated
+  }, [dispatch, gameCreationData]);
+
+  const handleReturnToLobby = useCallback(() => {
+    // End the current game state and return to lobby
+    dispatch({ type: 'gameRoom/endGame' });
+    dispatch(resetGame());
+  }, [dispatch]);
+
+  const handleReturnHome = useCallback(() => {
+    // End the game and navigate to home page
+    dispatch({ type: 'gameRoom/endGame' });
+    dispatch(resetGame());
+    dispatch(leaveRoom());
+    navigate("/");
+  }, [dispatch, navigate]);
+
   // Handle game input actions - send to server
-  const handleGameAction = (action: GameAction) => {
+  // MUST be memoized to prevent useGameInput from re-registering event listeners on every render
+  const handleGameAction = useCallback((action: GameAction) => {
     if (socket && socket.connected && gameStarted && gameId) {
       socket.emit('PLAYER_INPUT', {
         message: 'PLAYER_INPUT',
@@ -169,12 +197,8 @@ export function GameRoom() {
           input: action,
         }
       });
-      
-      console.log("Sent game action to server:", action, "for game:", gameId);
-    } else {
-      console.log("Game action (not ready):", action, "connected:", socket?.connected, "gameStarted:", gameStarted, "gameId:", gameId);
     }
-  };
+  }, [socket, gameStarted, gameId]);
 
   // Game input hook - only active when game has started
   useGameInput({
@@ -200,14 +224,16 @@ export function GameRoom() {
   // If game has started, show game view
   if (gameStarted) {
     return (
-      <GameView
-        roomName={room}
-        playerName={playerName}
-        isHost={isHost}
-        onLeave={() => {
-          dispatch(resetToLobby());
-        }}
-      />
+      <>
+        <GameView
+          roomName={room}
+          playerName={playerName}
+          isHost={isHost}
+          onLeave={handleReturnToLobby}
+          onPlayAgain={handlePlayAgain}
+          onReturnHome={handleReturnHome}
+        />
+      </>
     );
   }
 
