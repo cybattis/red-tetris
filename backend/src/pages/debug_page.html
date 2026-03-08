@@ -8,28 +8,108 @@
 	<style>
 		:root {
 			color-scheme: light dark;
+			--bg: #0f1115;
+			--card: #171a21;
+			--text: #e6e6e6;
+			--muted: #a0a6b3;
+			--accent: #6da5ff;
+			--border: #2c313c;
 		}
 
 		body {
 			font-family: system-ui, sans-serif;
-			margin: 1rem;
+			margin: 0;
+			background: var(--bg);
+			color: var(--text);
+		}
+
+		main {
+			max-width: 1200px;
+			margin: 0 auto;
+			padding: 1rem;
+		}
+
+		main > .card {
+			margin-bottom: .75rem;
+		}
+
+		.header {
+			display: flex;
+			flex-direction: column;
+			gap: .35rem;
+			margin-bottom: .75rem;
 		}
 
 		.row {
 			display: flex;
 			gap: .5rem;
 			align-items: center;
-			margin-bottom: .75rem;
+			margin-bottom: .5rem;
 			flex-wrap: wrap;
 		}
 
-		input {
-			min-width: 22rem;
-			padding: .4rem;
+		.grid {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+			gap: .75rem;
+			align-items: stretch;
+			align-content: start;
+			margin-bottom: .75rem;
+		}
+
+		.card-grid {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+			gap: .5rem .75rem;
+			align-items: start;
+		}
+
+		.card {
+			background: var(--card);
+			border: 1px solid var(--border);
+			border-radius: .75rem;
+			padding: .85rem;
+			box-shadow: 0 6px 18px rgba(0, 0, 0, .25);
+		}
+
+		h2 {
+			margin: 0 0 .5rem 0;
+			font-size: 1.05rem;
+		}
+
+		input,
+		select {
+			min-width: 10rem;
+			padding: .4rem .5rem;
+			border-radius: .45rem;
+			border: 1px solid var(--border);
+			background: #0c0f14;
+			color: var(--text);
+		}
+
+		input[type="number"] {
+			min-width: 5.5rem;
 		}
 
 		button {
 			padding: .4rem .7rem;
+			border-radius: .45rem;
+			border: 1px solid var(--border);
+			background: #1c2330;
+			color: var(--text);
+			cursor: pointer;
+		}
+
+		button.primary {
+			background: var(--accent);
+			border-color: transparent;
+			color: #0b0d12;
+			font-weight: 600;
+		}
+
+		button:disabled {
+			opacity: .5;
+			cursor: not-allowed;
 		}
 
 		#status {
@@ -37,59 +117,308 @@
 		}
 
 		#log {
-			border: 1px solid #8886;
-			border-radius: .5rem;
-			padding: .5rem;
+			border: 1px solid var(--border);
+			border-radius: .75rem;
+			padding: .75rem;
 			height: 16rem;
 			overflow: auto;
 			white-space: pre-wrap;
 			font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 			font-size: .85rem;
+			background: #0c0f14;
 		}
 
 		.hint {
-			opacity: .8;
+			opacity: .7;
 			font-size: .9rem;
+			margin-top: .5rem;
+		}
+
+		.badge {
+			display: inline-flex;
+			align-items: center;
+			gap: .35rem;
+			padding: .15rem .5rem;
+			border-radius: 999px;
+			font-size: .75rem;
+			background: #0c0f14;
+			border: 1px solid var(--border);
+		}
+
+		.badge.connected {
+			color: #56f0a7;
+			border-color: #1f5b3e;
+		}
+
+		.badge.disconnected {
+			color: #f06b6b;
+			border-color: #5b1f1f;
+		}
+
+		.player-row {
+			display: grid;
+			grid-template-columns: minmax(180px, 1fr) repeat(5, auto);
+			gap: .5rem;
+			align-items: center;
+			padding: .5rem 0;
+			border-bottom: 1px dashed var(--border);
+		}
+
+		.player-row button {
+			white-space: nowrap;
+		}
+
+		.player-row:last-child {
+			border-bottom: none;
+		}
+
+		.player-meta {
+			display: flex;
+			flex-direction: column;
+			gap: .2rem;
+		}
+
+		.muted {
+			color: var(--muted);
+			font-size: .8rem;
+		}
+
+		.room-list {
+			display: grid;
+			gap: .65rem;
+		}
+
+		.room-card {
+			border: 1px solid var(--border);
+			border-radius: .6rem;
+			padding: .6rem;
+			background: #0c0f14;
+		}
+
+		.games-list {
+			display: grid;
+			gap: .65rem;
+		}
+
+		.game-card {
+			border: 1px solid var(--border);
+			border-radius: .6rem;
+			padding: .6rem;
+			background: #0c0f14;
+		}
+
+		.list-header {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: .5rem;
+			margin-bottom: .35rem;
+		}
+
+		.list-actions {
+			display: flex;
+			gap: .35rem;
+		}
+
+		.inline-action {
+			padding: .2rem .45rem;
+			font-size: .8rem;
 		}
 	</style>
 </head>
 
 <body>
-	<h1>Keyboard → WebSocket Test</h1>
+	<main>
+		<header class="header">
+			<h1>WebSocket Debug</h1>
+			<span class="muted">Multi-player socket tester with room tracking.</span>
+		</header>
 
-	<div class="row">
-		<label for="wsUrl">WS URL:</label>
-		<input id="wsUrl" type="text" value="ws://localhost:8000" />
-		<button id="connectBtn" type="button">Connect</button>
-		<button id="disconnectBtn" type="button" disabled>Disconnect</button>
-		<span>Status: <span id="status">disconnected</span></span>
-	</div>
+		<section class="card">
+			<h2>Connection</h2>
+			<div class="row">
+				<label for="wsUrl">WS URL:</label>
+				<input id="wsUrl" type="text" value="ws://localhost:8000" />
+				<button id="pingBtn" type="button" data-requires-connection>Ping</button>
+				<button id="resetBtn" type="button">Reset All</button>
+				<span>Status: <span id="status">no active player</span></span>
+			</div>
+		</section>
 
-	<div class="row">
-		<label for="gameId">Game ID:</label>
-		<input id="gameId" type="text" value="" placeholder="(set by GAME_STARTED)" />
-		<label for="playerId">Player ID:</label>
-		<input id="playerId" type="text" value="test-player" />
-		<button id="startGameBtn" type="button" disabled>Start Game</button>
-		<button id="stopGameBtn" type="button" disabled>Stop Game</button>
-	</div>
+		<section class="card">
+			<h2>Players</h2>
+			<div class="row">
+				<label for="activePlayer">Active Player:</label>
+				<select id="activePlayer"></select>
+				<button id="addPlayerBtn" type="button" class="primary">Add Player</button>
+			</div>
+			<div id="playerList"></div>
+		</section>
 
-	<p class="hint">Click anywhere on the page, then press keys. Events are sent as JSON on keydown/keyup.</p>
-	<div id="log"></div>
+		<div class="grid">
+			<section class="card">
+				<h2>Room & Player</h2>
+				<div class="row">
+					<label for="roomId">Room ID:</label>
+					<input id="roomId" type="text" value="room-1" />
+					<label for="playerName">Player Name:</label>
+					<input id="playerName" type="text" value="Player 1" />
+				</div>
+				<div class="row">
+					<button id="joinRoomBtn" type="button" data-requires-connection>Join Room</button>
+					<button id="leaveRoomBtn" type="button" data-requires-connection>Leave Room</button>
+				</div>
+				<div class="row">
+					<label for="playerId">Player ID:</label>
+					<input id="playerId" type="text" value="" placeholder="(socket id)" />
+					<label for="playerReady">Ready:</label>
+					<input id="playerReady" type="checkbox" />
+					<button id="playerReadyBtn" type="button" data-requires-connection>Send Ready</button>
+				</div>
+			</section>
+
+			<section class="card">
+				<h2>Game Setup</h2>
+				<div class="row">
+					<label for="gameMode">Mode:</label>
+					<select id="gameMode">
+						<option value="classic">classic</option>
+						<option value="sprint">sprint</option>
+						<option value="invisible">invisible</option>
+					</select>
+					<label for="gravity">Gravity:</label>
+					<input id="gravity" type="number" min="1" step="1" />
+					<label for="ghostPiece">Ghost:</label>
+					<input id="ghostPiece" type="checkbox" />
+					<label for="boardWidth">Width:</label>
+					<input id="boardWidth" type="number" min="4" step="1" />
+					<label for="boardHeight">Height:</label>
+					<input id="boardHeight" type="number" min="4" step="1" />
+					<label for="nextPieceCount">Next:</label>
+					<input id="nextPieceCount" type="number" min="0" step="1" />
+				</div>
+				<div class="row">
+					<button id="updateSettingsBtn" type="button" data-requires-connection>Update Settings</button>
+					<button id="updateGameModeBtn" type="button" data-requires-connection>Update Game Mode</button>
+					<button id="startGameBtn" type="button" data-requires-connection>Start Game</button>
+					<button id="cancelStartBtn" type="button" data-requires-connection>Cancel Start</button>
+					<button id="restartGameBtn" type="button" data-requires-connection>Restart Game</button>
+				</div>
+			</section>
+
+			<section class="card">
+				<h2>Game Session</h2>
+				<div class="row">
+					<label for="gameId">Game ID:</label>
+					<input id="gameId" type="text" value="" placeholder="(set by GAME_STARTED)" />
+					<label for="playerInput">Action:</label>
+					<select id="playerInput">
+						<option value="MOVE_LEFT">MOVE_LEFT</option>
+						<option value="MOVE_RIGHT">MOVE_RIGHT</option>
+						<option value="SOFT_DROP">SOFT_DROP</option>
+						<option value="HARD_DROP">HARD_DROP</option>
+						<option value="ROTATE_CW">ROTATE_CW</option>
+						<option value="PAUSE">PAUSE</option>
+					</select>
+					<button id="sendInputBtn" type="button" data-requires-connection>Send Input</button>
+					<button id="stopGameBtn" type="button" data-requires-connection>Stop Game (legacy)</button>
+				</div>
+			</section>
+
+			<section class="card">
+				<h2>Rooms & Games</h2>
+				<div class="card-grid">
+					<div>
+						<div class="list-header">
+							<strong>Active Rooms</strong>
+							<div class="list-actions">
+								<button id="clearRoomsBtn" type="button" class="inline-action">Clear</button>
+							</div>
+						</div>
+						<div id="roomList" class="room-list"></div>
+					</div>
+					<div>
+						<div class="list-header">
+							<strong>Active Games</strong>
+							<div class="list-actions">
+								<button id="clearGamesBtn" type="button" class="inline-action">Clear</button>
+							</div>
+						</div>
+						<div id="gamesList" class="games-list"></div>
+					</div>
+				</div>
+			</section>
+		</div>
+
+		<section class="card">
+			<h2>Logs</h2>
+			<div class="row">
+				<button id="clearLogsBtn" type="button">Clear Logs</button>
+			</div>
+			<p class="hint">Click anywhere on the page, then press keys. Events are sent as JSON on keydown.</p>
+			<div id="log"></div>
+		</section>
+	</main>
 
 	<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 	<script>
-		let socket = null;
+		let players = [];
+		let activePlayerId = null;
+		let playerCounter = 0;
+		const rooms = new Map();
+		const games = new Map();
+
+		const DEFAULTS = {
+			wsUrl: 'ws://localhost:8000',
+			roomId: 'room-1',
+			playerName: 'Player 1',
+			playerId: '',
+			gameId: '',
+			gameMode: 'classic',
+			gravity: 1,
+			ghostPiece: true,
+			boardWidth: 10,
+			boardHeight: 20,
+			nextPieceCount: 3,
+			playerReady: false,
+			playerInput: 'MOVE_LEFT',
+		};
 
 		const wsUrl = document.getElementById('wsUrl');
-		const connectBtn = document.getElementById('connectBtn');
-		const disconnectBtn = document.getElementById('disconnectBtn');
+		const resetBtn = document.getElementById('resetBtn');
 		const statusEl = document.getElementById('status');
 		const logEl = document.getElementById('log');
-		const gameIdEl = document.getElementById('gameId');
+		const roomIdEl = document.getElementById('roomId');
+		const playerNameEl = document.getElementById('playerName');
 		const playerIdEl = document.getElementById('playerId');
+		const playerReadyEl = document.getElementById('playerReady');
+		const gameModeEl = document.getElementById('gameMode');
+		const gravityEl = document.getElementById('gravity');
+		const ghostPieceEl = document.getElementById('ghostPiece');
+		const boardWidthEl = document.getElementById('boardWidth');
+		const boardHeightEl = document.getElementById('boardHeight');
+		const nextPieceCountEl = document.getElementById('nextPieceCount');
+		const gameIdEl = document.getElementById('gameId');
+		const playerInputEl = document.getElementById('playerInput');
+		const joinRoomBtn = document.getElementById('joinRoomBtn');
+		const leaveRoomBtn = document.getElementById('leaveRoomBtn');
+		const playerReadyBtn = document.getElementById('playerReadyBtn');
+		const updateSettingsBtn = document.getElementById('updateSettingsBtn');
+		const updateGameModeBtn = document.getElementById('updateGameModeBtn');
 		const startGameBtn = document.getElementById('startGameBtn');
+		const cancelStartBtn = document.getElementById('cancelStartBtn');
+		const restartGameBtn = document.getElementById('restartGameBtn');
+		const pingBtn = document.getElementById('pingBtn');
+		const sendInputBtn = document.getElementById('sendInputBtn');
 		const stopGameBtn = document.getElementById('stopGameBtn');
+		const addPlayerBtn = document.getElementById('addPlayerBtn');
+		const playerListEl = document.getElementById('playerList');
+		const activePlayerSelect = document.getElementById('activePlayer');
+		const roomListEl = document.getElementById('roomList');
+		const clearRoomsBtn = document.getElementById('clearRoomsBtn');
+		const clearGamesBtn = document.getElementById('clearGamesBtn');
+		const gamesListEl = document.getElementById('gamesList');
+		const clearLogsBtn = document.getElementById('clearLogsBtn');
 
 		const KEY_TO_ACTION = {
 			ArrowLeft: 'MOVE_LEFT',
@@ -109,95 +438,467 @@
 			logEl.scrollTop = logEl.scrollHeight;
 		}
 
-		function setConnected(connected) {
-			statusEl.textContent = connected ? 'connected' : 'disconnected';
-			connectBtn.disabled = connected;
-			disconnectBtn.disabled = !connected;
-			startGameBtn.disabled = !connected;
-			stopGameBtn.disabled = !connected;
+		function setActiveConnected() {
+			const activePlayer = getActivePlayer();
+			const connected = Boolean(activePlayer && activePlayer.socket && activePlayer.socket.connected);
+			statusEl.textContent = connected ? `active: ${activePlayer.nameInput.value}` : 'no active player';
+			document.querySelectorAll('[data-requires-connection]').forEach((btn) => {
+				btn.disabled = !connected;
+			});
 		}
 
-		function connect() {
+		function getActivePlayer() {
+			return players.find((player) => player.id === activePlayerId) || null;
+		}
+
+		function updateActivePlayerSelect() {
+			activePlayerSelect.innerHTML = '';
+			players.forEach((player) => {
+				const option = document.createElement('option');
+				option.value = player.id;
+				option.textContent = player.nameInput.value || player.displayName;
+				activePlayerSelect.appendChild(option);
+			});
+			if (activePlayerId && activePlayerSelect.querySelector(`option[value="${activePlayerId}"]`)) {
+				activePlayerSelect.value = activePlayerId;
+			} else if (players[0]) {
+				setActivePlayer(players[0].id);
+			}
+		}
+
+		function setActivePlayer(playerId) {
+			activePlayerId = playerId;
+			updateActivePlayerSelect();
+			const activePlayer = getActivePlayer();
+			if (activePlayer && activePlayer.socket && activePlayer.socket.connected) {
+				playerIdEl.value = activePlayer.socket.id;
+			}
+			if (activePlayer) {
+				playerNameEl.value = activePlayer.nameInput.value || activePlayer.displayName;
+			}
+			setActiveConnected();
+		}
+
+		function getRoomId() {
+			return roomIdEl.value.trim();
+		}
+
+		function getPlayerId() {
+			const activePlayer = getActivePlayer();
+			return playerIdEl.value.trim() || (activePlayer && activePlayer.socket && activePlayer.socket.id) || 'test-player';
+		}
+
+		function getGameId() {
+			return gameIdEl.value.trim();
+		}
+
+		function buildSettings() {
+			return {
+				gameMode: gameModeEl.value,
+				gravity: Number(gravityEl.value) || DEFAULTS.gravity,
+				ghostPiece: ghostPieceEl.checked,
+				boardWidth: Number(boardWidthEl.value) || DEFAULTS.boardWidth,
+				boardHeight: Number(boardHeightEl.value) || DEFAULTS.boardHeight,
+				nextPieceCount: Number(nextPieceCountEl.value) || DEFAULTS.nextPieceCount,
+			};
+		}
+
+		function emitEvent(eventName, data, wrapMessage) {
+			const activePlayer = getActivePlayer();
+			if (!activePlayer || !activePlayer.socket || !activePlayer.socket.connected) {
+				log(`skip ${eventName}: no active socket`);
+				return;
+			}
+			const payload = wrapMessage ? { message: eventName, data } : data;
+			activePlayer.socket.emit(eventName, payload);
+			log(`[${activePlayer.displayName}] sent ${eventName}: ${JSON.stringify(payload)}`);
+		}
+
+		function renderRooms() {
+			roomListEl.innerHTML = '';
+			if (rooms.size === 0) {
+				const empty = document.createElement('div');
+				empty.className = 'muted';
+				empty.textContent = 'No room data yet.';
+				roomListEl.appendChild(empty);
+				return;
+			}
+			rooms.forEach((entry) => {
+				const room = entry.room;
+				const card = document.createElement('div');
+				card.className = 'room-card';
+				const playersList = room.players.map((player) => `${player.name}${player.isHost ? ' (host)' : ''}`).join(', ');
+				const spectatorsCount = room.spectators ? room.spectators.length : 0;
+				card.innerHTML = `
+					<strong>${room.id}</strong>
+					<div class="muted">State: ${room.state} · Players: ${room.players.length}/${room.maxPlayers} · Spectators: ${spectatorsCount}</div>
+					<div class="muted">Players: ${playersList || '—'}</div>
+				`;
+				roomListEl.appendChild(card);
+			});
+		}
+
+		function renderGames() {
+			gamesListEl.innerHTML = '';
+			if (games.size === 0) {
+				const empty = document.createElement('div');
+				empty.className = 'muted';
+				empty.textContent = 'No game data yet.';
+				gamesListEl.appendChild(empty);
+				return;
+			}
+
+			const gamesByRoom = new Map();
+			games.forEach((game) => {
+				const roomId = game.roomId || 'unknown-room';
+				if (!gamesByRoom.has(roomId)) gamesByRoom.set(roomId, []);
+				gamesByRoom.get(roomId).push(game);
+			});
+
+			gamesByRoom.forEach((roomGames, roomId) => {
+				const card = document.createElement('div');
+				card.className = 'game-card';
+				const room = rooms.get(roomId);
+				const roomState = room ? room.room.state : 'unknown';
+				const rows = roomGames
+					.map((game) => `<div class="muted">Game: ${game.id} · Player: ${game.playerId} · State: ${game.state}</div>`)
+					.join('');
+				card.innerHTML = `
+					<strong>Room: ${roomId}</strong>
+					<div class="muted">Room State: ${roomState}</div>
+					${rows}
+				`;
+				gamesListEl.appendChild(card);
+			});
+		}
+
+		function updateGamesForRoom(roomId) {
+			const roomEntry = rooms.get(roomId);
+			if (!roomEntry) return;
+			games.forEach((game) => {
+				if (game.roomId === roomId) {
+					game.state = roomEntry.room.state;
+				}
+			});
+		}
+
+		function handleRoomUpdate(payload) {
+			if (!payload || !payload.room) return;
+			rooms.set(payload.room.id, { room: payload.room, updatedAt: Date.now() });
+			updateGamesForRoom(payload.room.id);
+			renderRooms();
+			renderGames();
+		}
+
+		function handleGameUpdate(payload) {
+			if (!payload || !payload.game) return;
+			games.set(payload.game.id, { game: payload.game, updatedAt: Date.now() });
+			renderGames();
+		}
+
+		function createPlayerRow(nameOverride) {
+			playerCounter += 1;
+			const id = `player-${playerCounter}`;
+			const displayName = nameOverride || `Player ${playerCounter}`;
+
+			const row = document.createElement('div');
+			row.className = 'player-row';
+			row.dataset.playerId = id;
+
+			row.innerHTML = `
+				<div class="player-meta">
+					<input class="player-name" type="text" value="${displayName}" />
+					<span class="muted socket-id">socket: -</span>
+				</div>
+				<span class="badge disconnected status">disconnected</span>
+				<button type="button" class="connect">Connect</button>
+				<button type="button" class="disconnect" disabled>Disconnect</button>
+				<button type="button" class="use">Use</button>
+				<button type="button" class="remove">Remove</button>
+			`;
+
+			playerListEl.appendChild(row);
+
+			const nameInput = row.querySelector('.player-name');
+			const socketIdEl = row.querySelector('.socket-id');
+			const statusBadge = row.querySelector('.status');
+			const connectButton = row.querySelector('.connect');
+			const disconnectButton = row.querySelector('.disconnect');
+			const useButton = row.querySelector('.use');
+			const removeButton = row.querySelector('.remove');
+
+			const player = {
+				id,
+				displayName,
+				row,
+				nameInput,
+				socketIdEl,
+				statusBadge,
+				connectButton,
+				disconnectButton,
+				useButton,
+				removeButton,
+				socket: null,
+				currentRoomId: '',
+				lastGameId: '',
+			};
+
+			connectButton.addEventListener('click', () => connectPlayer(player));
+			disconnectButton.addEventListener('click', () => disconnectPlayer(player));
+			useButton.addEventListener('click', () => setActivePlayer(player.id));
+			removeButton.addEventListener('click', () => removePlayer(player.id));
+			nameInput.addEventListener('input', () => updateActivePlayerSelect());
+
+			players.push(player);
+			updateActivePlayerSelect();
+			if (!activePlayerId) setActivePlayer(player.id);
+		}
+
+		function updatePlayerStatus(player, connected) {
+			player.statusBadge.textContent = connected ? 'connected' : 'disconnected';
+			player.statusBadge.classList.toggle('connected', connected);
+			player.statusBadge.classList.toggle('disconnected', !connected);
+			player.connectButton.disabled = connected;
+			player.disconnectButton.disabled = !connected;
+		}
+
+		function connectPlayer(player) {
 			const rawUrl = wsUrl.value.trim();
 			const socketUrl = rawUrl.replace(/^ws(s?):\/\//, 'http$1://');
 
-			if (socket) {
-				socket.disconnect();
-				socket.removeAllListeners();
+			if (player.socket) {
+				player.socket.disconnect();
+				player.socket.removeAllListeners();
 			}
 
-			socket = io(socketUrl, {
+			const socket = io(socketUrl, {
 				autoConnect: false,
 				transports: ['websocket']
 			});
 
 			socket.on('connect', () => {
-				setConnected(true);
-				if (!playerIdEl.value.trim()) playerIdEl.value = socket.id;
-				log(`connected to ${socketUrl}`);
+				player.socketIdEl.textContent = `socket: ${socket.id}`;
+				updatePlayerStatus(player, true);
+				if (activePlayerId === player.id) {
+					playerIdEl.value = socket.id;
+				}
+				log(`[${player.displayName}] connected to ${socketUrl}`);
+				setActiveConnected();
 			});
 
 			socket.on('disconnect', (reason) => {
-				setConnected(false);
-				log(`connection closed (${reason})`);
+				updatePlayerStatus(player, false);
+				log(`[${player.displayName}] disconnected (${reason})`);
+				setActiveConnected();
 			});
 
-			socket.on('connect_error', (err) => log(`connect error: ${err.message}`));
-			socket.on('message', (data) => {
-				log(`recv: ${typeof data === 'string' ? data : JSON.stringify(data)}`);
+			socket.on('connect_error', (err) => log(`[${player.displayName}] connect error: ${err.message}`));
+			socket.onAny((event, ...args) => {
+				log(`[${player.displayName}] recv ${event}: ${JSON.stringify(args)}`);
 			});
+			socket.on('ROOM_STATE_UPDATE', handleRoomUpdate);
 			socket.on('GAME_STARTED', (payload) => {
-				const gameId = payload?.gameId;
+				const gameId = payload && payload.gameId;
 				if (!gameId) {
-					log(`recv GAME_STARTED without gameId: ${JSON.stringify(payload)}`);
+					log(`[${player.displayName}] recv GAME_STARTED without gameId: ${JSON.stringify(payload)}`);
 					return;
 				}
-				gameIdEl.value = gameId;
-				log(`recv GAME_STARTED: gameId=${gameId}`);
+				player.lastGameId = gameId;
+				if (player.currentRoomId) {
+					games.set(gameId, {
+						id: gameId,
+						roomId: player.currentRoomId,
+						playerId: socket.id,
+						state: 'playing',
+					});
+					renderGames();
+				}
+				if (activePlayerId === player.id) {
+					gameIdEl.value = gameId;
+				}
+				log(`[${player.displayName}] recv GAME_STARTED: gameId=${gameId}`);
 			});
 
+			socket.on('GAME_ENDED', (payload) => {
+				const gameId = payload && payload.gameId;
+				if (!gameId || !games.has(gameId)) return;
+				const game = games.get(gameId);
+				game.state = 'ended';
+				renderGames();
+			});
+			socket.on('LEFT_ROOM', () => {
+				player.currentRoomId = '';
+			});
+
+			player.socket = socket;
 			socket.connect();
+			updatePlayerStatus(player, false);
+			setActiveConnected();
 		}
 
-		function disconnect() {
-			if (!socket) return;
-			socket.disconnect();
+		function disconnectPlayer(player) {
+			if (!player.socket) return;
+			const socketId = player.socket.id;
+			player.socket.disconnect();
+			player.socket.removeAllListeners();
+			player.socket = null;
+			player.socketIdEl.textContent = 'socket: -';
+			player.currentRoomId = '';
+			player.lastGameId = '';
+			games.forEach((game, gameId) => {
+				if (game.playerId === socketId) games.delete(gameId);
+			});
+			renderGames();
+			updatePlayerStatus(player, false);
+			setActiveConnected();
+		}
+
+		function removePlayer(playerId) {
+			const playerIndex = players.findIndex((player) => player.id === playerId);
+			if (playerIndex === -1) return;
+			const player = players[playerIndex];
+			disconnectPlayer(player);
+			player.row.remove();
+			players.splice(playerIndex, 1);
+			if (activePlayerId === playerId) {
+				activePlayerId = players[0] ? players[0].id : null;
+			}
+			updateActivePlayerSelect();
+			setActiveConnected();
+		}
+
+		function joinRoom() {
+			const roomId = getRoomId();
+			if (!roomId) {
+				log('skip JOIN_ROOM: roomId is empty');
+				return;
+			}
+			const activePlayer = getActivePlayer();
+			if (activePlayer) {
+				activePlayer.currentRoomId = roomId;
+				playerNameEl.value = activePlayer.nameInput.value || activePlayer.displayName;
+			}
+			emitEvent('JOIN_ROOM', {
+				roomId,
+				playerName: playerNameEl.value.trim() || DEFAULTS.playerName,
+			});
+		}
+
+		function leaveRoom() {
+			const roomId = getRoomId();
+			if (!roomId) {
+				log('skip LEAVE_ROOM: roomId is empty');
+				return;
+			}
+			const activePlayer = getActivePlayer();
+			if (activePlayer) {
+				activePlayer.currentRoomId = '';
+			}
+			emitEvent('LEAVE_ROOM', { roomId });
+		}
+
+		function sendPlayerReady() {
+			const roomId = getRoomId();
+			if (!roomId) {
+				log('skip PLAYER_READY: roomId is empty');
+				return;
+			}
+			emitEvent('PLAYER_READY', {
+				roomId,
+				playerId: getPlayerId(),
+				isReady: playerReadyEl.checked,
+			});
+		}
+
+		function updateSettings() {
+			const roomId = getRoomId();
+			if (!roomId) {
+				log('skip UPDATE_SETTINGS: roomId is empty');
+				return;
+			}
+			emitEvent('UPDATE_SETTINGS', {
+				roomId,
+				settings: buildSettings(),
+			});
+		}
+
+		function updateGameMode() {
+			const roomId = getRoomId();
+			if (!roomId) {
+				log('skip UPDATE_GAME_MODE: roomId is empty');
+				return;
+			}
+			emitEvent('UPDATE_GAME_MODE', {
+				roomId,
+				gameMode: gameModeEl.value,
+			});
 		}
 
 		function startGame() {
-			if (!socket || !socket.connected) return;
-			const payload = {
-				message: 'START_GAME',
-				data: { playerId: playerIdEl.value.trim() || socket.id || 'test-player' }
-			};
-			socket.emit('START_GAME', payload);
-			log(`sent START_GAME: ${JSON.stringify(payload)}`);
+			const roomId = getRoomId();
+			if (!roomId) {
+				log('skip START_GAME: roomId is empty');
+				return;
+			}
+			emitEvent('START_GAME', {
+				roomId,
+				gameSettings: buildSettings(),
+			});
+		}
+
+		function cancelStart() {
+			const roomId = getRoomId();
+			if (!roomId) {
+				log('skip CANCEL_START: roomId is empty');
+				return;
+			}
+			emitEvent('CANCEL_START', { roomId });
+		}
+
+		function restartGame() {
+			const roomId = getRoomId();
+			if (!roomId) {
+				log('skip RESTART_GAME: roomId is empty');
+				return;
+			}
+			emitEvent('RESTART_GAME', { roomId });
+		}
+
+		function ping() {
+			emitEvent('ping', Date.now());
+		}
+
+		function sendInput() {
+			const gameId = getGameId();
+			if (!gameId) {
+				log('skip PLAYER_INPUT: gameId is empty');
+				return;
+			}
+
+			emitEvent('PLAYER_INPUT', {
+				gameId,
+				playerId: getPlayerId(),
+				input: playerInputEl.value,
+			}, true);
 		}
 
 		function stopGame() {
-			if (!socket || !socket.connected) return;
-
-			const gameId = gameIdEl.value.trim();
+			const gameId = getGameId();
 			if (!gameId) {
 				log('skip STOP_GAME: no gameId to stop');
 				return;
 			}
 
-			const payload = {
-				message: 'STOP_GAME',
-				data: {
-					gameId,
-					playerId: playerIdEl.value.trim() || socket.id || 'test-player'
-				}
-			};
-
-			socket.emit('STOP_GAME', payload);
-			log(`sent STOP_GAME: ${JSON.stringify(payload)}`);
+			emitEvent('STOP_GAME', {
+				gameId,
+				playerId: getPlayerId(),
+			}, true);
 			gameIdEl.value = '';
 		}
 
 		function sendKeyEvent(type, e) {
-			if (!socket || !socket.connected) return;
+			const activePlayer = getActivePlayer();
+			if (!activePlayer || !activePlayer.socket || !activePlayer.socket.connected) return;
 			if (type !== 'keydown') return;
 			if (e.repeat) return;
 
@@ -208,32 +909,89 @@
 				e.preventDefault();
 			}
 
-			const payload = {
-				message: 'PLAYER_INPUT',
-				data: {
-					gameId: gameIdEl.value.trim(),
-					playerId: playerIdEl.value.trim() || socket.id || 'test-player',
-					input,
-				}
-			};
-
-			if (!payload.data.gameId) {
-				log('skip PLAYER_INPUT: no gameId yet (click "Start Game")');
+			const gameId = getGameId();
+			if (!gameId) {
+				log('skip PLAYER_INPUT: no gameId yet (Start Game first)');
 				return;
 			}
 
-			socket.emit('PLAYER_INPUT', payload);
-			log(`sent PLAYER_INPUT: ${JSON.stringify(payload)}`);
+			emitEvent('PLAYER_INPUT', {
+				gameId,
+				playerId: getPlayerId(),
+				input,
+			}, true);
 		}
 
-		connectBtn.addEventListener('click', connect);
-		disconnectBtn.addEventListener('click', disconnect);
-		startGameBtn.addEventListener('click', startGame);
-		stopGameBtn.addEventListener('click', stopGame);
-		window.addEventListener('keydown', (e) => sendKeyEvent('keydown', e));
-		window.addEventListener('keyup', (e) => sendKeyEvent('keyup', e));
+		function applyDefaults() {
+			wsUrl.value = DEFAULTS.wsUrl;
+			roomIdEl.value = DEFAULTS.roomId;
+			playerNameEl.value = DEFAULTS.playerName;
+			playerIdEl.value = DEFAULTS.playerId;
+			playerReadyEl.checked = DEFAULTS.playerReady;
+			gameIdEl.value = DEFAULTS.gameId;
+			gameModeEl.value = DEFAULTS.gameMode;
+			gravityEl.value = String(DEFAULTS.gravity);
+			ghostPieceEl.checked = DEFAULTS.ghostPiece;
+			boardWidthEl.value = String(DEFAULTS.boardWidth);
+			boardHeightEl.value = String(DEFAULTS.boardHeight);
+			nextPieceCountEl.value = String(DEFAULTS.nextPieceCount);
+			playerInputEl.value = DEFAULTS.playerInput;
+		}
 
-		setConnected(false);
+		function resetAll() {
+			players.forEach((player) => disconnectPlayer(player));
+			players = [];
+			activePlayerId = null;
+			playerListEl.innerHTML = '';
+			logEl.textContent = '';
+			rooms.clear();
+			games.clear();
+			renderRooms();
+			renderGames();
+			applyDefaults();
+			createPlayerRow(DEFAULTS.playerName);
+			setActiveConnected();
+			log('reset to defaults');
+		}
+
+		function clearRooms() {
+			rooms.clear();
+			renderRooms();
+		}
+
+		function clearGames() {
+			games.clear();
+			renderGames();
+		}
+
+		function clearLogs() {
+			logEl.textContent = '';
+		}
+
+		addPlayerBtn.addEventListener('click', () => createPlayerRow());
+		activePlayerSelect.addEventListener('change', (e) => setActivePlayer(e.target.value));
+		resetBtn.addEventListener('click', resetAll);
+		clearRoomsBtn.addEventListener('click', clearRooms);
+		clearGamesBtn.addEventListener('click', clearGames);
+		joinRoomBtn.addEventListener('click', joinRoom);
+		leaveRoomBtn.addEventListener('click', leaveRoom);
+		playerReadyBtn.addEventListener('click', sendPlayerReady);
+		updateSettingsBtn.addEventListener('click', updateSettings);
+		updateGameModeBtn.addEventListener('click', updateGameMode);
+		startGameBtn.addEventListener('click', startGame);
+		cancelStartBtn.addEventListener('click', cancelStart);
+		restartGameBtn.addEventListener('click', restartGame);
+		pingBtn.addEventListener('click', ping);
+		sendInputBtn.addEventListener('click', sendInput);
+		stopGameBtn.addEventListener('click', stopGame);
+		clearLogsBtn.addEventListener('click', clearLogs);
+		globalThis.addEventListener('keydown', (e) => sendKeyEvent('keydown', e));
+
+		applyDefaults();
+		createPlayerRow(DEFAULTS.playerName);
+		setActiveConnected();
+		renderRooms();
+		renderGames();
 	</script>
 </body>
 
