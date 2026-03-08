@@ -39,6 +39,25 @@ export class Logger {
   private static currentLevel: LogLevel = LogLevel.DEBUG;
   private static readonly streams: Map<LogLevel, WriteStream> = new Map();
 
+  private static safeStringify(value: unknown): string {
+    const seen = new WeakSet<object>();
+    try {
+      return JSON.stringify(
+        value,
+        (_key, val) => {
+          if (typeof val === 'object' && val !== null) {
+            if (seen.has(val as object)) return '[Circular]';
+            seen.add(val as object);
+          }
+          return val;
+        },
+        2,
+      );
+    } catch {
+      return String(value);
+    }
+  }
+
   public static setLevel(level: LogLevel): void {
     Logger.currentLevel = level;
   }
@@ -125,7 +144,7 @@ export class Logger {
     // If it's an object/array, we want to dump it.
     const validArgs = args.map((arg) => {
       if (typeof arg === 'object' && arg !== null) {
-        return JSON.stringify(arg, null, 2);
+        return Logger.safeStringify(arg);
       }
       return arg;
     });
@@ -135,6 +154,10 @@ export class Logger {
 
     if (stream) {
       stream.write(message);
+    } else if (level === LogLevel.ERROR) {
+      console.error(`${timestamp} ${levelTag}${padding}`, ...validArgs);
+    } else if (level === LogLevel.WARN) {
+      console.warn(`${timestamp} ${levelTag}${padding}`, ...validArgs);
     } else {
       console.log(`${timestamp} ${levelTag}${padding}`, ...validArgs);
     }
@@ -170,10 +193,10 @@ export class Logger {
   public static dump(arg1: unknown, arg2?: unknown): void {
     if (arg2 === undefined) {
       // Just dumping a value
-      Logger.print(LogLevel.DEBUG, JSON.stringify(arg1, null, 2));
+      Logger.print(LogLevel.DEBUG, Logger.safeStringify(arg1));
     } else {
       // Dumping label + value
-      Logger.print(LogLevel.DEBUG, `${arg1}:`, JSON.stringify(arg2, null, 2));
+      Logger.print(LogLevel.DEBUG, `${arg1}:`, Logger.safeStringify(arg2));
     }
   }
 }
