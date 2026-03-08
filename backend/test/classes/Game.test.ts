@@ -5,6 +5,7 @@ import { Piece } from '../../src/classes/Piece';
 import { GameAction, GameMode, GameSettings, GameState } from '../../../shared/types/game';
 import { PieceType } from '../../src/types/IPiece';
 import { TETROMINO_DICTIONARY } from '../../src/pieces/TetrominoFactory';
+import { Logger } from '../../src/utils/helpers';
 
 const settings: GameSettings = {
   gravity: 1,
@@ -37,7 +38,7 @@ describe('Game', () => {
     expect(game.state).toBe(GameState.Waiting);
     expect(game.board).toHaveLength(settings.boardHeight);
     expect(game.board[0]).toHaveLength(settings.boardWidth);
-    expect(currentPiece.position).toEqual({ x: Math.floor(settings.boardWidth / 2), y: -1 });
+    expect(currentPiece.position).toEqual({ x: Math.floor(settings.boardWidth / 2) - 1, y: 0 });
   });
 
   it('starts and stops game loop', () => {
@@ -134,5 +135,115 @@ describe('Game', () => {
     game.isAlive = false;
     (game as any).gameloop();
     expect(stopSpy).toHaveBeenCalled();
+  });
+
+  it('does not restart when already playing', () => {
+    const game = createGame();
+    const warnSpy = jest.spyOn(Logger, 'warn').mockImplementation(() => undefined);
+
+    game.start();
+    expect(game.state).toBe(GameState.Playing);
+
+    game.start();
+    expect(game.state).toBe(GameState.Playing);
+    expect(warnSpy).toHaveBeenCalled();
+
+    game.stopGame();
+    warnSpy.mockRestore();
+  });
+
+  it('broadcasts game over to socket when available', () => {
+    const game = createGame();
+    const emit = jest.fn();
+    (game as any)._socket = { emit };
+
+    (game as any).GameOver();
+
+    expect(emit).toHaveBeenCalledWith('GAME_ENDED', {
+      gameId: game.id,
+      playerId: game.player.id,
+      reason: 'Game Over',
+    });
+  });
+
+  it('detects spawn overlap and triggers game over', () => {
+    const game = createGame();
+    const gameAny = game as any;
+    const gameOverSpy = jest.spyOn(gameAny, 'GameOver');
+
+    gameAny._currentPiece = new Piece(TETROMINO_DICTIONARY[PieceType.O]);
+    gameAny._currentPiece.position = { x: 0, y: 0 };
+    gameAny._currentPiece.isLocked = true;
+
+    gameAny.getNextPiece = () => {
+      const next = new Piece(TETROMINO_DICTIONARY[PieceType.O]);
+      next.position = { x: 0, y: 0 };
+      return next;
+    };
+
+    gameAny.updateBoard();
+
+    expect(gameOverSpy).toHaveBeenCalled();
+  });
+
+  it('clears lines and emits sprint speed boost when clearing 3+ lines', () => {
+    const sprintSettings = { ...settings, gameMode: GameMode.Sprint };
+    const game = new Game(new Player('socket-sprint'), 123, sprintSettings);
+    const emit = jest.fn();
+    (game as any)._socket = { emit };
+
+    game.board = Array.from({ length: sprintSettings.boardHeight }, () =>
+      new Array(sprintSettings.boardWidth).fill(0),
+    );
+    game.board[19] = new Array(sprintSettings.boardWidth).fill(1);
+    game.board[18] = new Array(sprintSettings.boardWidth).fill(1);
+    game.board[17] = new Array(sprintSettings.boardWidth).fill(1);
+
+    (game as any).checkAndClearLines();
+
+    expect(emit).toHaveBeenCalledWith('GAME_ANIMATION', expect.objectContaining({ type: 'LINE_CLEAR' }));
+    expect(emit).toHaveBeenCalledWith('GAME_ANIMATION', expect.objectContaining({ type: 'SPEED_BOOST' }));
+  });
+
+  it('throttles broadcast and returns null ghost when piece missing', () => {
+    const game = createGame();
+    const emit = jest.fn();
+    (game as any)._socket = { emit };
+
+    const nowSpy = jest.spyOn(Date, 'now');
+    nowSpy.mockReturnValue(1000);
+    (game as any).broadcastGameState();
+    (game as any).broadcastGameState();
+
+    expect(emit).toHaveBeenCalledTimes(1);
+
+    (game as any)._currentPiece = null;
+    expect((game as any).calculateGhostPiece()).toBeNull();
+
+    nowSpy.mockRestore();
+  });
+
+  it('updates drop interval only for significant changes', () => {
+    const game = createGame();
+    const gameAny = game as any;
+
+    const current = game.dropInterval;
+    gameAny.calculateDropInterval = () => current + 1;
+    gameAny.updateDropInterval();
+    expect(game.dropInterval).toBe(current);
+
+    gameAny.calculateDropInterval = () => current + 10;
+    gameAny.updateDropInterval();
+    expect(game.dropInterval).toBe(current + 10);
+  });
+
+  it('returns sprint gravity multiplier in sprint mode', () => {
+    const sprintSettings = { ...settings, gameMode: GameMode.Sprint };
+    const game = new Game(new Player('socket-mult'), 123, sprintSettings);
+
+    expect(game.getSprintGravityMultiplier()).toBe(1);
+
+    game.lines = 10;
+    expect(game.getSprintGravityMultiplier()).toBeGreaterThan(1);
   });
 });

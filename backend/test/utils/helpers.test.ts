@@ -1,13 +1,13 @@
 import { describe, expect, it, jest, beforeEach, afterEach } from '@jest/globals';
-import { printBoard, toStringFormat } from '../../src/utils/helpers';
+import { printBoard, toStringFormat, Logger, LogLevel } from '../../src/utils/helpers';
 
 describe('helpers', () => {
   let logSpy: ReturnType<typeof jest.spyOn>;
   let errorSpy: ReturnType<typeof jest.spyOn>;
 
   beforeEach(() => {
-    logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
-    errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    logSpy = jest.spyOn(Logger, 'write').mockImplementation(() => undefined);
+    errorSpy = jest.spyOn(Logger, 'error').mockImplementation(() => undefined);
   });
 
   afterEach(() => {
@@ -21,8 +21,8 @@ describe('helpers', () => {
       [1, 0],
     ]);
 
-    expect(logSpy).toHaveBeenNthCalledWith(1, '. X');
-    expect(logSpy).toHaveBeenNthCalledWith(2, 'X .');
+    expect(logSpy).toHaveBeenNthCalledWith(1, LogLevel.DEBUG, '. 1');
+    expect(logSpy).toHaveBeenNthCalledWith(2, LogLevel.DEBUG, '1 .');
   });
 
   it('ToStringFormat returns pretty JSON for valid values', () => {

@@ -67,20 +67,24 @@ describe('Piece Class', () => {
       const piece = new Piece(TETROMINO_DICTIONARY[PieceType.I]);
       piece.getNextRotation();
 
+      const expectedVertical = [
+        [0, 0, 1, 0],
+        [0, 0, 1, 0],
+        [0, 0, 1, 0],
+        [0, 0, 1, 0],
+      ];
+
+      expect(piece.shape).toEqual(expectedVertical);
+
       const expectedHorizontal = [
+        [0, 0, 0, 0],
         [0, 0, 0, 0],
         [1, 1, 1, 1],
         [0, 0, 0, 0],
-        [0, 0, 0, 0],
       ];
-
-      expect(piece.shape).toEqual(expectedHorizontal);
-
       piece.getNextRotation();
 
-      const expectedVertical = I_PIECE.shape;
-
-      expect(piece.shape).toEqual(expectedVertical);
+      expect(piece.shape).toEqual(expectedHorizontal);
     });
 
     test('should not rotate O piece', () => {
