@@ -1,13 +1,13 @@
 import { Player } from './Player';
-import { GameAction, GameSettings, GameState, GameStateUpdate, GameMode } from '../../../shared/types/game.js';
+import { GameAction, GameMode, GameSettings, GameState } from '@shared/types/game';
 import { randomUUID } from 'node:crypto';
 import { PiecesSequence } from './PiecesSequence';
 import { Piece } from './Piece';
-import { Logger, printBoard } from '../utils/helpers';
+import { Logger } from '../utils/helpers';
 import { TETROMINO_DICTIONARY } from '../pieces/TetrominoFactory';
 import { Position } from '../types/IPiece';
 import type { Socket } from 'socket.io';
-import { EventEmitter } from 'events';
+import { EventEmitter } from 'node:events';
 
 export class Game extends EventEmitter {
   // Game state and public properties
@@ -27,14 +27,14 @@ export class Game extends EventEmitter {
 
   // Game timing
   public dropInterval: number = 1000; // milliseconds
-  
+
   // Store original gravity and current effective gravity for Sprint mode
   private readonly originalGravity: number;
   private currentGravity: number; // Current effective gravity (modified during Sprint mode)
 
   // Sprint mode constants - simplified approach using gravity acceleration
   private static readonly SPRINT_GRAVITY_INCREASE_PER_LINE = 0.05; // Gravity increases by 0.05 per line cleared
-  private static readonly SPRINT_MAX_GRAVITY = 20.0; // Cap gravity at 20x the base value
+  private static readonly SPRINT_MAX_GRAVITY = 20; // Cap gravity at 20x the base value
 
   // Timing constants
   private static readonly TICK_RATE = 60;
@@ -45,11 +45,10 @@ export class Game extends EventEmitter {
   // Internal state
   private _lastTickAt = 0;
   private _gravityAccumulatorMs = 0;
-  private _gravityActivated = false;
   private _currentPiece: Piece;
   private _playerInput: GameAction = GameAction.NO_INPUT;
   private _socket: Socket | null = null;
-  
+
   // Broadcast throttling for performance
   private lastBroadcastTime: number = 0;
   private readonly BROADCAST_THROTTLE_MS = 33; // ~30 FPS max (reduced from 60 FPS to improve performance)
@@ -92,17 +91,17 @@ export class Game extends EventEmitter {
       clearInterval(this._gameLoop);
       this._gameLoop = null;
     }
-    
+
     // Reset gravity to original value to prevent persistent effects
     this.currentGravity = this.originalGravity;
     this.settings.gravity = this.originalGravity;
-    
+
     // Clear socket reference to prevent memory leaks
     this._socket = null;
-    
+
     // Remove all event listeners from this EventEmitter
     this.removeAllListeners();
-    
+
     Logger.info(`Game ${this.id} stopped and cleaned up`);
   }
 
@@ -132,27 +131,27 @@ export class Game extends EventEmitter {
       totalLinesCleared: this.lines,
       isPaused: this.state !== GameState.Playing,
       isGameOver: !this.isAlive,
-      gameOverReason: !this.isAlive ? 'Game Over' : null,
+      gameOverReason: this.isAlive ? null : 'Game Over',
       boardWidth: this.settings.boardWidth,
       boardHeight: this.settings.boardHeight,
       gameMode: this.settings.gameMode,
     };
-    
-    console.log('🎮 Backend getGameState() returning:', {
+
+    console.log('Backend getGameState() returning:', {
       isAlive: this.isAlive,
       state: this.state,
       isGameOver: gameState.isGameOver,
       gameOverReason: gameState.gameOverReason,
-      isPaused: gameState.isPaused
+      isPaused: gameState.isPaused,
     });
-    
+
     return gameState;
   }
 
   private getNextPiecesPreview(): number[] {
     const nextPieceTypes = this.piecesSequence.peekNextPieces(this.settings.nextPieceCount);
-    
-    return nextPieceTypes.map(pieceType => {
+
+    return nextPieceTypes.map((pieceType) => {
       const pieceDef = TETROMINO_DICTIONARY[pieceType];
       return pieceDef.id;
     });
@@ -162,7 +161,7 @@ export class Game extends EventEmitter {
   // ============================================
   public setSocket(socket: Socket): void {
     this._socket = socket;
-    
+
     // Broadcast initial game state
     if (this.state === GameState.Playing) {
       this.broadcastGameState();
@@ -171,13 +170,13 @@ export class Game extends EventEmitter {
 
   private broadcastGameState(): void {
     if (!this._socket) return;
-    
+
     // Throttle broadcasts to prevent excessive network traffic and improve performance
     const now = Date.now();
     if (now - this.lastBroadcastTime < this.BROADCAST_THROTTLE_MS) {
       return; // Skip broadcast if within throttle window
     }
-    
+
     this.lastBroadcastTime = now;
     const gameState = this.getGameState();
     this._socket.emit('GAME_STATE_UPDATE', gameState);
@@ -187,7 +186,7 @@ export class Game extends EventEmitter {
     if (this._socket) {
       this._socket.emit('GAME_ANIMATION', {
         type: animationType,
-        data: data
+        data: data,
       });
     }
   }
@@ -206,7 +205,6 @@ export class Game extends EventEmitter {
     const deltaTime = now - this._lastTickAt;
     this._lastTickAt = now;
     this._gravityAccumulatorMs += deltaTime;
-    this._gravityActivated = false;
 
     let newPos = { ...this._currentPiece.position };
 
@@ -214,7 +212,6 @@ export class Game extends EventEmitter {
     if (this._gravityAccumulatorMs >= this.dropInterval) {
       newPos.y += 1; // Move piece down by gravity
       this._gravityAccumulatorMs = 0;
-      this._gravityActivated = true;
     }
 
     // Read player input and update piece position
@@ -222,63 +219,57 @@ export class Game extends EventEmitter {
 
     // Check if the new position is valid
     const hasCollision = this.checkCollision(newPos.x, newPos.y);
-    
+
     if (hasCollision) {
       // If this was a downward movement (gravity or soft drop), handle piece locking
       const isDownwardMovement = newPos.y > this._currentPiece.position.y;
-      
-      if (isDownwardMovement) {
-        if (this._currentPiece.isLocked) {
-        } else {
-          // Check if Game Over condition is met (piece can't move down from spawn area)
-          if (this._currentPiece.position.y <= 0) {
-            this.GameOver();
-            return;
-          }
-          
-          // Lock the piece when downward movement causes a collision
-          this._currentPiece.isLocked = true;
+
+      if (isDownwardMovement && !this._currentPiece.isLocked) {
+        // Check if Game Over condition is met (piece can't move down from spawn area)
+        if (this._currentPiece.position.y <= 0) {
+          this.GameOver();
+          return;
         }
+
+        // Lock the piece when downward movement causes a collision
+        this._currentPiece.isLocked = true;
       }
       // If collision wasn't from downward movement, just ignore the movement (don't update position)
-    } else {
-      // No collision, update the piece position
-      // Don't overwrite position if piece is already locked
-      if (!this._currentPiece.isLocked) {
-        this._currentPiece.position = newPos;
-      }
+    } else if (!this._currentPiece.isLocked) {
+      this._currentPiece.position = newPos;
     }
-    
+
     // Update the board (handles piece placement and spawning if needed)
     this.updateBoard();
-    
+
     // Broadcast game state to connected clients
     this.broadcastGameState();
   }
 
   private spawnNextPiece(): void {
     this._currentPiece = this.getNextPiece();
-    
+
     // Check if the piece can be placed at spawn position by checking if any part would overlap
     const spawnX = this._currentPiece.position.x;
     const spawnY = this._currentPiece.position.y;
-    
+
     for (const cell of this._currentPiece.getOccupiedCells()) {
       const boardX = spawnX + cell.x;
       const boardY = spawnY + cell.y;
-      
+
       // Check if spawn position overlaps with existing pieces
-      if (boardY >= 0 && boardX >= 0 && boardX < this.settings.boardWidth && 
-          boardY < this.settings.boardHeight && this.board[boardY][boardX] !== 0) {
+      if (
+        boardY >= 0 &&
+        boardX >= 0 &&
+        boardX < this.settings.boardWidth &&
+        boardY < this.settings.boardHeight &&
+        this.board[boardY][boardX] !== 0
+      ) {
         Logger.warn('Game over: Cannot spawn new piece - board is full');
         this.GameOver();
         return;
       }
     }
-  }
-
-  private moveCurrentPieceDown(): void {
-    this._currentPiece.position.y += 1;
   }
 
   private getNextPiece(): Piece {
@@ -290,10 +281,10 @@ export class Game extends EventEmitter {
 
     const realWidth = piece.getRealWidth();
     const spawnX = Math.floor((this.settings.boardWidth - realWidth) / 2);
-    
+
     const topMostRow = piece.getTopMostOccupiedRow();
     const spawnY = 0 - topMostRow;
-    
+
     piece.position = { x: spawnX, y: spawnY };
     return piece;
   }
@@ -327,14 +318,14 @@ export class Game extends EventEmitter {
         lockedCells.push({
           x: boardX,
           y: boardY,
-          type: this._currentPiece.id
+          type: this._currentPiece.id,
         });
       }
     }
 
     this.broadcastAnimation('PIECE_LOCK', {
       cells: lockedCells,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
 
     // All game modes use standard piece placement logic
@@ -368,10 +359,10 @@ export class Game extends EventEmitter {
 
   private checkAndClearLines(): void {
     const linesToClear: number[] = [];
-    
+
     // Check each row for completed lines
     for (let y = 0; y < this.settings.boardHeight; y++) {
-      if (this.board[y].every(cell => cell !== 0)) {
+      if (this.board[y].every((cell) => cell !== 0)) {
         linesToClear.push(y);
       }
     }
@@ -402,10 +393,10 @@ export class Game extends EventEmitter {
       const dropDistance = this.calculateHardDropDistance();
       const startY = this._currentPiece.position.y;
       const endY = startY + dropDistance;
-      
+
       const hardDropBonus = dropDistance + 1;
       this.addHardDropBonus(hardDropBonus);
-      
+
       // Create hard drop trail data for each column of the piece
       const trailData = [];
       for (const cell of this._currentPiece.getOccupiedCells()) {
@@ -413,20 +404,20 @@ export class Game extends EventEmitter {
           x: this._currentPiece.position.x + cell.x,
           startY: startY + cell.y,
           endY: endY + cell.y,
-          type: this._currentPiece.id
+          type: this._currentPiece.id,
         });
       }
-      
+
       // Broadcast hard drop animation
       this.broadcastAnimation('HARD_DROP', {
         trail: trailData,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
-      
+
       // Update the piece position directly (bypass normal position checking)
       this._currentPiece.position.y += dropDistance;
       this._currentPiece.isLocked = true; // Immediately lock the piece after hard drop
-      
+
       // Don't modify newPosition - let it use the original position for collision checking
       // This avoids the collision check issue
     }
@@ -460,7 +451,12 @@ export class Game extends EventEmitter {
       }
 
       // Check collision with existing pieces (only for valid board positions)
-      if (boardY >= 0 && boardX >= 0 && boardX < this.settings.boardWidth && this.board[boardY][boardX] !== 0) {
+      if (
+        boardY >= 0 &&
+        boardX >= 0 &&
+        boardX < this.settings.boardWidth &&
+        this.board[boardY][boardX] !== 0
+      ) {
         return true;
       }
     }
@@ -478,36 +474,36 @@ export class Game extends EventEmitter {
   }
 
   private GameOver(): void {
-    console.log('💀 Backend GameOver() called - setting isAlive to false');
+    console.log('Backend GameOver() called - setting isAlive to false');
     this.isAlive = false;
     this.state = GameState.Ended;
-    
-    console.log('💀 Backend GameOver() - current state:', {
+
+    console.log('Backend GameOver() - current state:', {
       isAlive: this.isAlive,
-      state: this.state
+      state: this.state,
     });
-    
+
     // Broadcast final game state to the client
     this.broadcastGameState();
-    
+
     // Emit GAME_ENDED event to notify the server/room management
     if (this._socket) {
       this._socket.emit('GAME_ENDED', {
         gameId: this.id,
         playerId: this.player.id,
-        reason: 'Game Over'
+        reason: 'Game Over',
       });
     }
-    
+
     // Emit internal game ended event for GameManager/Room to listen
     this.emit('gameEnded', {
       gameId: this.id,
       playerId: this.player.id,
-      reason: 'Game Over'
+      reason: 'Game Over',
     });
-    
+
     this.stopGame();
-    
+
     Logger.info(`Game ${this.id} ended for player ${this.player.name}`);
   }
 
@@ -526,45 +522,45 @@ export class Game extends EventEmitter {
     const timestamp = Date.now();
     this.broadcastAnimation('LINE_CLEAR', {
       rows: linesToClear,
-      timestamp: timestamp
+      timestamp: timestamp,
     });
-    
+
     // Create a new board by filtering out the cleared lines
     const newBoard: number[][] = [];
-    
+
     // Add empty lines at the top for each cleared line
-    for (let i = 0; i < linesToClear.length; i++) {
+    for (const _ of linesToClear) {
       newBoard.push(new Array(this.settings.boardWidth).fill(0));
     }
-    
+
     // Add all non-cleared lines to the new board
     for (let i = 0; i < this.board.length; i++) {
       if (!linesToClear.includes(i)) {
         newBoard.push([...this.board[i]]); // Create a copy of the row
       }
     }
-    
+
     // Replace the board with the new one
     this.board = newBoard;
-    
+
     // Apply Sprint mode specific effects for line clearing
     if (this.settings.gameMode === GameMode.Sprint && linesToClear.length >= 3) {
       // Add speed boost animation for significant line clears in Sprint mode
       this.broadcastAnimation('SPEED_BOOST', {
         multiplier: linesToClear.length,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
     }
-    
+
     // Reduce excessive board logging for performance
     // Only log in debug mode or for significant events
     // for (let i = 0; i < Math.min(10, this.board.length); i++) {
     //   Logger.info(`   ${i}: ${this.board[i].join(' ')}`);
     // }
-    
+
     // Update score based on lines cleared
     this.updateScore(linesToClear.length);
-    
+
     // Update drop interval after clearing lines (for speed-based modes like Sprint)
     this.updateDropInterval();
   }
@@ -580,18 +576,14 @@ export class Game extends EventEmitter {
     const points = [0, 40, 100, 300, 1200];
     const scoreIncrease = points[linesCleared];
     this.score += scoreIncrease;
-    
+
     this.lines += linesCleared;
-    
+
     // Reduce logging for performance - only log significant scoring events
-    if (linesCleared >= 3) {  // Only log for triple+ line clears
+    if (linesCleared >= 3) {
+      // Only log for triple+ line clears
       Logger.info(`Score updated: +${scoreIncrease} points (total: ${this.score}), Lines: ${this.lines}`);
     }
-  }
-
-  private calculateScore(linesCleared: number): number {
-    const scoreTable = [0, 100, 300, 500, 800]; // Example scoring for 0-4 lines cleared
-    return scoreTable[linesCleared] || 0;
   }
 
   private calculateHardDropDistance(isGhostCalculation = false): number {
@@ -603,39 +595,35 @@ export class Game extends EventEmitter {
     for (let dropY = currentY + 1; dropY <= this.settings.boardHeight; dropY++) {
       if (this.checkCollision(currentX, dropY)) {
         // We hit something, so the max drop distance is the previous position
-        const distance = dropY - currentY - 1;
-        return distance;
+        return dropY - currentY - 1;
       }
     }
 
-    const distance = this.settings.boardHeight - currentY - 1;
-    return distance;
+    return this.settings.boardHeight - currentY - 1;
   }
 
   private calculateGhostPiece() {
     if (!this._currentPiece) return null;
-    
+
     const dropDistance = this.calculateHardDropDistance(true); // Pass true to indicate ghost piece calculation
     const ghostPosition = {
       x: this._currentPiece.position.x,
-      y: this._currentPiece.position.y + dropDistance
+      y: this._currentPiece.position.y + dropDistance,
     };
 
     return {
       type: this._currentPiece.id,
       position: ghostPosition,
-      shape: this._currentPiece.shape
+      shape: this._currentPiece.shape,
     };
   }
 
   private calculateDropInterval(): number {
     // Use the current effective gravity (which includes Sprint modifications)
-    const effectiveGravity = this.settings.gameMode === GameMode.Sprint 
-      ? this.getCurrentSprintGravity() 
-      : this.originalGravity;
-    
-    const baseInterval = Math.max(50, Game.BASE_GRAVITY_INTERVAL_MS / effectiveGravity);
-    return baseInterval;
+    const effectiveGravity =
+      this.settings.gameMode === GameMode.Sprint ? this.getCurrentSprintGravity() : this.originalGravity;
+
+    return Math.max(50, Game.BASE_GRAVITY_INTERVAL_MS / effectiveGravity);
   }
 
   private getCurrentSprintGravity(): number {
@@ -649,15 +637,15 @@ export class Game extends EventEmitter {
    */
   public getSprintGravityMultiplier(): number {
     if (this.settings.gameMode !== GameMode.Sprint) {
-      return 1.0;
+      return 1;
     }
-    
+
     return this.getCurrentSprintGravity() / this.originalGravity;
   }
 
   private updateDropInterval(): void {
     const newDropInterval = this.calculateDropInterval();
-    
+
     // Only update if the change is significant (> 5ms difference)
     // This prevents excessive interval updates that can cause lag
     if (Math.abs(newDropInterval - this.dropInterval) > 5) {
@@ -675,30 +663,30 @@ export class Game extends EventEmitter {
 
   private attemptRotation(): void {
     // Save current state
-    const originalShape = this._currentPiece.shape.map(row => [...row]);
+    const originalShape = this._currentPiece.shape.map((row) => [...row]);
     const originalWidth = this._currentPiece.width;
     const originalHeight = this._currentPiece.height;
-    
+
     // Try rotation
     this._currentPiece.getNextRotation();
-    
+
     // Wall kick offsets to try (standard SRS wall kicks)
     const wallKickOffsets = [
-      { x: 0, y: 0 },   // No kick (original position)
-      { x: -1, y: 0 },  // Left kick
-      { x: 1, y: 0 },   // Right kick  
-      { x: -2, y: 0 },  // Left kick 2
-      { x: 2, y: 0 },   // Right kick 2
-      { x: 0, y: -1 },  // Up kick
+      { x: 0, y: 0 }, // No kick (original position)
+      { x: -1, y: 0 }, // Left kick
+      { x: 1, y: 0 }, // Right kick
+      { x: -2, y: 0 }, // Left kick 2
+      { x: 2, y: 0 }, // Right kick 2
+      { x: 0, y: -1 }, // Up kick
       { x: -1, y: -1 }, // Left-up kick
-      { x: 1, y: -1 },  // Right-up kick
+      { x: 1, y: -1 }, // Right-up kick
     ];
-    
+
     // Try each wall kick offset
     for (const offset of wallKickOffsets) {
       const testX = this._currentPiece.position.x + offset.x;
       const testY = this._currentPiece.position.y + offset.y;
-      
+
       if (!this.checkCollision(testX, testY)) {
         // This position works - apply the wall kick
         this._currentPiece.position.x = testX;
@@ -706,11 +694,10 @@ export class Game extends EventEmitter {
         return;
       }
     }
-    
+
     // No valid position found - revert rotation
     this._currentPiece.shape = originalShape;
     this._currentPiece.width = originalWidth;
     this._currentPiece.height = originalHeight;
   }
-
 }

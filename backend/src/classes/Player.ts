@@ -1,5 +1,3 @@
-import { randomUUID } from 'node:crypto';
-
 export class Player {
   public readonly id: string;
   public socketId: string;
@@ -8,7 +6,7 @@ export class Player {
   public isReady: boolean = false;
 
   constructor(socketId: string) {
-    this.id = socketId; // Use socket ID as player ID for consistency
+    this.id = socketId;
     this.socketId = socketId;
   }
 
