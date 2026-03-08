@@ -1,6 +1,6 @@
 import { Game } from '../classes/Game.js';
 import { Player } from '../classes/Player.js';
-import { GameSettings } from '../../../shared/types/game.js';
+import { GameSettings } from '@shared/types/game';
 import { Logger } from '../utils/helpers';
 import type { Socket } from 'socket.io';
 
@@ -18,10 +18,17 @@ export class GameManager {
     return GameManager._instance;
   }
 
-  public createGame(player: Player, settings: GameSettings, seed: number = Date.now(), socket?: Socket): Game {
+  public createGame(
+    player: Player,
+    settings: GameSettings,
+    seed: number = Date.now(),
+    socket?: Socket,
+  ): Game {
     const game = new Game(player, seed, settings, socket);
     this._games.set(game.id, game);
-    Logger.info(`GameManager: Created game ${game.id} for player ${player.name}. Total active games: ${this._games.size}`);
+    Logger.info(
+      `GameManager: Created game ${game.id} for player ${player.name}. Total active games: ${this._games.size}`,
+    );
     return game;
   }
 
@@ -42,34 +49,34 @@ export class GameManager {
   }
 
   public getGamesByPlayerId(playerId: string): Game[] {
-    return this.getAllGames().filter(game => game.player.id === playerId);
+    return this.getAllGames().filter((game) => game.player.id === playerId);
   }
 
   public stopGamesByPlayerId(playerId: string): number {
     const playerGames = this.getGamesByPlayerId(playerId);
     let stoppedCount = 0;
-    
+
     for (const game of playerGames) {
       game.stopGame();
       this._games.delete(game.id);
       stoppedCount++;
       Logger.info(`Stopped and removed game ${game.id} for player ${playerId}`);
     }
-    
+
     return stoppedCount;
   }
 
   public stopAllGames(): number {
     let stoppedCount = 0;
-    
+
     for (const game of this._games.values()) {
       game.stopGame();
       stoppedCount++;
     }
-    
+
     this._games.clear();
     Logger.info(`Stopped and removed all ${stoppedCount} games`);
-    
+
     return stoppedCount;
   }
 }

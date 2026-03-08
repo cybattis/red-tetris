@@ -1,24 +1,21 @@
 import { Room } from '../classes/Room';
 import { Player } from '../classes/Player';
 import { Logger } from '../utils/helpers';
-import { GameSettings } from '../../../shared/types/game';
-import { 
-  RoomInfo, 
-  RoomPlayer, 
+import { GameSettings } from '@shared/types/game';
+import {
   ROOM_CONFIG,
-  JoinRoomEvent,
   PlayerJoinedEvent,
   PlayerLeftEvent,
   RoomStateUpdateEvent,
   HostTransferEvent,
-  RoomErrorEvent
-} from '../../../shared/types/room';
+  RoomErrorEvent,
+} from '@shared/types/room';
 import { Socket } from 'socket.io';
 
 export class RoomManager {
   private static instance: RoomManager;
-  private _rooms: Map<string, Room> = new Map();
-  private _playerRooms: Map<string, string> = new Map(); // playerId -> roomId mapping
+  private readonly _rooms: Map<string, Room> = new Map();
+  private readonly _playerRooms: Map<string, string> = new Map(); // playerId -> roomId mapping
 
   private constructor() {
     Logger.info('RoomManager initialized');
@@ -70,26 +67,30 @@ export class RoomManager {
     // Destroy the room
     room.destroy();
     this._rooms.delete(roomId);
-    
+
     Logger.info(`Room deleted: ${roomId}`);
     return true;
   }
 
   // Player room operations
   public joinRoom(
-    roomId: string, 
-    player: Player, 
-    socket: Socket
-  ): { success: boolean; error?: RoomErrorEvent; roomUpdate?: RoomStateUpdateEvent; playerJoined?: PlayerJoinedEvent } {
-    
+    roomId: string,
+    player: Player,
+    socket: Socket,
+  ): {
+    success: boolean;
+    error?: RoomErrorEvent;
+    roomUpdate?: RoomStateUpdateEvent;
+    playerJoined?: PlayerJoinedEvent;
+  } {
     // Check if player is already in a room
     const currentRoom = this.getRoomForPlayer(player.id);
     if (currentRoom) {
       if (currentRoom.id === roomId) {
         // Player is already in the requested room
-        return { 
-          success: true, 
-          roomUpdate: { room: currentRoom.toRoomInfo() }
+        return {
+          success: true,
+          roomUpdate: { room: currentRoom.toRoomInfo() },
         };
       } else {
         // Player is in a different room, need to leave first
@@ -99,13 +100,11 @@ export class RoomManager {
 
     // Get or create room
     let room = this.getRoom(roomId);
-    if (!room) {
-      room = this.createRoom(roomId);
-    }
+    room ??= this.createRoom(roomId);
 
     // Try to add player to room
     const result = room.addPlayer(player);
-    
+
     if (!result.success) {
       const errorCode = this.getErrorCode(result.reason!);
       return {
@@ -113,8 +112,8 @@ export class RoomManager {
         error: {
           roomId,
           error: result.reason!,
-          code: errorCode
-        }
+          code: errorCode,
+        },
       };
     }
 
@@ -133,126 +132,138 @@ export class RoomManager {
         name: player.name,
         isHost: room.isHost(player.id),
         isReady: true,
-        isSpectator: result.isSpectator || false
+        isSpectator: result.isSpectator || false,
       },
-      isSpectator: result.isSpectator || false
+      isSpectator: result.isSpectator || false,
     };
 
     Logger.info(`Player ${player.name} joined room ${roomId}${result.isSpectator ? ' as spectator' : ''}`);
-    
+
     return {
       success: true,
       roomUpdate,
-      playerJoined
+      playerJoined,
     };
   }
 
   public leaveRoom(
-    playerId: string, 
-    socket: Socket
-  ): { roomUpdate?: RoomStateUpdateEvent; playerLeft?: PlayerLeftEvent; hostTransfer?: HostTransferEvent; roomDeleted?: boolean } {
-    
+    playerId: string,
+    socket: Socket,
+  ): {
+    roomUpdate?: RoomStateUpdateEvent;
+    playerLeft?: PlayerLeftEvent;
+    hostTransfer?: HostTransferEvent;
+    roomDeleted?: boolean;
+  } {
     const room = this.getRoomForPlayer(playerId);
     if (!room) {
       return {};
     }
 
     const roomId = room.id;
-    
+
     // Remove player from room
     const removeResult = room.removePlayer(playerId);
-    
+
     // Update player-room mapping
     this._playerRooms.delete(playerId);
-    
+
     // Leave socket room
     socket.leave(roomId);
 
     const result: any = {
-      playerLeft: { roomId, playerId }
+      playerLeft: { roomId, playerId },
     };
 
     // Handle host transfer
     if (removeResult.wasHost && removeResult.newHost) {
       result.hostTransfer = {
         roomId,
-        newHostId: removeResult.newHost.id
+        newHostId: removeResult.newHost.id,
       };
     }
 
     // Check if room should be deleted
     if (room.isEmpty) {
       // Schedule room deletion after cleanup timeout
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         const currentRoom = this.getRoom(roomId);
-        if (currentRoom && currentRoom.isEmpty) {
+        if (currentRoom?.isEmpty) {
           this.deleteRoom(roomId);
           result.roomDeleted = true;
         }
       }, ROOM_CONFIG.CLEANUP_TIMEOUT_MS);
+      timer.unref?.();
     } else {
       // Room still has players, send update
       result.roomUpdate = { room: room.toRoomInfo() };
     }
 
     Logger.info(`Player ${playerId} left room ${roomId}`);
-    
+
     return result;
   }
 
-  public startGame(roomId: string, hostId: string, gameSettings?: Partial<GameSettings>): { success: boolean; error?: RoomErrorEvent; roomUpdate?: RoomStateUpdateEvent; gameIds?: string[] } {
-    console.log(`🎮 RoomManager.startGame() called for room ${roomId} by host ${hostId}`);
-    
+  public startGame(
+    roomId: string,
+    hostId: string,
+    gameSettings?: Partial<GameSettings>,
+  ): { success: boolean; error?: RoomErrorEvent; roomUpdate?: RoomStateUpdateEvent; gameIds?: string[] } {
+    console.log(`RoomManager.startGame() called for room ${roomId} by host ${hostId}`);
+
     const room = this.getRoom(roomId);
     if (!room) {
-      console.log(`❌ Room ${roomId} not found`);
+      console.log(`Room ${roomId} not found`);
       return {
         success: false,
         error: {
           roomId,
           error: 'Room not found',
-          code: 'ROOM_NOT_FOUND'
-        }
+          code: 'ROOM_NOT_FOUND',
+        },
       };
     }
 
-    console.log(`🔍 Found room ${roomId}, checking if ${hostId} is host`);
+    console.log(`Found room ${roomId}, checking if ${hostId} is host`);
     if (!room.isHost(hostId)) {
-      console.log(`❌ ${hostId} is not host of room ${roomId}`);
+      console.log(`${hostId} is not host of room ${roomId}`);
       return {
         success: false,
         error: {
           roomId,
           error: 'Only host can start the game',
-          code: 'NOT_HOST'
-        }
+          code: 'NOT_HOST',
+        },
       };
     }
 
-    console.log(`✅ ${hostId} is host, calling room.startGame()`);
+    console.log(`${hostId} is host, calling room.startGame()`);
     const startResult = room.startGame(gameSettings);
     if (!startResult.success) {
-      console.log(`❌ room.startGame() failed: ${startResult.reason}`);
+      console.log(`room.startGame() failed: ${startResult.reason}`);
       const errorCode = this.getErrorCode(startResult.reason!);
       return {
         success: false,
         error: {
           roomId,
           error: startResult.reason!,
-          code: errorCode
-        }
+          code: errorCode,
+        },
       };
     }
 
-    console.log(`✅ room.startGame() succeeded with ${startResult.gameIds?.length} games`);
+    console.log(`room.startGame() succeeded with ${startResult.gameIds?.length} games`);
     return {
       success: true,
       roomUpdate: { room: room.toRoomInfo() },
-      gameIds: startResult.gameIds
+      gameIds: startResult.gameIds,
     };
   }
 
-  public resetGame(roomId: string, hostId: string): { success: boolean; error?: RoomErrorEvent; roomUpdate?: RoomStateUpdateEvent } {
+  public resetGame(
+    roomId: string,
+    hostId: string,
+  ): { success: boolean; error?: RoomErrorEvent; roomUpdate?: RoomStateUpdateEvent } {
     const room = this.getRoom(roomId);
     if (!room) {
       return {
@@ -260,8 +271,8 @@ export class RoomManager {
         error: {
           roomId,
           error: 'Room not found',
-          code: 'ROOM_NOT_FOUND'
-        }
+          code: 'ROOM_NOT_FOUND',
+        },
       };
     }
 
@@ -271,8 +282,8 @@ export class RoomManager {
         error: {
           roomId,
           error: 'Only host can reset the game',
-          code: 'NOT_HOST'
-        }
+          code: 'NOT_HOST',
+        },
       };
     }
 
@@ -284,14 +295,14 @@ export class RoomManager {
         error: {
           roomId,
           error: resetResult.reason!,
-          code: errorCode
-        }
+          code: errorCode,
+        },
       };
     }
 
     return {
       success: true,
-      roomUpdate: { room: room.toRoomInfo() }
+      roomUpdate: { room: room.toRoomInfo() },
     };
   }
 
@@ -305,13 +316,18 @@ export class RoomManager {
     return 'ROOM_NOT_FOUND'; // Default
   }
 
-  public getRoomStats(): { totalRooms: number; activePlayers: number; waitingRooms: number; playingRooms: number } {
+  public getRoomStats(): {
+    totalRooms: number;
+    activePlayers: number;
+    waitingRooms: number;
+    playingRooms: number;
+  } {
     const rooms = this.getAllRooms();
     return {
       totalRooms: rooms.length,
       activePlayers: rooms.reduce((sum, room) => sum + room.playerCount + room.spectatorCount, 0),
-      waitingRooms: rooms.filter(room => room.state === 'waiting').length,
-      playingRooms: rooms.filter(room => room.state === 'playing').length
+      waitingRooms: rooms.filter((room) => room.state === 'waiting').length,
+      playingRooms: rooms.filter((room) => room.state === 'playing').length,
     };
   }
 
@@ -342,13 +358,13 @@ export class RoomManager {
   public static parseRoomUrl(path: string): { roomId: string; playerName: string } | null {
     // Remove leading slash and split by slash
     const parts = path.replace(/^\/+/, '').split('/');
-    
+
     if (parts.length !== 2) {
       return null;
     }
 
     const [roomId, playerName] = parts;
-    
+
     // Validate room ID (alphanumeric, 3-20 chars)
     if (!/^[a-zA-Z0-9_-]{3,20}$/.test(roomId)) {
       return null;
@@ -371,7 +387,11 @@ export class RoomManager {
     return null;
   }
 
-  public handleGameEnd(roomId: string, playerId: string, reason: string): { success: boolean; error?: RoomErrorEvent; roomUpdate?: RoomStateUpdateEvent } {
+  public handleGameEnd(
+    roomId: string,
+    playerId: string,
+    reason: string,
+  ): { success: boolean; error?: RoomErrorEvent; roomUpdate?: RoomStateUpdateEvent } {
     const room = this.getRoom(roomId);
     if (!room) {
       return {
@@ -379,8 +399,8 @@ export class RoomManager {
         error: {
           roomId,
           error: 'Room not found',
-          code: 'ROOM_NOT_FOUND'
-        }
+          code: 'ROOM_NOT_FOUND',
+        },
       };
     }
 
@@ -393,16 +413,16 @@ export class RoomManager {
         error: {
           roomId,
           error: result.reason!,
-          code: errorCode
-        }
+          code: errorCode,
+        },
       };
     }
 
     return {
       success: true,
       roomUpdate: {
-        room: room.toRoomInfo()
-      }
+        room: room.toRoomInfo(),
+      },
     };
   }
 }
