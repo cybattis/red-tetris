@@ -137,7 +137,7 @@ export class Game extends EventEmitter {
       gameMode: this.settings.gameMode,
     };
 
-    console.log('Backend getGameState() returning:', {
+    Logger.dump('Backend getGameState() returning:', {
       isAlive: this.isAlive,
       state: this.state,
       isGameOver: gameState.isGameOver,
@@ -474,11 +474,11 @@ export class Game extends EventEmitter {
   }
 
   private GameOver(): void {
-    console.log('Backend GameOver() called - setting isAlive to false');
+    Logger.info('Backend GameOver() called - setting isAlive to false');
     this.isAlive = false;
     this.state = GameState.Ended;
 
-    console.log('Backend GameOver() - current state:', {
+    Logger.info('Backend GameOver() - current state:', {
       isAlive: this.isAlive,
       state: this.state,
     });

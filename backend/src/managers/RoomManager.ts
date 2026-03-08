@@ -209,11 +209,11 @@ export class RoomManager {
     hostId: string,
     gameSettings?: Partial<GameSettings>,
   ): { success: boolean; error?: RoomErrorEvent; roomUpdate?: RoomStateUpdateEvent; gameIds?: string[] } {
-    console.log(`RoomManager.startGame() called for room ${roomId} by host ${hostId}`);
+    Logger.info(`RoomManager.startGame() called for room ${roomId} by host ${hostId}`);
 
     const room = this.getRoom(roomId);
     if (!room) {
-      console.log(`Room ${roomId} not found`);
+      Logger.info(`Room ${roomId} not found`);
       return {
         success: false,
         error: {
@@ -224,9 +224,9 @@ export class RoomManager {
       };
     }
 
-    console.log(`Found room ${roomId}, checking if ${hostId} is host`);
+    Logger.info(`Found room ${roomId}, checking if ${hostId} is host`);
     if (!room.isHost(hostId)) {
-      console.log(`${hostId} is not host of room ${roomId}`);
+      Logger.info(`${hostId} is not host of room ${roomId}`);
       return {
         success: false,
         error: {
@@ -237,10 +237,10 @@ export class RoomManager {
       };
     }
 
-    console.log(`${hostId} is host, calling room.startGame()`);
+    Logger.info(`${hostId} is host, calling room.startGame()`);
     const startResult = room.startGame(gameSettings);
     if (!startResult.success) {
-      console.log(`room.startGame() failed: ${startResult.reason}`);
+      Logger.info(`room.startGame() failed: ${startResult.reason}`);
       const errorCode = this.getErrorCode(startResult.reason!);
       return {
         success: false,
@@ -252,7 +252,7 @@ export class RoomManager {
       };
     }
 
-    console.log(`room.startGame() succeeded with ${startResult.gameIds?.length} games`);
+    Logger.info(`room.startGame() succeeded with ${startResult.gameIds?.length} games`);
     return {
       success: true,
       roomUpdate: { room: room.toRoomInfo() },
