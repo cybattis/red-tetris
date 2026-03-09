@@ -17,10 +17,10 @@ export interface PlayerBoardProps {
   nextPieces?: number[];
   maxNextDisplay?: number;
   score?: number;
-  level?: number;
   linesCleared?: number;
   isPaused?: boolean;
   isGameOver?: boolean;
+  isInvisible?: boolean;
   size?: 'normal' | 'small';
   clearingRows?: number[];
   penaltyRows?: number[];
@@ -43,11 +43,11 @@ export const PlayerBoard = memo(function PlayerBoard({
   maxNextDisplay = 3,
   
   score = 0,
-  level = 1,
   linesCleared = 0,
   
   isPaused = false,
   isGameOver = false,
+  isInvisible = false,
   
   size = 'normal',
   
@@ -71,6 +71,7 @@ export const PlayerBoard = memo(function PlayerBoard({
             cellSize={cellSize}
             isPaused={isPaused}
             isGameOver={isGameOver}
+            isInvisible={isInvisible}
             clearingRows={clearingRows}
             penaltyRows={penaltyRows}
             lockedCells={lockedCells}
@@ -93,7 +94,7 @@ export const PlayerBoard = memo(function PlayerBoard({
 
         <aside className={styles.sidebar}>
           <NextPiece pieces={nextPieces} maxDisplay={maxNextDisplay} />
-          <ScoreDisplay score={score} level={level} linesCleared={linesCleared} />
+          <ScoreDisplay score={score} linesCleared={linesCleared} />
         </aside>
       </div>
     </div>

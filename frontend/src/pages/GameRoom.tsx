@@ -1,16 +1,12 @@
-import { useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import styles from './GameRoom.module.css';
-import type {
-  GameMode,
-  GameSettings,
-} from '../types/game';
+import { useEffect, useRef, useCallback } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import styles from "./GameRoom.module.css";
+import type { GameMode, GameSettings } from "../types/game";
 
 // Redux imports
-import { useAppDispatch, useAppSelector } from '../store/index.js';
+import { useAppDispatch, useAppSelector } from "../store/index.js";
 import {
-  joinRoomSuccess,
-  addPlayer,
+  joinRoom,
   leaveRoom,
   updatePlayerReady,
   updateGameMode,
@@ -19,7 +15,6 @@ import {
   startCountdown,
   updateCountdown,
   cancelCountdown,
-  resetToLobby,
   selectPlayers,
   selectCurrentPlayer,
   selectIsHost,
@@ -28,28 +23,29 @@ import {
   selectCanStartGame,
   selectCountdown,
   selectGameStarted,
+  selectGameId,
   selectError,
   selectGameCreationData,
-} from '../store/slices/gameRoomSlice.js';
+} from "../store/slices/gameRoomSlice.js";
+import { selectSocket, selectConnectionStatus } from "../store/slices/connectionSlice.js";
+import { resetGame } from "../store/slices/gameSlice.js";
+import { GameAction } from "@shared/types/game";
 
-import {
-  Button,
-  Panel,
-} from '../components/UI';
+import { Button, Panel } from "../components/UI";
 import {
   PlayerList,
   GameModeSelector,
   GameSettingsPanel,
   CountdownOverlay,
-} from '../components/Lobby';
-import {
-  GameView,
-} from '../components/Game';
-import { useGameInput } from '../hooks';
-import type { GameActionType } from '../utils/keyBindings';
+} from "../components/Lobby";
+import { GameView } from "../components/Game";
+import { useGameInput } from "../hooks";
 
 export function GameRoom() {
-  const { room, playerName } = useParams<{ room: string; playerName: string }>();
+  const { room, playerName } = useParams<{
+    room: string;
+    playerName: string;
+  }>();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
 
@@ -62,55 +58,42 @@ export function GameRoom() {
   const canStartGameNow = useAppSelector(selectCanStartGame);
   const countdown = useAppSelector(selectCountdown);
   const gameStarted = useAppSelector(selectGameStarted);
+  const gameId = useAppSelector(selectGameId);
   const gameCreationData = useAppSelector(selectGameCreationData);
   const error = useAppSelector(selectError);
+  const socket = useAppSelector(selectSocket);
+  const connectionStatus = useAppSelector(selectConnectionStatus);
 
   // Derived state
   const isSoloGame = players.length === 1;
+  
+  // Ref to prevent duplicate room joining
+  const hasJoinedRoom = useRef(false);
 
   useEffect(() => {
-    if (room && playerName) {
-      // TEMPORARY: Local initialization for testing without backend.
-      // When backend is ready, this will be replaced with socket-based room joining.
-      // The roomId is passed here as a workaround since joinRoom (which sets roomId)
-      // requires an active socket connection to the backend.
-      dispatch(joinRoomSuccess({
-        roomId: room, // TODO: Remove after backend integration - roomId will come from joinRoom action
-        players: [
-          { 
-            id: '1', 
-            name: playerName, 
-            isHost: true, 
-            isReady: true 
-          }
-        ],
-        currentPlayerId: '1',
-        gameMode: 'classic',
-      }));
-      
-      // TODO: When backend is ready, replace above with:
-      // if (isConnected) {
-      //   dispatch(joinRoom({ roomId: room, playerName }));
-      // }
+    if (room && playerName && connectionStatus === 'connected' && !hasJoinedRoom.current) {
+      // Join room using the new room management system
+      hasJoinedRoom.current = true;
+      dispatch(joinRoom({ roomId: room, playerName }));
     }
-  }, [dispatch, room, playerName]);
+  }, [dispatch, room, playerName, connectionStatus]);
 
-  // Placeholder: Add a second player after 3 seconds (for testing)
+  // Reset join flag when room or player changes
   useEffect(() => {
-    // Just for demo - will be replaced with real socket events
-    const timer = setTimeout(() => {
-      if (players.length === 1) {
-        // Add a test opponent to see multiplayer functionality
-        dispatch(addPlayer({ id: '2', name: 'Opponent', isHost: false, isReady: true }));
-      }
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, [players.length, dispatch]);
+    hasJoinedRoom.current = false;
+  }, [room, playerName]);
+
+  // Navigate back to home if no room or player name
+  useEffect(() => {
+    if (!room || !playerName) {
+      navigate('/');
+    }
+  }, [room, playerName, navigate]);
 
   // Handle countdown interval
   useEffect(() => {
     let interval: number | null = null;
-    
+
     if (countdown !== null && countdown > 0) {
       interval = window.setInterval(() => {
         dispatch(updateCountdown(countdown - 1));
@@ -124,29 +107,32 @@ export function GameRoom() {
     };
   }, [countdown, dispatch]);
 
-  const handleSettingChange = (key: keyof GameSettings, value: number | boolean) => {
+  const handleSettingChange = (
+    key: keyof GameSettings,
+    value: number | boolean,
+  ) => {
     if (!isHost) return;
-    
+
     dispatch(updateSetting({ key, value }));
   };
 
   const handleResetSettings = () => {
     if (!isHost) return;
-    
+
     dispatch(resetSettings());
   };
 
   const handleGameModeChange = (newGameMode: GameMode) => {
     if (!isHost) return;
-    
+
     dispatch(updateGameMode(newGameMode));
   };
 
   const handleStartGame = () => {
     if (!isHost || !canStartGameNow) return;
-    
+
     if (gameCreationData) {
-      console.log('Game Creation Data:', gameCreationData);
+      console.log("Game Creation Data:", gameCreationData);
       dispatch(startCountdown());
     }
   };
@@ -157,25 +143,62 @@ export function GameRoom() {
 
   const handleToggleReady = () => {
     if (!currentPlayer) return;
-    
+
     const newReadyStatus = !currentPlayer.isReady;
-    dispatch(updatePlayerReady({ 
-      playerId: currentPlayer.id, 
-      isReady: newReadyStatus 
-    }));
+    dispatch(
+      updatePlayerReady({
+        playerId: currentPlayer.id,
+        isReady: newReadyStatus,
+      }),
+    );
   };
 
   const handleLeaveRoom = () => {
     dispatch(leaveRoom());
-    navigate('/');
+    navigate("/");
   };
 
+  const handlePlayAgain = useCallback(() => {
+    // End the current game state and immediately start a new game
+    dispatch({ type: 'gameRoom/endGame' });
+    dispatch(resetGame());
+    
+    // Automatically start a new game with the same settings
+    setTimeout(() => {
+      if (gameCreationData) {
+        dispatch(startCountdown());
+      }
+    }, 100); // Small delay to ensure state is updated
+  }, [dispatch, gameCreationData]);
+
+  const handleReturnToLobby = useCallback(() => {
+    // End the current game state and return to lobby
+    dispatch({ type: 'gameRoom/endGame' });
+    dispatch(resetGame());
+  }, [dispatch]);
+
+  const handleReturnHome = useCallback(() => {
+    // End the game and navigate to home page
+    dispatch({ type: 'gameRoom/endGame' });
+    dispatch(resetGame());
+    dispatch(leaveRoom());
+    navigate("/");
+  }, [dispatch, navigate]);
+
   // Handle game input actions - send to server
-  const handleGameAction = (action: GameActionType) => {
-    // TODO: When backend is ready, send action via socket
-    // socket.emit('game:action', { roomId: room, action });
-    console.log('Game action:', action);
-  };
+  // MUST be memoized to prevent useGameInput from re-registering event listeners on every render
+  const handleGameAction = useCallback((action: GameAction) => {
+    if (socket && socket.connected && gameStarted && gameId) {
+      socket.emit('PLAYER_INPUT', {
+        message: 'PLAYER_INPUT',
+        data: {
+          gameId: gameId,
+          playerId: socket.id,
+          input: action,
+        }
+      });
+    }
+  }, [socket, gameStarted, gameId]);
 
   // Game input hook - only active when game has started
   useGameInput({
@@ -201,14 +224,16 @@ export function GameRoom() {
   // If game has started, show game view
   if (gameStarted) {
     return (
-      <GameView
-        roomName={room}
-        playerName={playerName}
-        isHost={isHost}
-        onLeave={() => {
-          dispatch(resetToLobby());
-        }}
-      />
+      <>
+        <GameView
+          roomName={room}
+          playerName={playerName}
+          isHost={isHost}
+          onLeave={handleReturnToLobby}
+          onPlayAgain={handlePlayAgain}
+          onReturnHome={handleReturnHome}
+        />
+      </>
     );
   }
 
@@ -223,13 +248,17 @@ export function GameRoom() {
       )}
 
       <header className={styles.header}>
-        <Button variant="ghost" onClick={handleLeaveRoom} className={styles.leaveButton}>
+        <Button
+          variant="ghost"
+          onClick={handleLeaveRoom}
+          className={styles.leaveButton}
+        >
           ← Leave Room
         </Button>
         <div className={styles.roomInfo}>
           <h1 className={styles.roomName}>{room}</h1>
           <span className={styles.roomMode}>
-            {isSoloGame ? 'Solo Mode' : 'Multiplayer'}
+            {isSoloGame ? "Solo Mode" : "Multiplayer"}
           </span>
         </div>
         <div className={styles.headerSpacer} />
@@ -240,7 +269,7 @@ export function GameRoom() {
           <PlayerList
             players={players}
             maxPlayers={2}
-            currentPlayerName={playerName || ''}
+            currentPlayerName={playerName || ""}
           />
         </Panel>
 
@@ -269,22 +298,23 @@ export function GameRoom() {
               fullWidth
               disabled={countdown !== null || !canStartGameNow}
             >
-              {countdown !== null ? `Starting in ${countdown}...` : 'Start Game'}
+              {countdown !== null
+                ? `Starting in ${countdown}...`
+                : "Start Game"}
             </Button>
           ) : (
             <Button
               onClick={handleToggleReady}
-              variant={currentPlayer?.isReady ? 'secondary' : 'primary'}
+              variant={currentPlayer?.isReady ? "secondary" : "primary"}
               size="large"
               fullWidth
               disabled={countdown !== null}
             >
-              {countdown !== null 
-                ? `Starting in ${countdown}...` 
-                : currentPlayer?.isReady 
-                  ? 'Ready ✓' 
-                  : 'Ready Up'
-              }
+              {countdown !== null
+                ? `Starting in ${countdown}...`
+                : currentPlayer?.isReady
+                  ? "Ready ✓"
+                  : "Ready Up"}
             </Button>
           )}
         </div>

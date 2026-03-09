@@ -7,6 +7,7 @@ const config: Config.InitialOptions = {
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1', // Handle .js extensions in imports
     '^src/(.*)$': '<rootDir>/src/$1',
+    '^@shared/(.*)$': '<rootDir>/../shared/$1',
   },
   transform: {
     '^.+\\.tsx?$': [

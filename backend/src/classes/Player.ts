@@ -1,5 +1,3 @@
-import { v4 as uuidv4 } from 'uuid';
-
 export class Player {
   public readonly id: string;
   public socketId: string;
@@ -8,7 +6,7 @@ export class Player {
   public isReady: boolean = false;
 
   constructor(socketId: string) {
-    this.id = uuidv4();
+    this.id = socketId;
     this.socketId = socketId;
   }
 

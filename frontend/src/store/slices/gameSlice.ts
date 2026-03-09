@@ -10,7 +10,7 @@ import { createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
 
 /**
- * Piece state as received from server
+ * Game state update as received from server
  */
 export interface PieceState {
   type: number;
@@ -66,6 +66,13 @@ export interface GameState {
   // Animation state (for visual effects)
   clearingRows: number[];  // Row indices currently being cleared
   penaltyRows: number[];   // Row indices that are penalty lines (for animation)
+  
+  // Animation data from server
+  lockedCells: { x: number; y: number; type: number; id?: string }[];
+  hardDropTrail: { x: number; startY: number; endY: number; type: number; id?: string }[];
+  
+  // Animation deduplication
+  lastAnimationTimestamp: { [key: string]: number };
 }
 
 /**
@@ -75,81 +82,41 @@ const createEmptyBoard = (width: number, height: number): number[][] => {
   return Array.from({ length: height }, () => Array(width).fill(0));
 };
 
-/**
- * Create a mock board with some placed pieces for testing
- */
-const createMockBoard = (): number[][] => {
-  const board = createEmptyBoard(10, 20);
-  
-  // Add some placed pieces at the bottom (simulating mid-game)
-  // Row 19 (bottom) - almost complete line
-  board[19] = [1, 2, 3, 4, 0, 5, 6, 7, 1, 2];
-  // Row 18
-  board[18] = [0, 1, 2, 0, 0, 0, 3, 4, 5, 6];
-  // Row 17
-  board[17] = [0, 0, 1, 0, 0, 0, 0, 2, 3, 4];
-  // Row 16
-  board[16] = [0, 0, 0, 0, 0, 0, 0, 1, 2, 0];
-  
-  return board;
-};
-
 const initialState: GameState = {
-  board: createMockBoard(),
+  board: createEmptyBoard(10, 20),
   boardWidth: 10,
   boardHeight: 20,
 
-  // Mock current piece (T-piece falling) - type 3 = T piece (purple)
-  currentPiece: {
-    type: 3,
-    position: { x: 4, y: 2 },
-    shape: [
-      [0, 1, 0],
-      [1, 1, 1],
-      [0, 0, 0],
-    ],
-    rotation: 0,
-  },
-  
-  // Ghost piece (where it will land) - same type as current piece
-  ghostPiece: {
-    type: 3,
-    position: { x: 4, y: 14 },
-    shape: [
-      [0, 1, 0],
-      [1, 1, 1],
-      [0, 0, 0],
-    ],
-    rotation: 0,
-  },
+  // No pieces until game starts
+  currentPiece: null,
+  ghostPiece: null,
 
-  // Next pieces queue: I(1)
-  nextPieces: [1, 5 , 4, 1, 2, 4, 7],
+  // Empty next pieces queue
+  nextPieces: [],
 
-  score: 4850,
-  level: 3,
-  linesCleared: 2,
-  totalLinesCleared: 12,
+  score: 0,
+  level: 1,
+  linesCleared: 0,
+  totalLinesCleared: 0,
 
   isPaused: false,
   isGameOver: false,
   gameOverReason: null,
 
-  // Mock opponent for testing 2-player layout (remove for production)
-  opponents: [
-    {
-      playerId: 'opponent-1',
-      playerName: 'Opponent',
-      spectrum: [3, 5, 7, 4, 6, 8, 5, 3, 4, 6],
-      score: 1250,
-      isEliminated: false,
-    },
-  ],
+  // No opponents for solo games (will be populated for multiplayer)
+  opponents: [],
   pendingPenaltyLines: 0,
   
   // Animation state
   clearingRows: [],
   penaltyRows: [],
+  
+  // Animation data from server
+  lockedCells: [],
+  hardDropTrail: [],
+  
+  // Animation deduplication
+  lastAnimationTimestamp: {},
 };
 
 /**
@@ -164,6 +131,11 @@ export interface GameStateUpdate {
   level?: number;
   linesCleared?: number;
   totalLinesCleared?: number;
+  boardWidth?: number;
+  boardHeight?: number;
+  isPaused?: boolean;
+  isGameOver?: boolean;
+  gameOverReason?: string | null;
 }
 
 const gameSlice = createSlice({
@@ -205,6 +177,7 @@ const gameSlice = createSlice({
      */
     updateGameState: (state, action: PayloadAction<GameStateUpdate>) => {
       const update = action.payload;
+      console.log('🔄 Redux updateGameState called with:', update);
 
       if (update.board !== undefined) state.board = update.board;
       if (update.currentPiece !== undefined) state.currentPiece = update.currentPiece;
@@ -215,6 +188,26 @@ const gameSlice = createSlice({
       if (update.linesCleared !== undefined) state.linesCleared = update.linesCleared;
       if (update.totalLinesCleared !== undefined)
         state.totalLinesCleared = update.totalLinesCleared;
+      if (update.boardWidth !== undefined) state.boardWidth = update.boardWidth;
+      if (update.boardHeight !== undefined) state.boardHeight = update.boardHeight;
+      if (update.isGameOver !== undefined) {
+        console.log('🏁 Setting isGameOver to:', update.isGameOver);
+        state.isGameOver = update.isGameOver;
+      }
+      if (update.gameOverReason !== undefined) {
+        console.log('💀 Setting gameOverReason to:', update.gameOverReason);
+        state.gameOverReason = update.gameOverReason;
+      }
+      if (update.isPaused !== undefined) {
+        console.log('⏸️ Setting isPaused to:', update.isPaused);
+        state.isPaused = update.isPaused;
+      }
+      
+      console.log('✅ Final Redux state after updateGameState:', {
+        isGameOver: state.isGameOver,
+        gameOverReason: state.gameOverReason,
+        isPaused: state.isPaused
+      });
     },
 
     /**
@@ -293,6 +286,16 @@ const gameSlice = createSlice({
     },
 
     /**
+     * Handle game ended from server - stops input and cleans up state
+     */
+    gameEnded: (state, action: PayloadAction<{ gameId: string; reason: string }>) => {
+      state.isGameOver = true;
+      state.gameOverReason = action.payload.reason;
+      state.isPaused = true; // Stop the game loop
+      // Don't reset gameId here as it might be needed for cleanup
+    },
+
+    /**
      * Set rows that are being cleared (for line clear animation)
      */
     setClearingRows: (state, action: PayloadAction<number[]>) => {
@@ -321,6 +324,62 @@ const gameSlice = createSlice({
     },
 
     /**
+     * Handle game animations from server
+     */
+    handleAnimation: (state, action: PayloadAction<{ type: string; data: any }>) => {
+      const { type, data } = action.payload;
+      const timestamp = data.timestamp || Date.now();
+      
+      // Prevent duplicate animations by checking timestamp
+      if (state.lastAnimationTimestamp[type] === timestamp) {
+        return; // Skip duplicate animation
+      }
+      
+      state.lastAnimationTimestamp[type] = timestamp;
+      
+      switch (type) {
+        case 'PIECE_LOCK':
+          // Clear any existing lock animation first
+          state.lockedCells = [];
+          // Show piece lock animation with unique timestamp-based keys
+          state.lockedCells = data.cells.map((cell: any, index: number) => ({
+            ...cell,
+            id: `lock-${timestamp}-${index}`
+          }));
+          break;
+          
+        case 'HARD_DROP':
+          // Clear any existing trail animation first
+          state.hardDropTrail = [];
+          // Show hard drop trail animation with unique timestamp-based keys
+          state.hardDropTrail = data.trail.map((trail: any, index: number) => ({
+            ...trail,
+            id: `trail-${timestamp}-${index}`
+          }));
+          break;
+          
+        case 'LINE_CLEAR':
+          // Show line clear animation (only set once, don't clear first)
+          state.clearingRows = data.rows;
+          break;
+      }
+    },
+
+    /**
+     * Clear locked cells animation
+     */
+    clearLockedCells: (state) => {
+      state.lockedCells = [];
+    },
+
+    /**
+     * Clear hard drop trail animation
+     */
+    clearHardDropTrail: (state) => {
+      state.hardDropTrail = [];
+    },
+
+    /**
      * Reset game state
      */
     resetGame: () => {
@@ -339,10 +398,14 @@ export const {
   setPaused,
   togglePause,
   gameOver,
+  gameEnded,
   setClearingRows,
   clearClearingRows,
   setPenaltyRows,
   clearPenaltyRows,
+  handleAnimation,
+  clearLockedCells,
+  clearHardDropTrail,
   resetGame,
 } = gameSlice.actions;
 
@@ -364,9 +427,23 @@ export const selectGameOverReason = (state: { game: GameState }) => state.game.g
 export const selectOpponents = (state: { game: GameState }) => state.game.opponents;
 export const selectPendingPenaltyLines = (state: { game: GameState }) =>
   state.game.pendingPenaltyLines;
-export const selectBoardDimensions = (state: { game: GameState }) => ({
-  width: state.game.boardWidth,
-  height: state.game.boardHeight,
-});
+
+// Memoized selector: returns a stable reference unless width/height actually change
+let _lastBoardWidth = 0;
+let _lastBoardHeight = 0;
+let _lastBoardDimensions = { width: 0, height: 0 };
+export const selectBoardDimensions = (state: { game: GameState }) => {
+  const w = state.game.boardWidth;
+  const h = state.game.boardHeight;
+  if (w !== _lastBoardWidth || h !== _lastBoardHeight) {
+    _lastBoardWidth = w;
+    _lastBoardHeight = h;
+    _lastBoardDimensions = { width: w, height: h };
+  }
+  return _lastBoardDimensions;
+};
+
 export const selectClearingRows = (state: { game: GameState }) => state.game.clearingRows;
 export const selectPenaltyRows = (state: { game: GameState }) => state.game.penaltyRows;
+export const selectLockedCells = (state: { game: GameState }) => state.game.lockedCells;
+export const selectHardDropTrail = (state: { game: GameState }) => state.game.hardDropTrail;

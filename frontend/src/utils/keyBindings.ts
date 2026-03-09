@@ -1,3 +1,5 @@
+import { GameAction } from "@shared/types/game";
+
 /**
  * Keyboard Input Bindings
  *
@@ -6,36 +8,16 @@
  */
 
 /**
- * Game actions that can be sent to the server
- */
-export const GameAction = {
-  MOVE_LEFT: 'MOVE_LEFT',
-  MOVE_RIGHT: 'MOVE_RIGHT',
-  SOFT_DROP: 'SOFT_DROP',
-  HARD_DROP: 'HARD_DROP',
-  ROTATE_CW: 'ROTATE_CW', // Clockwise
-  ROTATE_CCW: 'ROTATE_CCW', // Counter-clockwise
-  HOLD: 'HOLD',
-  PAUSE: 'PAUSE',
-} as const;
-
-export type GameActionType = (typeof GameAction)[keyof typeof GameAction];
-
-/**
  * Default key bindings
  * Maps KeyboardEvent.code to game actions
  */
-export const DEFAULT_KEY_BINDINGS: Record<string, GameActionType> = {
+export const DEFAULT_KEY_BINDINGS: Record<string, GameAction> = {
   ArrowLeft: GameAction.MOVE_LEFT,
   ArrowRight: GameAction.MOVE_RIGHT,
   ArrowDown: GameAction.SOFT_DROP,
   ArrowUp: GameAction.ROTATE_CW,
   Space: GameAction.HARD_DROP,
-  KeyZ: GameAction.ROTATE_CCW,
   KeyX: GameAction.ROTATE_CW,
-  KeyC: GameAction.HOLD,
-  ShiftLeft: GameAction.HOLD,
-  ShiftRight: GameAction.HOLD,
   Escape: GameAction.PAUSE,
   KeyP: GameAction.PAUSE,
 };
@@ -43,14 +25,12 @@ export const DEFAULT_KEY_BINDINGS: Record<string, GameActionType> = {
 /**
  * Alternative WASD key bindings (optional)
  */
-export const WASD_KEY_BINDINGS: Record<string, GameActionType> = {
+export const WASD_KEY_BINDINGS: Record<string, GameAction> = {
   KeyA: GameAction.MOVE_LEFT,
   KeyD: GameAction.MOVE_RIGHT,
   KeyS: GameAction.SOFT_DROP,
   KeyW: GameAction.ROTATE_CW,
   Space: GameAction.HARD_DROP,
-  KeyQ: GameAction.ROTATE_CCW,
-  KeyE: GameAction.HOLD,
   Escape: GameAction.PAUSE,
 };
 
@@ -58,11 +38,11 @@ export const WASD_KEY_BINDINGS: Record<string, GameActionType> = {
  * Keys that should prevent default browser behavior during gameplay
  */
 export const PREVENTED_KEYS = new Set([
-  'ArrowLeft',
-  'ArrowRight',
-  'ArrowDown',
-  'ArrowUp',
-  'Space',
+  "ArrowLeft",
+  "ArrowRight",
+  "ArrowDown",
+  "ArrowUp",
+  "Space",
 ]);
 
 /**
@@ -70,8 +50,8 @@ export const PREVENTED_KEYS = new Set([
  */
 export function getActionForKey(
   keyCode: string,
-  bindings: Record<string, GameActionType> = DEFAULT_KEY_BINDINGS
-): GameActionType | null {
+  bindings: Record<string, GameAction> = DEFAULT_KEY_BINDINGS,
+): GameAction | null {
   return bindings[keyCode] ?? null;
 }
 

@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Red Tetris Backend</title>
+	<style>
+		:root {
+			color-scheme: light dark;
+		}
+
+		body {
+			font-family: system-ui, sans-serif;
+			margin: 2rem;
+		}
+
+		pre {
+			padding: 1rem;
+			border: 1px solid #8884;
+			border-radius: 8px;
+			overflow: auto;
+			background: #8881;
+		}
+	</style>
+</head>
+
+<body>
+	<h1>Red Tetris Backend</h1>
+	<p>Debug page is running.</p>
+
+	<h2>Debug Info</h2>
+	<pre id="debug">Loading debug info...</pre>
+
+	<script>
+		const debug = {
+			timestampISO: new Date().toISOString(),
+			url: window.location.href,
+			path: window.location.pathname,
+			query: window.location.search,
+			hash: window.location.hash,
+			referrer: document.referrer || null,
+			userAgent: navigator.userAgent,
+			language: navigator.language,
+			languages: navigator.languages,
+			platform: navigator.platform,
+			timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+			screen: {
+				width: window.screen.width,
+				height: window.screen.height,
+				pixelRatio: window.devicePixelRatio
+			},
+			viewport: {
+				width: window.innerWidth,
+				height: window.innerHeight
+			}
+		};
+
+		document.getElementById("debug").textContent = JSON.stringify(debug, null, 2);
+		console.debug("[backend/index] debug info", debug);
+	</script>
+</body>
+
+</html>

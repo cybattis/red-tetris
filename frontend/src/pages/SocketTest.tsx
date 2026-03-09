@@ -1,8 +1,14 @@
 import { useState, useEffect } from 'react';
 import { io, Socket } from 'socket.io-client';
 
+const enum LogType {
+  Sent = 'sent',
+  Received = 'received',
+  Status = 'status',
+}
+
 interface LogEntry {
-  type: 'sent' | 'received' | 'status';
+  type: LogType;
   message: string;
   timestamp: string;
 }
@@ -28,7 +34,7 @@ export function SocketTest() {
     setEventData(templates[type] || '{}');
   };
 
-  const addLog = (type: LogEntry['type'], message: string) => {
+  const addLog = (type: LogType, message: string) => {
     setLogs((prev) => [
       { type, message, timestamp: new Date().toLocaleTimeString() },
       ...prev,
@@ -45,16 +51,16 @@ export function SocketTest() {
 
     newSocket.on('connect', () => {
       setIsConnected(true);
-      addLog('status', `Connected with ID: ${newSocket.id}`);
+      addLog(LogType.Status, `Connected with ID: ${newSocket.id}`);
     });
 
     newSocket.on('disconnect', () => {
       setIsConnected(false);
-      addLog('status', 'Disconnected');
+      addLog(LogType.Status, 'Disconnected');
     });
 
     newSocket.onAny((event, ...args) => {
-      addLog('received', `Event: ${event} | Data: ${JSON.stringify(args)}`);
+      addLog(LogType.Received, `Event: ${event} | Data: ${JSON.stringify(args)}`);
     });
 
     setSocket(newSocket);
@@ -70,16 +76,16 @@ export function SocketTest() {
 
   const emitEvent = () => {
     if (!socket || !isConnected) {
-      addLog('status', 'Error: Not connected');
+      addLog(LogType.Status, 'Error: Not connected');
       return;
     }
 
     try {
       const parsedData = JSON.parse(eventData);
       socket.emit(eventName, parsedData);
-      addLog('sent', `Event: ${eventName} | Data: ${eventData}`);
+      addLog(LogType.Sent, `Event: ${eventName} | Data: ${eventData}`);
     } catch (e) {
-      addLog('status', 'Error: Invalid JSON data');
+      addLog(LogType.Status, 'Error: Invalid JSON data');
     }
   };
 
@@ -152,7 +158,7 @@ export function SocketTest() {
               <li key={index} style={{
                 padding: '5px',
                 borderBottom: '1px solid #eee',
-                color: log.type === 'sent' ? 'blue' : log.type === 'received' ? 'green' : 'gray'
+                color: log.type === LogType.Sent ? 'blue' : log.type === LogType.Received ? 'green' : 'gray'
               }}>
                 <span style={{ fontSize: '0.8em', marginRight: '10px' }}>[{log.timestamp}]</span>
                 <strong>{log.type.toUpperCase()}:</strong> {log.message}
