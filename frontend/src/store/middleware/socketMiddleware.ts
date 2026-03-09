@@ -36,11 +36,11 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
   let socketInitialized = false;
   // Track if START_GAME has been emitted for current countdown to prevent duplicates
   let startGameEmitted = false;
-  
+
   return (store) => (next) => (action: any) => {
     // Get state BEFORE action is processed for certain checks
     const prevState = store.getState();
-    
+
     const result = next(action);
     const state = store.getState();
     const dispatch = store.dispatch as AppDispatch;
@@ -52,18 +52,18 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
           console.log('[DEBUG] Socket already initialized, skipping');
           break;
         }
-        
+
         if (state.connection.socket) {
           console.log('[DEBUG] Disconnecting existing socket');
           state.connection.socket.removeAllListeners();
           state.connection.socket.disconnect();
         }
-        
+
         socketInitialized = true;
         console.log('[DEBUG] Initializing new socket');
 
         dispatch(setConnecting());
-        
+
         const socket: Socket = io(socketUrl, {
           autoConnect: false,
           reconnection: true,
@@ -106,7 +106,7 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
         // New room management event handlers
         socket.on('ROOM_STATE_UPDATE', (data) => {
           dispatch(updateRoomState(data.room));
-          
+
           // Set current player ID if not already set (when first joining)
           const currentState = store.getState();
           if (!currentState.gameRoom.currentPlayerId && socket.id) {
@@ -120,40 +120,40 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
 
         socket.on('PLAYER_JOINED', (data) => {
           dispatch(playerJoined(data));
-          dispatch(showToast({ 
-            message: `${data.player.name} joined the room${data.isSpectator ? ' as spectator' : ''}`, 
-            type: 'info' 
+          dispatch(showToast({
+            message: `${data.player.name} joined the room${data.isSpectator ? ' as spectator' : ''}`,
+            type: 'info'
           }));
         });
 
         socket.on('PLAYER_LEFT', (data) => {
           dispatch(playerLeft(data));
-          dispatch(showToast({ 
-            message: 'A player left the room', 
-            type: 'warning' 
+          dispatch(showToast({
+            message: 'A player left the room',
+            type: 'warning'
           }));
         });
 
         socket.on('HOST_TRANSFER', (data) => {
           dispatch(hostTransferred(data));
-          dispatch(showToast({ 
-            message: 'Host has been transferred', 
-            type: 'info' 
+          dispatch(showToast({
+            message: 'Host has been transferred',
+            type: 'info'
           }));
         });
 
-        socket.on('ROOM_ERROR', (data) => {
-          dispatch(roomError(data));
-          dispatch(showToast({ 
-            message: `Room Error: ${data.error}`, 
-            type: 'error' 
+        socket.on('ROOM_ERROR', (error) => {
+          dispatch(roomError(error));
+          dispatch(showToast({
+            message: `Room Error: ${error.reason}`,
+            type: 'error'
           }));
         });
 
         socket.on('LEFT_ROOM', () => {
-          dispatch(showToast({ 
-            message: 'Left the room', 
-            type: 'info' 
+          dispatch(showToast({
+            message: 'Left the room',
+            type: 'info'
           }));
         });
 
@@ -193,9 +193,9 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
 
         socket.on('GAME_START_CANCELED', () => {
           dispatch(cancelCountdown());
-          dispatch(showToast({ 
-            message: 'Game start was canceled', 
-            type: 'info' 
+          dispatch(showToast({
+            message: 'Game start was canceled',
+            type: 'info'
           }));
         });
 
@@ -204,9 +204,9 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
           // Reset game state before starting a new game to clear any leftover state
           dispatch(resetGame());
           dispatch(startGame({ gameId: data.gameId }));
-          dispatch(showToast({ 
-            message: 'Game started!', 
-            type: 'success' 
+          dispatch(showToast({
+            message: 'Game started!',
+            type: 'success'
           }));
         });
 
@@ -222,19 +222,21 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
 
         socket.on('GAME_ENDED', (data: { gameId: string; playerId: string; reason: string }) => {
           console.log(`Game ended: ${data.gameId} for player ${data.playerId} - reason: ${data.reason}`);
-          
+
           // Properly end the game in the frontend state
-          dispatch({ type: 'game/gameEnded', payload: { 
-            gameId: data.gameId, 
-            reason: data.reason 
-          }});
-          
+          dispatch({
+            type: 'game/gameEnded', payload: {
+              gameId: data.gameId,
+              reason: data.reason
+            }
+          });
+
           // Show toast notification
-          dispatch(showToast({ 
-            message: `Game ended: ${data.reason}`, 
-            type: 'info' 
+          dispatch(showToast({
+            message: `Game ended: ${data.reason}`,
+            type: 'info'
           }));
-          
+
           // Don't automatically end the game room - let the user choose via Game Over overlay buttons
         });
 
@@ -372,7 +374,7 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
       case 'gameRoom/resetToLobby': {
         // Reset the game state when returning to lobby
         dispatch(resetGame());
-        
+
         const socket = state.connection.socket;
         if (socket && socket.connected) {
           socket.emit('RESTART_GAME', {

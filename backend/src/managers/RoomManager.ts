@@ -9,6 +9,8 @@ import {
   RoomStateUpdateEvent,
   HostTransferEvent,
   RoomErrorEvent,
+  RoomLeaveEvent,
+  RoomResults,
 } from '@shared/types/room';
 import { Socket } from 'socket.io';
 
@@ -88,12 +90,14 @@ export class RoomManager {
     if (currentRoom) {
       if (currentRoom.id === roomId) {
         // Player is already in the requested room
+        Logger.info(`Player ${player.name} (${player.id}) attempted to join room ${roomId} but is already in that room`);
         return {
           success: true,
           roomUpdate: { room: currentRoom.toRoomInfo() },
         };
       } else {
         // Player is in a different room, need to leave first
+        Logger.info(`Player ${player.name} (${player.id}) is in room ${currentRoom.id}, leaving to join ${roomId}`);
         this.leaveRoom(player.id, socket);
       }
     }
@@ -111,7 +115,7 @@ export class RoomManager {
         success: false,
         error: {
           roomId,
-          error: result.reason!,
+          reason: result.reason!,
           code: errorCode,
         },
       };
@@ -149,30 +153,48 @@ export class RoomManager {
   public leaveRoom(
     playerId: string,
     socket: Socket,
-  ): {
-    roomUpdate?: RoomStateUpdateEvent;
-    playerLeft?: PlayerLeftEvent;
-    hostTransfer?: HostTransferEvent;
-    roomDeleted?: boolean;
-  } {
+  ): RoomResults<RoomLeaveEvent> {
     const room = this.getRoomForPlayer(playerId);
     if (!room) {
-      return {};
+      Logger.error("leaveRoom called but player isn't in any room");
+      return {
+        success: false,
+        error: {
+          roomId: '',
+          reason: 'Player is not in any room',
+          code: 'ROOM_NOT_FOUND',
+        },
+      };
     }
 
     const roomId = room.id;
 
     // Remove player from room
     const removeResult = room.removePlayer(playerId);
-
     // Update player-room mapping
     this._playerRooms.delete(playerId);
-
     // Leave socket room
     socket.leave(roomId);
 
-    const result: any = {
-      playerLeft: { roomId, playerId },
+    Logger.info(`Player ${playerId} left room ${roomId}`);
+
+    // Check if room should be deleted
+    if (room.isEmpty) {
+      this.deleteRoom(roomId);
+      return {
+        success: true,
+        data: {
+          roomDeleted: true
+        },
+      };
+    }
+
+    let result: RoomLeaveEvent = {
+      roomUpdated: room.toRoomInfo(),
+      playerLeft: {
+        roomId,
+        playerId,
+      },
     };
 
     // Handle host transfer
@@ -183,25 +205,10 @@ export class RoomManager {
       };
     }
 
-    // Check if room should be deleted
-    if (room.isEmpty) {
-      // Schedule room deletion after cleanup timeout
-      const timer = setTimeout(() => {
-        const currentRoom = this.getRoom(roomId);
-        if (currentRoom?.isEmpty) {
-          this.deleteRoom(roomId);
-          result.roomDeleted = true;
-        }
-      }, ROOM_CONFIG.CLEANUP_TIMEOUT_MS);
-      timer.unref?.();
-    } else {
-      // Room still has players, send update
-      result.roomUpdate = { room: room.toRoomInfo() };
-    }
-
-    Logger.info(`Player ${playerId} left room ${roomId}`);
-
-    return result;
+    return {
+      success: true,
+      data: result,
+    };
   }
 
   public startGame(
@@ -218,7 +225,7 @@ export class RoomManager {
         success: false,
         error: {
           roomId,
-          error: 'Room not found',
+          reason: 'Room not found',
           code: 'ROOM_NOT_FOUND',
         },
       };
@@ -231,8 +238,20 @@ export class RoomManager {
         success: false,
         error: {
           roomId,
-          error: 'Only host can start the game',
+          reason: 'Only host can start the game',
           code: 'NOT_HOST',
+        },
+      };
+    }
+
+    if (room.playerCount == 2 && !room.arePlayersReady) {
+      Logger.info(`Not all players are ready in room ${roomId}`);
+      return {
+        success: false,
+        error: {
+          roomId,
+          reason: 'Not all players are ready',
+          code: 'NOT_READY',
         },
       };
     }
@@ -246,7 +265,7 @@ export class RoomManager {
         success: false,
         error: {
           roomId,
-          error: startResult.reason!,
+          reason: startResult.reason!,
           code: errorCode,
         },
       };
@@ -270,7 +289,7 @@ export class RoomManager {
         success: false,
         error: {
           roomId,
-          error: 'Room not found',
+          reason: 'Room not found',
           code: 'ROOM_NOT_FOUND',
         },
       };
@@ -281,7 +300,7 @@ export class RoomManager {
         success: false,
         error: {
           roomId,
-          error: 'Only host can reset the game',
+          reason: 'Only host can reset the game',
           code: 'NOT_HOST',
         },
       };
@@ -294,7 +313,7 @@ export class RoomManager {
         success: false,
         error: {
           roomId,
-          error: resetResult.reason!,
+          reason: resetResult.reason!,
           code: errorCode,
         },
       };
@@ -398,7 +417,7 @@ export class RoomManager {
         success: false,
         error: {
           roomId,
-          error: 'Room not found',
+          reason: 'Room not found',
           code: 'ROOM_NOT_FOUND',
         },
       };
@@ -412,7 +431,7 @@ export class RoomManager {
         success: false,
         error: {
           roomId,
-          error: result.reason!,
+          reason: result.reason!,
           code: errorCode,
         },
       };

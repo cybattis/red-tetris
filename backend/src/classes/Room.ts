@@ -65,6 +65,10 @@ export class Room {
     return this._players.size >= ROOM_CONFIG.MAX_PLAYERS;
   }
 
+  get arePlayersReady(): boolean {
+    return this.players.every((player) => player.isReady);
+  }
+
   // Player management
   public addPlayer(player: Player): { success: boolean; reason?: string; isSpectator?: boolean } {
     // Check if player already exists

@@ -60,6 +60,13 @@ export interface RoomStateUpdateEvent {
   room: RoomInfo;
 }
 
+export interface RoomLeaveEvent {
+  roomUpdated?: RoomInfo;
+  playerLeft?: PlayerLeftEvent;
+  hostTransfer?: HostTransferEvent;
+  roomDeleted?: boolean;
+}
+
 export interface SpectatorJoinedEvent {
   roomId: string;
   spectator: RoomPlayer;
@@ -67,8 +74,9 @@ export interface SpectatorJoinedEvent {
 
 export interface RoomErrorEvent {
   roomId: string;
-  error: string;
-  code: 'ROOM_FULL' | 'ROOM_NOT_FOUND' | 'PLAYER_EXISTS' | 'GAME_IN_PROGRESS' | 'NOT_HOST';
+  reason: string;
+  code: 'ROOM_FULL' | 'ROOM_NOT_FOUND' | 'PLAYER_EXISTS' | 'GAME_IN_PROGRESS' |
+  'NOT_HOST' | 'NOT_READY' | 'UNKNOWN_ERROR';
 }
 
 // Room configuration
@@ -77,3 +85,11 @@ export const ROOM_CONFIG = {
   CLEANUP_TIMEOUT_MS: 5 * 60 * 1000, // 5 minutes
   MAX_SPECTATORS: 10,
 } as const;
+
+export type RoomResults<T> = {
+  success: true;
+  data: T;
+} | {
+  success: false;
+  error: RoomErrorEvent;
+};
