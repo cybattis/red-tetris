@@ -20,7 +20,7 @@ Deconnexion
 Lag ?
 Game board updates
 
-- BUG pendant la game quand on spam le move input > La piece se lock
+- BUG pendant la game quand on spam le move input > La piece se lock --> DONE
 
 - Tests
 

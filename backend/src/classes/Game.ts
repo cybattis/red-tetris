@@ -206,37 +206,37 @@ export class Game extends EventEmitter {
     this._lastTickAt = now;
     this._gravityAccumulatorMs += deltaTime;
 
-    let newPos = { ...this._currentPiece.position };
+    // Player input first
+    this.processPlayerInput();
+
+    if (this._currentPiece.isLocked) {
+      this.updateBoard();
+      this.broadcastGameState();
+      return;
+    }
 
     // Handle gravity
     if (this._gravityAccumulatorMs >= this.dropInterval) {
-      newPos.y += 1; // Move piece down by gravity
       this._gravityAccumulatorMs = 0;
-    }
+      const gravityPos = {
+        x: this._currentPiece.position.x,
+        y: this._currentPiece.position.y + 1,
+      };
 
-    // Read player input and update piece position
-    newPos = this.playerInput(newPos);
+      if (this.checkCollision(gravityPos.x, gravityPos.y)) {
+        // lock piece only if procced by gravity
+        if (!this._currentPiece.isLocked) {
+          if (this._currentPiece.position.y <= 0) {
+            this.GameOver();
+            return;
+          }
 
-    // Check if the new position is valid
-    const hasCollision = this.checkCollision(newPos.x, newPos.y);
-
-    if (hasCollision) {
-      // If this was a downward movement (gravity or soft drop), handle piece locking
-      const isDownwardMovement = newPos.y > this._currentPiece.position.y;
-
-      if (isDownwardMovement && !this._currentPiece.isLocked) {
-        // Check if Game Over condition is met (piece can't move down from spawn area)
-        if (this._currentPiece.position.y <= 0) {
-          this.GameOver();
-          return;
+          this._currentPiece.isLocked = true;
         }
-
-        // Lock the piece when downward movement causes a collision
-        this._currentPiece.isLocked = true;
+      } else {
+        // Gravity move is valid
+        this._currentPiece.position = gravityPos;
       }
-      // If collision wasn't from downward movement, just ignore the movement (don't update position)
-    } else if (!this._currentPiece.isLocked) {
-      this._currentPiece.position = newPos;
     }
 
     // Update the board (handles piece placement and spawning if needed)
@@ -244,6 +244,90 @@ export class Game extends EventEmitter {
 
     // Broadcast game state to connected clients
     this.broadcastGameState();
+  }
+
+  /**
+   * Process player input independently from gravity.
+   * Horizontal moves are validated on their own so a wall collision
+   * cannot be confused with a downward collision.
+   */
+  private processPlayerInput(): void {
+    const input = this._playerInput;
+    if (input === GameAction.NO_INPUT) return;
+
+    // Clear the buffered input immediately to prevent re-processing
+    this._playerInput = GameAction.NO_INPUT;
+
+    if (input === GameAction.ROTATE_CW) {
+      this.attemptRotation();
+      return;
+    }
+
+    if (input === GameAction.HARD_DROP) {
+      const dropDistance = this.calculateHardDropDistance();
+      const startY = this._currentPiece.position.y;
+      const endY = startY + dropDistance;
+
+      const hardDropBonus = dropDistance + 1;
+      this.addHardDropBonus(hardDropBonus);
+
+      // Create hard drop trail data for each column of the piece
+      const trailData = [];
+      for (const cell of this._currentPiece.getOccupiedCells()) {
+        trailData.push({
+          x: this._currentPiece.position.x + cell.x,
+          startY: startY + cell.y,
+          endY: endY + cell.y,
+          type: this._currentPiece.id,
+        });
+      }
+
+      this.broadcastAnimation('HARD_DROP', {
+        trail: trailData,
+        timestamp: Date.now(),
+      });
+
+      this._currentPiece.position.y += dropDistance;
+      this._currentPiece.isLocked = true;
+      return;
+    }
+
+    if (input === GameAction.SOFT_DROP) {
+      // Soft drop: move down by one
+      const softDropPos = {
+        x: this._currentPiece.position.x,
+        y: this._currentPiece.position.y + 1,
+      };
+      this._gravityAccumulatorMs = 0;
+
+      if (this.checkCollision(softDropPos.x, softDropPos.y)) {
+        // Soft drop hit something
+        if (!this._currentPiece.isLocked) {
+          if (this._currentPiece.position.y <= 0) {
+            this.GameOver();
+            return;
+          }
+          this._currentPiece.isLocked = true;
+        }
+      } else {
+        this._currentPiece.position = softDropPos;
+      }
+      return;
+    }
+
+    // Horizontal movement independent from vertical movement
+    if (input === GameAction.MOVE_LEFT || input === GameAction.MOVE_RIGHT) {
+      const dx = input === GameAction.MOVE_LEFT ? -1 : 1;
+      const movePos = {
+        x: this._currentPiece.position.x + dx,
+        y: this._currentPiece.position.y,
+      };
+
+      if (!this.checkCollision(movePos.x, movePos.y)) {
+        this._currentPiece.position = movePos;
+      }
+      // If collision, simply ignore the horizontal move (no locking!)
+    }
   }
 
   private spawnNextPiece(): void {
@@ -372,68 +456,7 @@ export class Game extends EventEmitter {
     }
   }
 
-  private playerInput(newPosition: Position): Position {
-    const input = this._playerInput;
-    if (input === GameAction.NO_INPUT) return newPosition; // No input to process
 
-    if (input === GameAction.ROTATE_CW) {
-      // Handle rotating the piece, with appropriate checks for collisions and wall kicks
-      this.attemptRotation();
-    }
-
-    // For example, if input is 'down', we can move the piece down immediately
-    if (input === GameAction.SOFT_DROP) {
-      // Handle moving the piece down immediately, bypassing gravity timer but not collision detection
-      newPosition.y += 1;
-      this._gravityAccumulatorMs = 0;
-    }
-
-    if (input === GameAction.HARD_DROP) {
-      // Handle hard drop - move piece down until it collides
-      const dropDistance = this.calculateHardDropDistance();
-      const startY = this._currentPiece.position.y;
-      const endY = startY + dropDistance;
-
-      const hardDropBonus = dropDistance + 1;
-      this.addHardDropBonus(hardDropBonus);
-
-      // Create hard drop trail data for each column of the piece
-      const trailData = [];
-      for (const cell of this._currentPiece.getOccupiedCells()) {
-        trailData.push({
-          x: this._currentPiece.position.x + cell.x,
-          startY: startY + cell.y,
-          endY: endY + cell.y,
-          type: this._currentPiece.id,
-        });
-      }
-
-      // Broadcast hard drop animation
-      this.broadcastAnimation('HARD_DROP', {
-        trail: trailData,
-        timestamp: Date.now(),
-      });
-
-      // Update the piece position directly (bypass normal position checking)
-      this._currentPiece.position.y += dropDistance;
-      this._currentPiece.isLocked = true; // Immediately lock the piece after hard drop
-
-      // Don't modify newPosition - let it use the original position for collision checking
-      // This avoids the collision check issue
-    }
-
-    if (input === GameAction.MOVE_LEFT) {
-      newPosition.x -= 1;
-    }
-
-    if (input === GameAction.MOVE_RIGHT) {
-      newPosition.x += 1;
-    }
-
-    // Clear the buffered input after processing
-    this._playerInput = GameAction.NO_INPUT;
-    return newPosition;
-  }
 
   private checkCollision(x: number, y: number): boolean {
     for (const cell of this._currentPiece.getOccupiedCells()) {

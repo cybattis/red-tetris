@@ -211,7 +211,7 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
         });
 
         socket.on('GAME_STATE_UPDATE', (data) => {
-          console.log('🎮 Frontend received GAME_STATE_UPDATE:', data);
+          console.log(' Frontend received GAME_STATE_UPDATE:', data);
           dispatch({ type: 'game/updateGameState', payload: data });
         });
 

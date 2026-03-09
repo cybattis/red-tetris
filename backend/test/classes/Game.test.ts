@@ -59,20 +59,20 @@ describe('Game', () => {
     gameAny._currentPiece.position = { x: 1, y: 0 };
 
     game.setPlayerInput(GameAction.MOVE_LEFT);
-    gameAny._currentPiece.position = gameAny.playerInput({ ...gameAny._currentPiece.position });
+    gameAny.processPlayerInput();
     expect(gameAny._currentPiece.position.x).toBe(0);
 
     game.setPlayerInput(GameAction.MOVE_LEFT);
-    gameAny._currentPiece.position = gameAny.playerInput({ ...gameAny._currentPiece.position });
-    expect(gameAny._currentPiece.position.x).toBe(-1);
+    gameAny.processPlayerInput();
+    expect(gameAny._currentPiece.position.x).toBe(0);
 
     game.setPlayerInput(GameAction.ROTATE_CW);
     const beforeRotation = JSON.stringify(gameAny._currentPiece.shape);
-    gameAny._currentPiece.position = gameAny.playerInput({ ...gameAny._currentPiece.position });
+    gameAny.processPlayerInput();
     expect(JSON.stringify(gameAny._currentPiece.shape)).not.toBe(beforeRotation);
 
     game.setPlayerInput(GameAction.SOFT_DROP);
-    gameAny._currentPiece.position = gameAny.playerInput({ ...gameAny._currentPiece.position });
+    gameAny.processPlayerInput();
     expect(gameAny._currentPiece.position.y).toBe(1);
   });
 
@@ -83,9 +83,10 @@ describe('Game', () => {
     gameAny._currentPiece.position = { x: 0, y: -1 };
 
     game.setPlayerInput(GameAction.HARD_DROP);
-    gameAny._currentPiece.position = gameAny.playerInput({ ...gameAny._currentPiece.position });
+    gameAny.processPlayerInput();
 
-    expect(gameAny._currentPiece.position.y).toBe(-1);
+    // After hard drop the piece should be locked at the bottom
+    expect(gameAny._currentPiece.isLocked).toBe(true);
   });
 
   it('reports collisions on boundaries and occupied cells', () => {

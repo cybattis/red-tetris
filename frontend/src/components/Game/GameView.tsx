@@ -68,7 +68,7 @@ export function GameView({
   const gameMode = useAppSelector(selectGameMode);
   
   // Debug log game over state
-  console.log('🎮 GameView render - Game Over State:', {
+  console.log(' GameView render - Game Over State:', {
     isGameOver,
     gameOverReason,
     isPaused
