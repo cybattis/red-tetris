@@ -1,7 +1,7 @@
 # Red Tetris - Technical Implementation Strategy
 
-> **Version**: 1.0  
-> **Last Updated**: February 17, 2026  
+> **Version**: 1.0
+> **Last Updated**: February 17, 2026
 > **Status**: Draft - Awaiting Review
 
 ---
@@ -54,7 +54,7 @@ Build a networked multiplayer Tetris game with:
 
 ## 2. Architecture Overview
 
-```
+```plain
 ┌─────────────────────────────────────────────────────────────────┐
 │                         DOCKER ENVIRONMENT                       │
 ├─────────────────────────────────────────────────────────────────┤
@@ -82,6 +82,7 @@ Build a networked multiplayer Tetris game with:
 #### Problem Without Redux
 
 In a multiplayer Tetris game, we need to manage:
+
 - Player information (name, score, host status)
 - Room state (players list, game state)
 - Game state (board, current piece, next pieces)
@@ -89,6 +90,7 @@ In a multiplayer Tetris game, we need to manage:
 - Opponent spectrums (mini board previews)
 
 Without Redux, this would require:
+
 - Props drilling through multiple component levels
 - Complex state synchronization across components
 - Difficult state debugging
@@ -97,6 +99,7 @@ Without Redux, this would require:
 #### Redux Solution
 
 **Centralized State Tree**:
+
 ```typescript
 // Single source of truth
 {
@@ -108,6 +111,7 @@ Without Redux, this would require:
 ```
 
 **Benefits**:
+
 1. **Predictable State Updates**: Actions → Reducers → New State
 2. **Time-Travel Debugging**: Redux DevTools shows every state change
 3. **Middleware Integration**: Socket.io events trigger Redux actions
@@ -131,6 +135,7 @@ const position = useSelector(state => state.game.position);
 ```
 
 **Redux Toolkit Advantages**:
+
 - Less boilerplate with `createSlice`
 - Built-in Immer for immutable updates
 - Simplified async logic with `createAsyncThunk`
@@ -224,6 +229,7 @@ Clients are **thin clients** that only:
 #### Communication Flow Example
 
 **Player Input → State Update**:
+
 ```
 Client Side:
 1. Player presses ArrowLeft
@@ -242,7 +248,7 @@ Server Side (Game Loop running at 60 FPS):
    - If invalid: ignore input
 4. After tick completes:
    - Broadcast 'game_state_update' to all players in room
-   
+
 Game State Update Payload:
 {
   timestamp: 1234567890,
@@ -267,6 +273,7 @@ All Clients:
 ```
 
 **Line Clear Scenario**:
+
 ```
 Server Side (During Game Tick):
 1. Detect piece has hit bottom (collision)
@@ -301,11 +308,13 @@ We use **two protocols** for different purposes:
 **Purpose**: Initial connection and static assets
 
 **What HTTP Does**:
+
 1. Serve the React SPA (index.html, JS bundles, CSS)
 2. Handle initial page load
 3. No game logic over HTTP
 
 **Implementation**:
+
 ```typescript
 // server/src/server.ts
 import express from 'express';
@@ -325,7 +334,8 @@ const server = app.listen(8080);
 ```
 
 **Flow**:
-```
+
+```plain
 User types: http://localhost:3000/room1/Alice
   ↓
 Express serves index.html + React bundles
@@ -340,12 +350,14 @@ React app initializes, connects WebSocket
 **Purpose**: Real-time bidirectional communication
 
 **Why WebSocket over HTTP**:
+
 - **Low Latency**: ~1-10ms vs HTTP ~50-200ms
 - **Bidirectional**: Server can push to client
 - **Persistent**: One connection, many messages
 - **Event-Based**: Named events (join_room, game_started, etc.)
 
 **Socket.io Advantages over Raw WebSocket**:
+
 - Auto-reconnection
 - Rooms/namespaces support (built-in!)
 - Fallback to HTTP long-polling
@@ -355,6 +367,7 @@ React app initializes, connects WebSocket
 **Implementation**:
 
 **Server Setup**:
+
 ```typescript
 // server/src/server.ts
 import { Server as SocketIOServer } from 'socket.io';
@@ -371,32 +384,32 @@ const io = new SocketIOServer(httpServer, {
 // Socket event handlers
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
-  
+
   socket.on('join_room', ({ room, playerName }) => {
     // Join Socket.io room (namespace)
     socket.join(room);
-    
+
     // Game logic
     const game = gameManager.getOrCreateGame(room);
     const player = new Player(socket.id, playerName);
     game.addPlayer(player);
-    
+
     // Emit to joining player
     socket.emit('room_joined', { room: game.toJSON(), player: player.toJSON() });
-    
+
     // Broadcast to others in room
     socket.to(room).emit('player_joined', { player: player.toJSON() });
   });
-  
+
   socket.on('lines_cleared', ({ room, count }) => {
     const game = gameManager.getGame(room);
     game.handleLinesClear(socket.id, count);
-    
+
     // Broadcast penalties to others
     const penalty = Math.max(0, count - 1);
     socket.to(room).emit('penalty_lines', { count: penalty, fromPlayer: socket.id });
   });
-  
+
   socket.on('disconnect', () => {
     // Handle cleanup
   });
@@ -404,6 +417,7 @@ io.on('connection', (socket) => {
 ```
 
 **Client Setup**:
+
 ```typescript
 // client/src/socket/socketClient.ts
 import { io, Socket } from 'socket.io-client';
@@ -417,7 +431,7 @@ export const initSocket = () => {
     reconnectionDelay: 1000,
     reconnectionAttempts: 5
   });
-  
+
   return socket;
 };
 
@@ -429,24 +443,24 @@ const socketMiddleware = (socket: Socket) => (store: MiddlewareAPI) => {
   socket.on('room_joined', (data) => {
     store.dispatch(roomJoined(data));
   });
-  
+
   socket.on('game_started', (data) => {
     store.dispatch(gameStarted(data));
   });
-  
+
   socket.on('penalty_lines', (data) => {
     store.dispatch(receivePenalty(data));
   });
-  
+
   // Intercept Redux actions to emit socket events
   return (next: Dispatch) => (action: Action) => {
     if (action.type === 'game/linesCleared') {
-      socket.emit('lines_cleared', { 
+      socket.emit('lines_cleared', {
         room: store.getState().room.name,
-        count: action.payload 
+        count: action.payload
       });
     }
-    
+
     return next(action);
   };
 };
@@ -455,27 +469,31 @@ const socketMiddleware = (socket: Socket) => (store: MiddlewareAPI) => {
 **Communication Patterns**:
 
 1. **Emit (Client → Server)**:
+
    ```typescript
    socket.emit('event_name', payload);
    ```
 
 2. **Broadcast (Server → All in Room)**:
+
    ```typescript
    io.to(roomName).emit('event_name', payload);
    ```
 
 3. **Broadcast to Others (Server → All Except Sender)**:
+
    ```typescript
    socket.to(roomName).emit('event_name', payload);
    ```
 
 4. **Acknowledgement (Request-Response)**:
+
    ```typescript
    // Client
    socket.emit('start_game', { room }, (response) => {
      if (response.success) { /* ... */ }
    });
-   
+
    // Server
    socket.on('start_game', ({ room }, ack) => {
      const result = game.start();
@@ -484,6 +502,7 @@ const socketMiddleware = (socket: Socket) => (store: MiddlewareAPI) => {
    ```
 
 **Socket.io Rooms**:
+
 ```typescript
 // Rooms = game rooms in our case
 socket.join('room1');        // Player joins room1
@@ -492,6 +511,7 @@ socket.leave('room1');       // Player leaves room1
 ```
 
 **Why This Works Perfectly**:
+
 - Socket.io rooms = our game rooms
 - Automatic message routing
 - No manual room management needed
@@ -548,27 +568,27 @@ class Game {
   public start(): boolean {
     // Works for 1 player (solo) or N players (multiplayer)
     if (this.players.size === 0) return false;
-    
+
     // Generate piece sequence
     this.pieceSequence = [
       ...Piece.generateBag(),
       ...Piece.generateBag(),
       ...Piece.generateBag()
     ];
-    
+
     this.state = GameState.PLAYING;
     return true;
   }
-  
+
   public handleLinesClear(playerId: string, count: number): void {
     const player = this.players.get(playerId);
     if (!player) return;
-    
+
     player.score += this.calculateScore(count);
-    
+
     // Penalty calculation
     const penalty = Math.max(0, count - 1);
-    
+
     if (penalty > 0) {
       // Send to ALL other players
       // If solo (1 player): loop doesn't execute - no penalties!
@@ -580,11 +600,11 @@ class Game {
       });
     }
   }
-  
+
   public checkGameEnd(): void {
     const alivePlayers = Array.from(this.players.values())
       .filter(p => p.isAlive);
-    
+
     // Solo: game ends when player dies (0 alive)
     // Multiplayer: game ends when 1 or 0 left
     if (alivePlayers.length <= 1) {
@@ -609,23 +629,24 @@ class Game {
 **Implementation Details**:
 
 **Server - Room Management**:
+
 ```typescript
 // server/src/managers/GameManager.ts
 class GameManager {
   private games: Map<string, Game> = new Map();
-  
+
   public getOrCreateGame(roomName: string): Game {
     let game = this.games.get(roomName);
-    
+
     if (!game) {
       game = new Game(roomName);
       this.games.set(roomName, game);
       console.log(`Created new game room: ${roomName}`);
     }
-    
+
     return game;
   }
-  
+
   public removeEmptyGames(): void {
     this.games.forEach((game, roomName) => {
       if (game.getPlayers().length === 0) {
@@ -643,6 +664,7 @@ setInterval(() => {
 ```
 
 **Client - URL-Based Room Joining**:
+
 ```typescript
 // client/src/App.tsx
 import { useParams, useNavigate } from 'react-router-dom';
@@ -651,24 +673,24 @@ const GameRoute = () => {
   const { room, playerName } = useParams<{ room: string; playerName: string }>();
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  
+
   useEffect(() => {
     if (!room || !playerName) {
       navigate('/');
       return;
     }
-    
+
     // Validation
     if (playerName.length < 3 || playerName.length > 20) {
       alert('Name must be 3-20 characters');
       navigate('/');
       return;
     }
-    
+
     // Join room via Redux action (triggers socket emit)
     dispatch(joinRoom({ room, playerName }));
   }, [room, playerName]);
-  
+
   return <GameView />;
 };
 
@@ -680,27 +702,28 @@ const GameRoute = () => {
 ```
 
 **Client - Conditional Rendering**:
+
 ```typescript
 // client/src/components/Game/GameView.tsx
 const GameView = () => {
   const players = useSelector((state) => state.room.players);
   const spectrums = useSelector((state) => state.game.spectrums);
   const isSolo = players.length === 1;
-  
+
   return (
     <div className="game-view">
       <div className="main-board">
         <Board />
         <NextPiece />
       </div>
-      
+
       {/* Only show opponent spectrums if multiplayer */}
       {!isSolo && (
         <div className="spectrums">
           {players
             .filter(p => p.id !== currentPlayerId)
             .map(player => (
-              <Spectrum 
+              <Spectrum
                 key={player.id}
                 player={player}
                 spectrum={spectrums[player.id]}
@@ -714,11 +737,12 @@ const GameView = () => {
 ```
 
 **Validation - Prevent Join After Start**:
+
 ```typescript
 // server/src/socket/handlers.ts
 socket.on('join_room', ({ room, playerName }, ack) => {
   const game = gameManager.getOrCreateGame(room);
-  
+
   // Validation: can't join if game already started
   if (game.state !== GameState.WAITING) {
     socket.emit('error', {
@@ -728,10 +752,10 @@ socket.on('join_room', ({ room, playerName }, ack) => {
     ack({ success: false, error: 'Game already started' });
     return;
   }
-  
+
   const player = new Player(socket.id, playerName);
   const added = game.addPlayer(player);
-  
+
   if (!added) {
     socket.emit('error', {
       code: 'CANNOT_JOIN',
@@ -740,7 +764,7 @@ socket.on('join_room', ({ room, playerName }, ack) => {
     ack({ success: false });
     return;
   }
-  
+
   socket.join(room);
   socket.emit('room_joined', { room: game.toJSON(), player: player.toJSON() });
   socket.to(room).emit('player_joined', { player: player.toJSON() });
@@ -749,6 +773,7 @@ socket.on('join_room', ({ room, playerName }, ack) => {
 ```
 
 **Summary**:
+
 - Rooms are identified by URL path (`/room1/Alice`)
 - Socket.io handles room membership automatically
 - Game logic doesn't distinguish solo vs multiplayer
@@ -1107,7 +1132,7 @@ red-tetris/
 ```typescript
 type Board = number[][];
 // Example: Empty 10x20 board
-const createEmptyBoard = (): Board => 
+const createEmptyBoard = (): Board =>
   Array.from({ length: 20 }, () => Array(10).fill(0));
 ```
 
@@ -1206,6 +1231,7 @@ const generateBag = (): PieceType[] => {
 ### 6.8 Penalty Lines System
 
 When a player clears `n` lines:
+
 - Send `n - 1` penalty lines to all opponents
 - Penalty lines appear at the bottom of opponent boards
 - Penalty lines have one random gap (hole)
@@ -1366,6 +1392,7 @@ interface PlayerInfo {
 ### Socket Middleware
 
 The socket middleware will:
+
 - Intercept specific Redux actions
 - Emit corresponding socket events
 - Listen for socket events and dispatch actions
@@ -1522,24 +1549,24 @@ class Game {
     if (this.state !== GameState.WAITING) {
       return false; // Cannot join after game started
     }
-    
+
     this.players.set(player.id, player);
-    
+
     // First player becomes host
     if (this.players.size === 1) {
       player.isHost = true;
       this.hostId = player.id;
     }
-    
+
     return true;
   }
 
   public removePlayer(playerId: string): void {
     const player = this.players.get(playerId);
     if (!player) return;
-    
+
     this.players.delete(playerId);
-    
+
     // Reassign host if needed
     if (player.isHost && this.players.size > 0) {
       const newHost = this.players.values().next().value;
@@ -1551,24 +1578,24 @@ class Game {
   public start(): boolean {
     if (this.state !== GameState.WAITING) return false;
     if (this.players.size === 0) return false;
-    
+
     // Generate initial piece sequence (multiple bags)
     this.pieceSequence = [
       ...Piece.generateBag(),
       ...Piece.generateBag(),
       ...Piece.generateBag()
     ];
-    
+
     this.state = GameState.PLAYING;
     this.players.forEach(player => player.reset());
-    
+
     return true;
   }
 
   public updateSettings(settings: Partial<GameSettings>): boolean {
     // Only allow updates in WAITING state
     if (this.state !== GameState.WAITING) return false;
-    
+
     // Validate settings
     if (settings.boardWidth && (settings.boardWidth < 8 || settings.boardWidth > 12)) {
       return false;
@@ -1576,7 +1603,7 @@ class Game {
     if (settings.boardHeight && (settings.boardHeight < 15 || settings.boardHeight > 25)) {
       return false;
     }
-    
+
     this.settings = { ...this.settings, ...settings };
     return true;
   }
@@ -1600,10 +1627,10 @@ class Game {
   public handleLinesClear(playerId: string, count: number): void {
     const player = this.players.get(playerId);
     if (!player) return;
-    
+
     // Update score
     player.score += this.calculateScore(count);
-    
+
     // Send penalty to others
     const penalty = Math.max(0, count - 1);
     if (penalty > 0) {
@@ -1625,14 +1652,14 @@ class Game {
     if (player) {
       player.eliminate();
     }
-    
+
     this.checkGameEnd();
   }
 
   private checkGameEnd(): void {
     const alivePlayers = Array.from(this.players.values())
       .filter(p => p.isAlive);
-    
+
     if (alivePlayers.length <= 1) {
       this.state = GameState.FINISHED;
     }
@@ -1640,7 +1667,7 @@ class Game {
 
   public finishGame(): void {
     this.state = GameState.FINISHED;
-    
+
     // Add all players to leaderboard
     this.players.forEach(player => {
       leaderboardManager.addEntry({
@@ -1652,7 +1679,7 @@ class Game {
         gameTime: (Date.now() - this.startTime) / 1000
       });
     });
-    
+
     // Emit updated leaderboard
     io.to(this.roomName).emit('leaderboard_updated', {
       topScores: leaderboardManager.getTopScores(10)
@@ -1661,10 +1688,10 @@ class Game {
 
   public getWinner(): Player | null {
     if (this.state !== GameState.FINISHED) return null;
-    
+
     const alivePlayers = Array.from(this.players.values())
       .filter(p => p.isAlive);
-    
+
     return alivePlayers[0] || null;
   }
 
@@ -1786,7 +1813,7 @@ Using requestAnimationFrame:
 Every frame:
   1. Calculate delta time
   2. Update drop timer
-  
+
   If drop timer >= drop interval:
     1. Attempt to move piece down
     2. If collision:
@@ -1972,6 +1999,7 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
 ### 11.4 Environment Variables
 
 **.env.example**:
+
 ```env
 # Server
 NODE_ENV=development
@@ -2000,6 +2028,7 @@ VITE_SERVER_URL=http://localhost:8080
 #### Server Tests
 
 **Class Tests** (`server/tests/classes/`):
+
 - `Player.test.ts`
   - Player creation
   - Spectrum calculation
@@ -2027,6 +2056,7 @@ VITE_SERVER_URL=http://localhost:8080
   - Game reset
 
 **Manager Tests** (`server/tests/managers/`):
+
 - `GameManager.test.ts`
   - Game creation
   - Game retrieval
@@ -2046,6 +2076,7 @@ VITE_SERVER_URL=http://localhost:8080
   - Clearing leaderboard
 
 **Socket Handler Tests** (`server/tests/socket/`):
+
 - `handlers.test.ts`
   - Join room handling
   - Leave room handling
@@ -2056,6 +2087,7 @@ VITE_SERVER_URL=http://localhost:8080
 #### Client Tests
 
 **Pure Function Tests** (`client/tests/game/`):
+
 - `board.test.ts`
   - Empty board creation
   - Piece placement
@@ -2088,6 +2120,7 @@ VITE_SERVER_URL=http://localhost:8080
   - Hard drop points
 
 **Redux Tests** (`client/tests/store/`):
+
 - `gameSlice.test.ts`
   - Initial state
   - All reducers
@@ -2107,6 +2140,7 @@ VITE_SERVER_URL=http://localhost:8080
   - Event handling
 
 **Component Tests** (`client/tests/components/`):
+
 - `Board.test.tsx`
   - Renders correct grid size
   - Displays pieces correctly
@@ -2134,6 +2168,7 @@ VITE_SERVER_URL=http://localhost:8080
 ### 12.3 Jest Configuration
 
 **Server** (`server/jest.config.js`):
+
 ```javascript
 module.exports = {
   preset: 'ts-jest',
@@ -2157,6 +2192,7 @@ module.exports = {
 ```
 
 **Client** (`client/jest.config.js`):
+
 ```javascript
 module.exports = {
   preset: 'ts-jest',
@@ -2207,6 +2243,7 @@ npm run test:watch
 ### Phase 1: Project Setup (Days 1-2)
 
 **Tasks:**
+
 - [ ] Initialize monorepo structure
 - [ ] Set up `package.json` for server, client, shared
 - [ ] Configure TypeScript (`tsconfig.json`)
@@ -2218,6 +2255,7 @@ npm run test:watch
 - [ ] Write initial README.md
 
 **Deliverables:**
+
 - Working Docker environment
 - TypeScript compilation
 - Test runner executing
@@ -2226,6 +2264,7 @@ npm run test:watch
 ### Phase 2: Core Game Logic (Days 3-5)
 
 **Tasks:**
+
 - [ ] Define all piece shapes and rotations
 - [ ] Implement `Piece` class (server)
 - [ ] Create pure functions for:
@@ -2238,6 +2277,7 @@ npm run test:watch
 - [ ] Write comprehensive tests (aim for 90% coverage here)
 
 **Deliverables:**
+
 - All game logic pure functions
 - Full piece rotation system
 - 90%+ test coverage for game module
@@ -2245,6 +2285,7 @@ npm run test:watch
 ### Phase 3: Server Implementation (Days 6-8)
 
 **Tasks:**
+
 - [ ] Set up Express + Socket.io server
 - [ ] Implement `Player` class
 - [ ] Implement `Game` class
@@ -2260,6 +2301,7 @@ npm run test:watch
 - [ ] Write server tests
 
 **Deliverables:**
+
 - Functional Socket.io server
 - All game management logic
 - 70%+ test coverage
@@ -2267,6 +2309,7 @@ npm run test:watch
 ### Phase 4: Client Foundation (Days 9-11)
 
 **Tasks:**
+
 - [ ] Set up React + Vite
 - [ ] Configure React Router for URL parsing
 - [ ] Set up Redux store with slices:
@@ -2279,6 +2322,7 @@ npm run test:watch
 - [ ] Build basic routing structure
 
 **Deliverables:**
+
 - Redux store with all slices
 - Socket connection working
 - URL-based room joining
@@ -2286,6 +2330,7 @@ npm run test:watch
 ### Phase 5: UI Implementation (Days 12-14)
 
 **Tasks:**
+
 - [ ] Build `Board` component (CSS Grid)
 - [ ] Create `Cell` component with colors
 - [ ] Implement piece rendering
@@ -2298,6 +2343,7 @@ npm run test:watch
 - [ ] Ensure responsive design
 
 **Deliverables:**
+
 - Complete UI components
 - Modern, polished design
 - No table/canvas/SVG usage
@@ -2305,6 +2351,7 @@ npm run test:watch
 ### Phase 6: Game Integration (Days 15-17)
 
 **Tasks:**
+
 - [ ] Implement keyboard controls hook
 - [ ] Create game loop with requestAnimationFrame
 - [ ] Add soft drop acceleration
@@ -2315,6 +2362,7 @@ npm run test:watch
 - [ ] Implement winner announcement
 
 **Deliverables:**
+
 - Fully playable game
 - All controls working
 - Penalty system functional
@@ -2322,6 +2370,7 @@ npm run test:watch
 ### Phase 7: Multiplayer Polish (Days 18-19)
 
 **Tasks:**
+
 - [ ] Test multiple concurrent games
 - [ ] Optimize spectrum update frequency
 - [ ] Handle disconnections gracefully
@@ -2332,6 +2381,7 @@ npm run test:watch
 - [ ] Error handling UI
 
 **Deliverables:**
+
 - Stable multiplayer
 - Graceful error handling
 - Smooth performance
@@ -2339,6 +2389,7 @@ npm run test:watch
 ### Phase 8: Testing & Documentation (Days 20-21)
 
 **Tasks:**
+
 - [ ] Achieve 70%+ coverage (all metrics)
 - [ ] Achieve 50%+ branch coverage
 - [ ] Write remaining tests
@@ -2349,6 +2400,7 @@ npm run test:watch
 - [ ] Production build verification
 
 **Deliverables:**
+
 - Coverage thresholds met
 - Complete documentation
 - Production-ready build
@@ -2356,6 +2408,7 @@ npm run test:watch
 ### Phase 9: Bonus Features Implementation (Days 22-25) ⭐
 
 **Day 22: Audio System & Game Modes**
+
 - [ ] Implement AudioManager class
 - [ ] Add sound files (SFX + music)
 - [ ] Integrate audio with game events
@@ -2366,6 +2419,7 @@ npm run test:watch
 - [ ] Create mode selector UI
 
 **Day 23: Settings Panel & Matchmaking**
+
 - [ ] Implement GameSettings interface
 - [ ] Add settings validation server-side
 - [ ] Build SettingsPanel component
@@ -2375,6 +2429,7 @@ npm run test:watch
 - [ ] Test matchmaking flow
 
 **Day 24: Leaderboards & Polish**
+
 - [ ] Implement LeaderboardManager class
 - [ ] Add leaderboard socket events
 - [ ] Build LeaderboardView component
@@ -2384,6 +2439,7 @@ npm run test:watch
 - [ ] Test all bonus features together
 
 **Day 25: Final Integration & Testing**
+
 - [ ] End-to-end testing of all features
 - [ ] Performance optimization
 - [ ] Bug fixes
@@ -2391,6 +2447,7 @@ npm run test:watch
 - [ ] Final polish
 
 **Deliverables:**
+
 - Fully functional matchmaking system
 - Host-configurable game settings
 - In-memory leaderboards
@@ -2439,6 +2496,7 @@ npm run test:watch
 | **Leaderboards** | Medium | Low | In-memory high score tracking |
 
 **Benefits of These Bonuses**:
+
 - **Audio System**: Significantly enhances player immersion and feedback
 - **Game Modes**: Increases replay value and variety
 - **Settings Panel**: Allows customization for different skill levels
@@ -2450,11 +2508,13 @@ npm run test:watch
 ### 15.1 Matchmaking System ⭐
 
 #### Overview
+
 A basic matchmaking system that automatically pairs players together without requiring them to share a room URL.
 
 #### Architecture
 
 **Server-Side Components**:
+
 - **MatchmakingQueue Class**: Manages queued players and matching logic
   - Stores player info: socketId, playerName, joinedAt timestamp
   - Implements FIFO (First In, First Out) matching algorithm
@@ -2463,6 +2523,7 @@ A basic matchmaking system that automatically pairs players together without req
   - Removes players from queue after successful match
 
 **Matching Algorithm**:
+
 ```
 Every 2 seconds (if queue.size >= 2):
   1. Take first 2 players from queue (FIFO)
@@ -2474,16 +2535,18 @@ Every 2 seconds (if queue.size >= 2):
 ```
 
 **Socket Events**:
+
 - **Client → Server**:
   - `join_matchmaking` { playerName } - Add player to queue
   - `leave_matchmaking` - Remove player from queue
-  
+
 - **Server → Client**:
   - `matchmaking_joined` { queueSize, estimatedWait } - Confirmation + queue stats
   - `match_found` { roomName, opponent } - Match found, redirect
   - `matchmaking_left` - Confirmation of queue exit
 
 **Client UI**:
+
 - Route: `/matchmaking`
 - Shows "Find Opponent" button when not in queue
 - While queued: displays searching status, queue size, estimated wait time
@@ -2491,6 +2554,7 @@ Every 2 seconds (if queue.size >= 2):
 - Auto-navigates to game room on match found
 
 **Edge Cases**:
+
 - Player disconnects while in queue → auto-removed via socket disconnect handler
 - Queue becomes empty → stop matching interval (save resources)
 - Single player in queue → wait for second player (no timeout)
@@ -2500,6 +2564,7 @@ Every 2 seconds (if queue.size >= 2):
 ### 15.2 Game Settings Panel ⭐
 
 #### Overview
+
 Host can customize game parameters before starting the game.
 
 #### Settings Schema
@@ -2521,6 +2586,7 @@ Host can customize game parameters before starting the game.
 #### Server Implementation
 
 **Game Class Extensions**:
+
 - Store `settings: GameSettings` object
 - `updateSettings(settings)` method:
   - Only allowed in WAITING state
@@ -2529,18 +2595,20 @@ Host can customize game parameters before starting the game.
   - Broadcasts changes to all players in room
 
 **Validation Rules**:
+
 - Board dimensions must stay within 8-12 width, 15-25 height
 - Drop speed between 200-2000ms
 - Only host can modify settings
 - Settings locked once game starts
 
 **Socket Events**:
+
 - **Client → Server**: `update_settings` { room, settings }
   - Server validates host status
   - Server validates game state (must be WAITING)
   - Server validates setting values
   - Server broadcasts update or error
-  
+
 - **Server → Client**: `settings_updated` { settings }
   - All players receive updated settings
   - Non-hosts see read-only display
@@ -2548,6 +2616,7 @@ Host can customize game parameters before starting the game.
 #### Client UI
 
 **SettingsPanel Component**:
+
 - Conditional rendering: host sees controls, others see read-only display
 - Setting controls:
   - **Dropdowns**: mode selection
@@ -2557,6 +2626,7 @@ Host can customize game parameters before starting the game.
 - Visual feedback for invalid values
 
 **Integration**:
+
 - Rendered in LobbyView before game starts
 - Hidden once game state changes to PLAYING
 - Settings persist for duration of game session
@@ -2566,17 +2636,20 @@ Host can customize game parameters before starting the game.
 ### 15.3 Leaderboards (In-Memory) ⭐
 
 #### Overview
+
 Track high scores during runtime (non-persistent, lost on server restart).
 
 #### Architecture
 
 **LeaderboardManager Class**:
+
 - Maintains array of `LeaderboardEntry` objects
 - Max 100 entries (memory limit)
 - Entries contain: playerName, score, linesCleared, mode, timestamp, gameTime
 - Sorted by score (descending) after each addition
 
 **Core Methods**:
+
 - `addEntry(entry)`: Add new entry, sort, trim to max size
 - `getTopScores(limit, mode?)`: Return top N entries, optionally filtered by mode
 - `getPlayerBest(playerName, mode?)`: Return player's highest score
@@ -2584,6 +2657,7 @@ Track high scores during runtime (non-persistent, lost on server restart).
 - `clear()`: Reset all entries
 
 **Data Flow**:
+
 ```
 Game Ends:
   1. Server extracts player stats (score, lines, time, mode)
@@ -2598,10 +2672,11 @@ Client Request:
 ```
 
 **Socket Events**:
+
 - **Client → Server**:
   - `get_leaderboard` { mode?, limit? } - Request leaderboard data
   - `get_player_stats` { playerName, mode? } - Request specific player stats
-  
+
 - **Server → Client**:
   - `leaderboard_updated` { topScores[] } - Broadcast after game ends
   - Callback responses for `get_leaderboard` and `get_player_stats`
@@ -2609,6 +2684,7 @@ Client Request:
 #### Client UI
 
 **LeaderboardView Component**:
+
 - Route: `/leaderboard`
 - Mode filter buttons (All, Classic, Sprint, Ultra, etc.)
 - Table display:
@@ -2621,6 +2697,7 @@ Client Request:
 - Shows player's personal best and rank highlighted
 
 **Integration Points**:
+
 - Displayed in game over screen (top 5)
 - Accessible from main menu
 - Updated in real-time for active viewers
@@ -2630,11 +2707,13 @@ Client Request:
 ### 15.4 Sound Design & Audio System ⭐
 
 #### Overview
+
 Immersive audio experience with sound effects, music, and dynamic audio feedback.
 
 #### Audio Assets Structure
 
 **Sound Effects (12+ files)**:
+
 - **Movement**: `move.mp3`, `rotate.mp3`, `land.mp3`, `hard_drop.mp3`
 - **Line Clears**: `line_clear.mp3` (1-3 lines), `tetris.mp3` (4 lines)
 - **Game Events**: `level_up.mp3`, `game_over.mp3`, `countdown.mp3`
@@ -2642,6 +2721,7 @@ Immersive audio experience with sound effects, music, and dynamic audio feedback
 - **Multiplayer**: `penalty.mp3` (received penalty lines)
 
 **Music Tracks**:
+
 - `gameplay.mp3` - Background music during game (looped)
 - `menu.mp3` - Main menu ambiance (optional)
 - `game_over.mp3` - End game theme (optional)
@@ -2651,6 +2731,7 @@ Immersive audio experience with sound effects, music, and dynamic audio feedback
 #### AudioManager Class (Client-Side)
 
 **Responsibilities**:
+
 - Load and cache all audio files on initialization
 - Play SFX with automatic reset (currentTime = 0) for rapid replay
 - Manage background music with loop
@@ -2659,6 +2740,7 @@ Immersive audio experience with sound effects, music, and dynamic audio feedback
 - Handle browser autoplay restrictions
 
 **Key Methods**:
+
 - `play(soundName)`: Play SFX immediately
 - `playMusic()`: Start background music loop
 - `stopMusic()`: Stop and reset music
@@ -2669,6 +2751,7 @@ Immersive audio experience with sound effects, music, and dynamic audio feedback
 #### Integration Points
 
 **Game Events → Audio Triggers**:
+
 - Piece move (left/right) → play('move')
 - Piece rotate → play('rotate')
 - Piece lock → play('land')
@@ -2681,6 +2764,7 @@ Immersive audio experience with sound effects, music, and dynamic audio feedback
 - Piece tick (gravity) → play('tick') [subtle, low volume]
 
 **Game State → Music**:
+
 - Enter PLAYING → playMusic()
 - Enter GAME_OVER/FINISHED → stopMusic()
 - Pause → music.pause() (resume on unpause)
@@ -2688,16 +2772,19 @@ Immersive audio experience with sound effects, music, and dynamic audio feedback
 #### Technical Considerations
 
 **Browser Restrictions**:
+
 - Audio playback requires user interaction (first click/keypress)
 - Solution: Initialize AudioManager after first user input
 - Show audio icon/prompt if muted by browser policy
 
 **Performance**:
+
 - Use HTML5 Audio API (lightweight, no library needed)
 - Pre-load all sounds on game load (prevent lag)
 - Avoid creating new Audio() instances per play (reuse cached)
 
 **Sound Design Tips**:
+
 - Keep tick sound subtle (low volume, soft)
 - Make tetris (4-line) sound distinct and rewarding
 - Use short SFX (<500ms) for responsiveness
@@ -2708,6 +2795,7 @@ Immersive audio experience with sound effects, music, and dynamic audio feedback
 ### 15.5 Alternative Game Modes ⭐
 
 #### Overview
+
 Multiple game modes with unique mechanics and win conditions.
 
 #### Game Modes Specification
@@ -2725,6 +2813,7 @@ Multiple game modes with unique mechanics and win conditions.
 
 **ModeConfig Interface**:
 Each mode defines:
+
 - `name`: Display name
 - `description`: Short explanation
 - `dropSpeed`: Base fall speed in ms (0 for instant)
@@ -2737,6 +2826,7 @@ Each mode defines:
 #### Server-Side Implementation
 
 **Game Class Integration**:
+
 - Store selected mode and mode config
 - On game start:
   - Load mode config
@@ -2745,8 +2835,9 @@ Each mode defines:
 - During gameplay:
   - Check mode-specific win conditions (line goal, time limit)
   - Apply mode-specific rules (instant drop, invisible)
-  
+
 **Win Condition Checks**:
+
 ```
 After each piece lock:
   - Sprint: if player.linesCleared >= 40 → end game, player wins
@@ -2755,29 +2846,34 @@ After each piece lock:
 ```
 
 **Timer Management**:
+
 - Ultra mode: `setTimeout(endGame, 120000)` on game start
 - Broadcast remaining time to clients every 5 seconds
 
 #### Client-Side Implementation
 
 **Invisible Mode Rendering**:
+
 - Track which cells are "locked" vs current piece
 - Render current piece normally
 - Render locked cells as empty (value = 0)
 - Ghost piece still visible (helps gameplay)
 
 **20G Mode (Master)**:
+
 - Skip gravity timer
 - Piece moves to bottom immediately on spawn
 - Player can only rotate/move horizontally before lock
 - Extremely challenging
 
 **Sprint Mode Display**:
+
 - Show progress: "Lines: 25/40"
 - No opponent spectrums (solo mode)
 - Timer shows elapsed time
 
 **Ultra Mode Display**:
+
 - Countdown timer: "Time: 1:45"
 - Focus on score maximization
 - Speed doesn't increase (consistent pacing)
@@ -2785,6 +2881,7 @@ After each piece lock:
 #### Mode Selection UI
 
 **ModeSelector Component**:
+
 - Grid of mode cards (2x3 or 3x2 layout)
 - Each card shows:
   - Mode name (large)
@@ -2795,6 +2892,7 @@ After each piece lock:
 - Emits 'update_settings' on selection
 
 **Visual Indicators**:
+
 - Time-based modes: Clock icon ⏱
 - Goal-based modes: Target icon 🎯
 - Challenge modes: Star icon ⭐

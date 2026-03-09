@@ -1,3 +1,5 @@
+# TODO
+
 - Game room management (Room manager / Game manager)
 Gestion de la room 2 joueurs
 Edges cases
