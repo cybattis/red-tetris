@@ -50,6 +50,7 @@ export class Game extends EventEmitter {
   private _currentPiece: Piece;
   private _playerInput: GameAction = GameAction.NO_INPUT;
   private _socket: Socket | null = null;
+  private _starting: boolean = true; // Flag to indicate the first tick for proper initial piece spawning
 
   // Broadcast throttling for performance
   private lastBroadcastTime: number = 0;
@@ -191,10 +192,10 @@ export class Game extends EventEmitter {
         nextPieces: opponentGame.getNextPiecesPreview(),
         currentPiece: opponentGame._currentPiece
           ? {
-              type: opponentGame._currentPiece.id,
-              position: opponentGame._currentPiece.position,
-              shape: opponentGame._currentPiece.shape,
-            }
+            type: opponentGame._currentPiece.id,
+            position: opponentGame._currentPiece.position,
+            shape: opponentGame._currentPiece.shape,
+          }
           : null,
       });
     }
@@ -282,7 +283,8 @@ export class Game extends EventEmitter {
     }
 
     // Handle gravity
-    if (this._gravityAccumulatorMs >= this.dropInterval) {
+    const gravityActivation = this._gravityAccumulatorMs >= this.dropInterval;
+    if (gravityActivation) {
       this._gravityAccumulatorMs = 0;
       const gravityPos = {
         x: this._currentPiece.position.x,
@@ -308,7 +310,8 @@ export class Game extends EventEmitter {
     // Update the board (handles piece placement and spawning if needed)
     this.updateBoard();
 
-    if (hasInput ) {
+    if (hasInput || gravityActivation || this._starting) {
+      this._starting = false; // Clear the starting flag after the first update
       // Broadcast game state to connected clients
       this.broadcastGameState();
     }
@@ -642,12 +645,6 @@ export class Game extends EventEmitter {
         timestamp: Date.now(),
       });
     }
-
-    // Reduce excessive board logging for performance
-    // Only log in debug mode or for significant events
-    // for (let i = 0; i < Math.min(10, this.board.length); i++) {
-    //   Logger.info(`   ${i}: ${this.board[i].join(' ')}`);
-    // }
 
     // Update score based on lines cleared
     this.updateScore(linesToClear.length);

@@ -221,11 +221,12 @@ export class Room {
 
     const gameIds: string[] = [];
 
+    // Generate a seed for the game (could be room-based for synchronized pieces in multiplayer)
+    const seed = Date.now() + Math.random();
+
     // Create games for each player using GameManager
     for (const player of this._players.values()) {
       try {
-        // Generate a seed for the game (could be room-based for synchronized pieces in multiplayer)
-        const seed = Date.now() + Math.random();
 
         // Create game using GameManager
         const game = GameManager.getInstance().createGame(

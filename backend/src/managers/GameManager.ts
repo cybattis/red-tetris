@@ -9,7 +9,7 @@ export class GameManager {
   private static _instance: GameManager | null = null;
   private readonly _games = new Map<string, Game>();
 
-  private constructor() {}
+  private constructor() { }
 
   public static getInstance(): GameManager {
     if (!GameManager._instance) {
@@ -22,7 +22,7 @@ export class GameManager {
   public createGame(
     player: Player,
     settings: GameSettings,
-    seed: number = Date.now(),
+    seed: number,
     socket?: Socket,
     room?: Room,
   ): Game {
