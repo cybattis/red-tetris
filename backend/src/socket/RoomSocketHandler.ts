@@ -131,9 +131,4 @@ export function wsRoomHandler(socket: Socket, io: Server) {
 	socket.on('ping', (timestamp: number) => {
 		socket.emit('pong', timestamp);
 	});
-
-	// Legacy handlers for backward compatibility - can be removed later
-	socket.on('room', (data: any) => {
-		socket.emit('message', `Echo: ${data}`);
-	});
 }

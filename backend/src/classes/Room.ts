@@ -20,9 +20,10 @@ export class Room {
   private readonly _players: Map<string, Player> = new Map();
   private readonly _spectators: Map<string, Player> = new Map();
   private readonly _games: Map<string, Game> = new Map();
+  private readonly _createdAt: Date;
+
   private _hostId: string | null = null;
   private _state: RoomState = 'waiting';
-  private readonly _createdAt: Date;
   private _gameStartedAt?: Date;
   private _cleanupTimer?: NodeJS.Timeout;
 
@@ -65,19 +66,15 @@ export class Room {
   }
 
   // Player management
+  // --------------------------------------------------------------
   public addPlayer(player: Player): { success: boolean; reason?: string; isSpectator?: boolean } {
     // Check if player already exists
     if (this._players.has(player.id) || this._spectators.has(player.id)) {
       return { success: false, reason: 'Player already in room' };
     }
 
-    // Check if game is in progress (only allow spectators)
-    if (this._state === 'playing') {
-      return this.addSpectator(player);
-    }
-
-    // Check if room is full (add as spectator)
-    if (this.isFull) {
+    // Check if game is in progress or room is full - add as spectator
+    if (this._state === 'playing' || this.isFull) {
       return this.addSpectator(player);
     }
 
@@ -184,6 +181,7 @@ export class Room {
   }
 
   // Game management
+  // --------------------------------------------------------------
   public startGame(customSettings?: Partial<GameSettings>): {
     success: boolean;
     reason?: string;
@@ -200,7 +198,7 @@ export class Room {
     if (this._state === 'ended') {
       Logger.info(`Resetting room ${this.id} from 'ended' to 'waiting' to start new game`);
       this._state = 'waiting';
-    }
+    } // TODO Check if previous game is saved in history and allow starting new game without resetting if so
 
     if (this._players.size === 0) {
       Logger.error(`Cannot start game - no players`);

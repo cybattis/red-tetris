@@ -28,6 +28,7 @@ export class RoomManager {
   }
 
   // Room operations
+  // --------------------------------------------------------------
   public createRoom(roomId: string): Room {
     if (this._rooms.has(roomId)) {
       return this._rooms.get(roomId)!;
@@ -48,16 +49,7 @@ export class RoomManager {
     return roomId ? this.getRoom(roomId) : null;
   }
 
-  public getAllRooms(): Room[] {
-    return Array.from(this._rooms.values());
-  }
-
-  public deleteRoom(roomId: string): boolean {
-    const room = this._rooms.get(roomId);
-    if (!room) {
-      return false;
-    }
-
+  public deleteRoom(room: Room): boolean {
     // Clean up player mappings
     for (const player of [...room.players, ...room.spectators]) {
       this._playerRooms.delete(player.id);
@@ -65,13 +57,14 @@ export class RoomManager {
 
     // Destroy the room
     room.destroy();
-    this._rooms.delete(roomId);
+    this._rooms.delete(room.id);
 
-    Logger.info(`Room deleted: ${roomId}`);
+    Logger.info(`Room deleted: ${room.id}`);
     return true;
   }
 
   // Player room operations
+  // --------------------------------------------------------------
   public joinRoom(
     roomId: string,
     player: Player,
@@ -170,7 +163,7 @@ export class RoomManager {
 
     // Check if room should be deleted
     if (room.isEmpty) {
-      this.deleteRoom(roomId);
+      this.deleteRoom(room);
       return {
         success: true,
         data: {
@@ -251,6 +244,45 @@ export class RoomManager {
     };
   }
 
+  public endGame(
+    roomId: string,
+    playerId: string,
+    reason: string,
+  ): { success: boolean; error?: RoomErrorEvent; roomUpdate?: RoomStateUpdateEvent } {
+    const room = this.getRoom(roomId);
+    if (!room) {
+      return {
+        success: false,
+        error: {
+          roomId,
+          reason: 'Room not found',
+          code: 'ROOM_NOT_FOUND',
+        },
+      };
+    }
+
+    // Handle the game ending for this player
+    const result = room.handlePlayerGameEnd(playerId, reason);
+    if (!result.success) {
+      const errorCode = this.getErrorCode(result.reason!);
+      return {
+        success: false,
+        error: {
+          roomId,
+          reason: result.reason!,
+          code: errorCode,
+        },
+      };
+    }
+
+    return {
+      success: true,
+      roomUpdate: {
+        room: room.toRoomInfo(),
+      },
+    };
+  }
+
   public resetGame(
     roomId: string,
     hostId: string,
@@ -313,7 +345,7 @@ export class RoomManager {
     waitingRooms: number;
     playingRooms: number;
   } {
-    const rooms = this.getAllRooms();
+    const rooms = Array.from(this._rooms.values());
     return {
       totalRooms: rooms.length,
       activePlayers: rooms.reduce((sum, room) => sum + room.playerCount + room.spectatorCount, 0),
@@ -321,7 +353,7 @@ export class RoomManager {
       playingRooms: rooms.filter((room) => room.state === 'playing').length,
     };
   }
-
+  
   // Cleanup methods
   public cleanupEmptyRooms(): number {
     let cleanedCount = 0;
@@ -376,44 +408,5 @@ export class RoomManager {
       }
     }
     return null;
-  }
-
-  public handleGameEnd(
-    roomId: string,
-    playerId: string,
-    reason: string,
-  ): { success: boolean; error?: RoomErrorEvent; roomUpdate?: RoomStateUpdateEvent } {
-    const room = this.getRoom(roomId);
-    if (!room) {
-      return {
-        success: false,
-        error: {
-          roomId,
-          reason: 'Room not found',
-          code: 'ROOM_NOT_FOUND',
-        },
-      };
-    }
-
-    // Handle the game ending for this player
-    const result = room.handlePlayerGameEnd(playerId, reason);
-    if (!result.success) {
-      const errorCode = this.getErrorCode(result.reason!);
-      return {
-        success: false,
-        error: {
-          roomId,
-          reason: result.reason!,
-          code: errorCode,
-        },
-      };
-    }
-
-    return {
-      success: true,
-      roomUpdate: {
-        room: room.toRoomInfo(),
-      },
-    };
   }
 }

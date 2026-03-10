@@ -170,14 +170,6 @@ export class Game extends EventEmitter {
 
   private broadcastGameState(): void {
     if (!this._socket) return;
-
-    // Throttle broadcasts to prevent excessive network traffic and improve performance
-    const now = Date.now();
-    if (now - this.lastBroadcastTime < this.BROADCAST_THROTTLE_MS) {
-      return; // Skip broadcast if within throttle window
-    }
-
-    this.lastBroadcastTime = now;
     const gameState = this.getGameState();
     this._socket.emit('GAME_STATE_UPDATE', gameState);
   }
@@ -207,6 +199,7 @@ export class Game extends EventEmitter {
     this._gravityAccumulatorMs += deltaTime;
 
     let newPos = { ...this._currentPiece.position };
+    const hasInput = this._playerInput !== GameAction.NO_INPUT;
 
     // Handle gravity
     if (this._gravityAccumulatorMs >= this.dropInterval) {
@@ -216,6 +209,8 @@ export class Game extends EventEmitter {
 
     // Read player input and update piece position
     newPos = this.playerInput(newPos);
+    const isPositionChanged = newPos.x !== this._currentPiece.position.x || newPos.y !== this._currentPiece.position.y ||
+      this._currentPiece.position.y === 0; // Consider position changed if piece is at spawn area (to handle initial placement)
 
     // Check if the new position is valid
     const hasCollision = this.checkCollision(newPos.x, newPos.y);
@@ -242,8 +237,10 @@ export class Game extends EventEmitter {
     // Update the board (handles piece placement and spawning if needed)
     this.updateBoard();
 
-    // Broadcast game state to connected clients
-    this.broadcastGameState();
+    if (hasInput || isPositionChanged) {
+      // Broadcast game state to connected clients
+      this.broadcastGameState();
+    }
   }
 
   private spawnNextPiece(): void {
