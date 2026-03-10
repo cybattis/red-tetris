@@ -13,14 +13,10 @@ export class Player {
   public toJSON(): {
     id: string;
     name: string;
-    isHost: boolean;
-    isReady: boolean;
   } {
     return {
       id: this.id,
       name: this.name,
-      isHost: this.isHost,
-      isReady: this.isReady,
     };
   }
 }

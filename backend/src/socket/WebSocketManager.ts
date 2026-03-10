@@ -147,23 +147,6 @@ function wsGameHandler(socket: Socket) {
     }
   });
 
-  socket.on('PLAYER_READY', (data: { roomId: string; playerId: string; isReady: boolean }) => {
-    // TODO: Implement proper player ready logic with room management
-    const { roomId, playerId, isReady } = data;
-
-    // For now, just broadcast the player ready status to the room
-    if (roomId && playerId !== undefined && isReady !== undefined) {
-      socket.to(roomId).emit('PLAYER_READY_STATUS', {
-        playerId,
-        isReady,
-      });
-      socket.emit('PLAYER_READY_STATUS', {
-        playerId,
-        isReady,
-      });
-    }
-  });
-
   socket.on('CANCEL_START', (data: { roomId: string }) => {
     // TODO: Implement proper cancel start logic with room management
     const { roomId } = data;

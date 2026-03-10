@@ -29,7 +29,6 @@ export class Room {
   constructor(id: string) {
     this.id = id;
     this._createdAt = new Date();
-    Logger.info(`Created room: ${this.id}`);
   }
 
   // Getters
@@ -63,10 +62,6 @@ export class Room {
 
   get isFull(): boolean {
     return this._players.size >= ROOM_CONFIG.MAX_PLAYERS;
-  }
-
-  get arePlayersReady(): boolean {
-    return this.players.every((player) => player.isReady);
   }
 
   // Player management

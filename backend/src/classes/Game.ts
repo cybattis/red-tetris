@@ -118,10 +118,10 @@ export class Game extends EventEmitter {
       board: this.board,
       currentPiece: this._currentPiece
         ? {
-            type: this._currentPiece.id,
-            position: this._currentPiece.position,
-            shape: this._currentPiece.shape,
-          }
+          type: this._currentPiece.id,
+          position: this._currentPiece.position,
+          shape: this._currentPiece.shape,
+        }
         : null,
       ghostPiece: this.settings.ghostPiece ? this.calculateGhostPiece() : null,
       nextPieces: this.getNextPiecesPreview(),
@@ -137,13 +137,13 @@ export class Game extends EventEmitter {
       gameMode: this.settings.gameMode,
     };
 
-    Logger.dump('Backend getGameState() returning:', {
-      isAlive: this.isAlive,
-      state: this.state,
-      isGameOver: gameState.isGameOver,
-      gameOverReason: gameState.gameOverReason,
-      isPaused: gameState.isPaused,
-    });
+    // Logger.dump('Backend getGameState() returning:', {
+    //   isAlive: this.isAlive,
+    //   state: this.state,
+    //   isGameOver: gameState.isGameOver,
+    //   gameOverReason: gameState.gameOverReason,
+    //   isPaused: gameState.isPaused,
+    // });
 
     return gameState;
   }

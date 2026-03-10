@@ -113,7 +113,7 @@ export interface SocketEventsType {
   GAME_ENDED: { gameId: string; playerId: string; reason: string };
   ROOM_NOT_FOUND: { error: string };
   ROOM_FULL: { error: string };
-  
+
   // Game state updates
   GAME_STATE_UPDATE: GameStateUpdate;
 }
@@ -133,22 +133,22 @@ export const GAME_MODES: Array<{
   name: string;
   description: string;
 }> = [
-  {
-    id: GameMode.Classic,
-    name: "Classic",
-    description: "Traditional Tetris gameplay",
-  },
-  {
-    id: GameMode.Sprint,
-    name: "Sprint",
-    description: "Game speeds up over time",
-  },
-  {
-    id: GameMode.Invisible,
-    name: "Invisible",
-    description: "Locked pieces disappear from view",
-  },
-];
+    {
+      id: GameMode.Classic,
+      name: "Classic",
+      description: "Traditional Tetris gameplay",
+    },
+    {
+      id: GameMode.Sprint,
+      name: "Sprint",
+      description: "Game speeds up over time",
+    },
+    {
+      id: GameMode.Invisible,
+      name: "Invisible",
+      description: "Locked pieces disappear from view",
+    },
+  ];
 
 // Room configuration
 export const ROOM_CONFIG = {
@@ -181,9 +181,8 @@ export function prepareGameCreationData(
 }
 
 export function canStartGame(players: Player[]): boolean {
-  const allPlayersReady = players.every((p) => p.isHost || p.isReady); // Host is always ready
   const hasMinPlayers = players.length >= ROOM_CONFIG.MIN_PLAYERS;
-  return allPlayersReady && hasMinPlayers;
+  return hasMinPlayers;
 }
 
 export function validateGameSettings(settings: GameSettings): boolean {

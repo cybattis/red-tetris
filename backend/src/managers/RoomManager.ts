@@ -3,11 +3,8 @@ import { Player } from '../classes/Player';
 import { Logger } from '../utils/helpers';
 import { GameSettings } from '@shared/types/game';
 import {
-  ROOM_CONFIG,
   PlayerJoinedEvent,
-  PlayerLeftEvent,
   RoomStateUpdateEvent,
-  HostTransferEvent,
   RoomErrorEvent,
   RoomLeaveEvent,
   RoomResults,
@@ -141,8 +138,6 @@ export class RoomManager {
       isSpectator: result.isSpectator || false,
     };
 
-    Logger.info(`Player ${player.name} joined room ${roomId}${result.isSpectator ? ' as spectator' : ''}`);
-
     return {
       success: true,
       roomUpdate,
@@ -156,14 +151,9 @@ export class RoomManager {
   ): RoomResults<RoomLeaveEvent> {
     const room = this.getRoomForPlayer(playerId);
     if (!room) {
-      Logger.error("leaveRoom called but player isn't in any room");
       return {
-        success: false,
-        error: {
-          roomId: '',
-          reason: 'Player is not in any room',
-          code: 'ROOM_NOT_FOUND',
-        },
+        success: true,
+        data: {}
       };
     }
 
@@ -216,11 +206,10 @@ export class RoomManager {
     hostId: string,
     gameSettings?: Partial<GameSettings>,
   ): { success: boolean; error?: RoomErrorEvent; roomUpdate?: RoomStateUpdateEvent; gameIds?: string[] } {
-    Logger.info(`RoomManager.startGame() called for room ${roomId} by host ${hostId}`);
+    Logger.debug(`RoomManager.startGame() called for room ${roomId} by host ${hostId}`);
 
     const room = this.getRoom(roomId);
     if (!room) {
-      Logger.info(`Room ${roomId} not found`);
       return {
         success: false,
         error: {
@@ -231,9 +220,7 @@ export class RoomManager {
       };
     }
 
-    Logger.info(`Found room ${roomId}, checking if ${hostId} is host`);
     if (!room.isHost(hostId)) {
-      Logger.info(`${hostId} is not host of room ${roomId}`);
       return {
         success: false,
         error: {
@@ -244,22 +231,8 @@ export class RoomManager {
       };
     }
 
-    if (room.playerCount == 2 && !room.arePlayersReady) {
-      Logger.info(`Not all players are ready in room ${roomId}`);
-      return {
-        success: false,
-        error: {
-          roomId,
-          reason: 'Not all players are ready',
-          code: 'NOT_READY',
-        },
-      };
-    }
-
-    Logger.info(`${hostId} is host, calling room.startGame()`);
     const startResult = room.startGame(gameSettings);
     if (!startResult.success) {
-      Logger.info(`room.startGame() failed: ${startResult.reason}`);
       const errorCode = this.getErrorCode(startResult.reason!);
       return {
         success: false,
@@ -271,7 +244,6 @@ export class RoomManager {
       };
     }
 
-    Logger.info(`room.startGame() succeeded with ${startResult.gameIds?.length} games`);
     return {
       success: true,
       roomUpdate: { room: room.toRoomInfo() },

@@ -31,8 +31,6 @@ export function wsRoomHandler(socket: Socket, io: Server) {
 		if (result.playerJoined) {
 			socket.to(roomId).emit('PLAYER_JOINED', result.playerJoined);
 		}
-
-		Logger.info(`Player ${playerName} (${socket.id}) joined room ${roomId}`);
 	});
 
 	socket.on('LEAVE_ROOM', (event: LeaveRoomEvent) => {
@@ -72,13 +70,12 @@ export function wsRoomHandler(socket: Socket, io: Server) {
 	socket.on('START_GAME', (data: StartGameEvent) => {
 		const { roomId, gameSettings } = data;
 
-		Logger.info(
+		Logger.debug(
 			`[START_GAME] Received from socket ${socket.id} for room ${roomId} with settings:`,
 			gameSettings,
 		);
 
 		const result = roomManager.startGame(roomId, socket.id, gameSettings);
-
 		if (!result.success) {
 			Logger.warn(`[START_GAME] Failed for room ${roomId}: ${result.error?.reason}`);
 			socket.emit('ROOM_ERROR', result.error);
