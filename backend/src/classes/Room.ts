@@ -232,7 +232,8 @@ export class Room {
           player,
           gameSettings,
           seed,
-          // socket will be set up separately if needed
+          undefined, // socket will be set up separately
+          this, // Pass room reference for multiplayer support
         );
 
         // Store game in Room's map for tracking

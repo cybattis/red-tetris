@@ -68,10 +68,16 @@ export function GameView({
   const gameMode = useAppSelector(selectGameMode);
   
   // Debug log game over state
-  console.log('🎮 GameView render - Game Over State:', {
+  console.log(' GameView render - Game Over State:', {
     isGameOver,
     gameOverReason,
     isPaused
+  });
+  
+  console.log(' GameView render - Multiplayer State:', {
+    isSoloGame: opponents.length === 0,
+    opponentsCount: opponents.length,
+    opponent: opponents[0],
   });
   
   // Determine if invisible mode is active
@@ -285,7 +291,7 @@ export function GameView({
       {/* Debug panel - only show in development */}
       {import.meta.env.DEV && (
         <div className={styles.debugPanel}>
-          <span className={styles.debugTitle}>🛠 Debug</span>
+          <span className={styles.debugTitle}>Debug</span>
           <button onClick={handleDebugLineClear}>Line Clear</button>
           <button onClick={handleDebugPenaltyLines}>Penalty Lines</button>
           <button onClick={handleDebugLockPiece}>Lock Piece</button>
@@ -308,6 +314,7 @@ interface OpponentBoardProps {
     isEliminated: boolean;
     board?: number[][];
     nextPieces?: number[];
+    currentPiece?: { type: number; position: { x: number; y: number }; shape: number[][] } | null;
   };
   boardHeight: number;
   maxNextDisplay: number;
@@ -323,6 +330,7 @@ function OpponentBoard({ opponent, boardHeight, maxNextDisplay }: OpponentBoardP
         board={opponent.board}
         width={10}
         height={boardHeight}
+        currentPiece={opponent.currentPiece || null}
         nextPieces={opponent.nextPieces}
         maxNextDisplay={maxNextDisplay}
         score={opponent.score}
