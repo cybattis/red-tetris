@@ -1,5 +1,7 @@
 import '@testing-library/jest-dom';
 
+(globalThis as Record<string, unknown>).__SOCKET_URL__ = 'http://localhost:3000';
+
 const mockImportMeta = {
   env: {
     DEV: true,

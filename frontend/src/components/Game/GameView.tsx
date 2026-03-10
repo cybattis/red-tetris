@@ -285,7 +285,7 @@ export function GameView({
       {/* Debug panel - only show in development */}
       {import.meta.env.DEV && (
         <div className={styles.debugPanel}>
-          <span className={styles.debugTitle}>🛠 Debug</span>
+          <span className={styles.debugTitle}>Debug</span>
           <button onClick={handleDebugLineClear}>Line Clear</button>
           <button onClick={handleDebugPenaltyLines}>Penalty Lines</button>
           <button onClick={handleDebugLockPiece}>Lock Piece</button>

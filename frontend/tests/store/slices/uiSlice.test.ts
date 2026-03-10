@@ -34,7 +34,6 @@ describe('uiSlice', () => {
   let initialState: UIState;
 
   beforeEach(() => {
-    // Get fresh initial state for each test
     initialState = uiReducer(undefined, { type: '@@INIT' });
   });
 
@@ -951,8 +950,6 @@ describe('uiSlice', () => {
       expect(state.screenWidth).toBe(375);
       expect(state.isMobile).toBe(true);
 
-      // Auto-collapse sidebar on mobile might be handled elsewhere
-      // But we can test the state is maintained
       expect(state.sidebarCollapsed).toBe(false); // Still from initial state
     });
 

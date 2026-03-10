@@ -363,7 +363,7 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
         const socket = state.connection.socket;
         if (socket && socket.connected) {
           socket.emit('LEAVE_ROOM', {
-            roomId: state.gameRoom.roomId,
+            roomId: prevState.gameRoom.roomId,
           });
         }
         break;
@@ -387,6 +387,13 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
   };
 };
 
-const defaultSocketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000';
+/**
+ * Socket URL is injected via Vite's define (see vite.config.ts).
+ * In Jest, it is set via the test setup (see tests/setup.ts).
+ * Using a declared global avoids import.meta.env which ts-jest cannot compile.
+ */
+declare const __SOCKET_URL__: string | undefined;
+const defaultSocketUrl: string =
+  (typeof __SOCKET_URL__ !== 'undefined' ? __SOCKET_URL__ : undefined) || 'http://localhost:3000';
 
 export const socketMiddleware = createSocketMiddleware(defaultSocketUrl);
