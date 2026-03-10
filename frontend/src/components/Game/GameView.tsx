@@ -74,6 +74,12 @@ export function GameView({
     isPaused
   });
   
+  console.log(' GameView render - Multiplayer State:', {
+    isSoloGame: opponents.length === 0,
+    opponentsCount: opponents.length,
+    opponent: opponents[0],
+  });
+  
   // Determine if invisible mode is active
   const isInvisible = gameMode === 'invisible';
   
@@ -308,6 +314,7 @@ interface OpponentBoardProps {
     isEliminated: boolean;
     board?: number[][];
     nextPieces?: number[];
+    currentPiece?: { type: number; position: { x: number; y: number }; shape: number[][] } | null;
   };
   boardHeight: number;
   maxNextDisplay: number;
@@ -323,6 +330,7 @@ function OpponentBoard({ opponent, boardHeight, maxNextDisplay }: OpponentBoardP
         board={opponent.board}
         width={10}
         height={boardHeight}
+        currentPiece={opponent.currentPiece || null}
         nextPieces={opponent.nextPieces}
         maxNextDisplay={maxNextDisplay}
         score={opponent.score}

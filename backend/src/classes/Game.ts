@@ -8,6 +8,7 @@ import { TETROMINO_DICTIONARY } from '../pieces/TetrominoFactory';
 import { Position } from '../types/IPiece';
 import type { Socket } from 'socket.io';
 import { EventEmitter } from 'node:events';
+import type { Room } from './Room';
 
 export class Game extends EventEmitter {
   // Game state and public properties
@@ -15,6 +16,7 @@ export class Game extends EventEmitter {
   public readonly player: Player;
   public readonly settings: GameSettings;
   public readonly piecesSequence: PiecesSequence;
+  public readonly room: Room | null; // Reference to the room for multiplayer
 
   public state: GameState = GameState.Waiting;
   public board: number[][];
@@ -53,13 +55,14 @@ export class Game extends EventEmitter {
   private lastBroadcastTime: number = 0;
   private readonly BROADCAST_THROTTLE_MS = 33; // ~30 FPS max (reduced from 60 FPS to improve performance)
 
-  constructor(player: Player, seed: number, settings: GameSettings, socket?: Socket) {
+  constructor(player: Player, seed: number, settings: GameSettings, socket?: Socket, room?: Room) {
     super();
     this.id = randomUUID();
     this.player = player;
     this.settings = { ...settings }; // Create a copy to avoid modifying the original settings
     this.originalGravity = settings.gravity; // Store original gravity for restoration
     this.currentGravity = settings.gravity; // Initialize current gravity to original value
+    this.room = room || null; // Store room reference for multiplayer
     this._socket = socket || null;
     this.piecesSequence = new PiecesSequence(seed, 7);
     this.board = this.createEmptyBoard();
@@ -113,6 +116,9 @@ export class Game extends EventEmitter {
   // Game state serialization for frontend
   // ============================================
   public getGameState() {
+    // Get opponent data if in multiplayer
+    const opponents = this.getOpponentsData();
+
     const gameState = {
       gameId: this.id,
       board: this.board,
@@ -135,6 +141,7 @@ export class Game extends EventEmitter {
       boardWidth: this.settings.boardWidth,
       boardHeight: this.settings.boardHeight,
       gameMode: this.settings.gameMode,
+      opponents, // Include opponent data for multiplayer
     };
 
     Logger.dump('Backend getGameState() returning:', {
@@ -143,9 +150,75 @@ export class Game extends EventEmitter {
       isGameOver: gameState.isGameOver,
       gameOverReason: gameState.gameOverReason,
       isPaused: gameState.isPaused,
+      opponentsCount: opponents.length,
     });
 
     return gameState;
+  }
+
+  /**
+   * Get opponent data for multiplayer games
+   */
+  private getOpponentsData() {
+    if (!this.room) {
+      return []; // Single player mode
+    }
+
+    const opponents: any[] = [];
+    const allPlayers = this.room.players;
+
+    for (const player of allPlayers) {
+      // Skip the current player
+      if (player.id === this.player.id) {
+        continue;
+      }
+
+      // Get the opponent's game
+      const opponentGame = this.room.getGame(player.id);
+      if (!opponentGame) {
+        continue; // Skip if game not found
+      }
+
+      // Include full game data for 2-player mode
+      opponents.push({
+        playerId: player.id,
+        playerName: player.name,
+        spectrum: this.calculateSpectrum(opponentGame.board),
+        score: opponentGame.score,
+        isEliminated: !opponentGame.isAlive,
+        // Include full board data for 2-player visibility
+        board: opponentGame.board,
+        nextPieces: opponentGame.getNextPiecesPreview(),
+        currentPiece: opponentGame._currentPiece
+          ? {
+              type: opponentGame._currentPiece.id,
+              position: opponentGame._currentPiece.position,
+              shape: opponentGame._currentPiece.shape,
+            }
+          : null,
+      });
+    }
+
+    return opponents;
+  }
+
+  /**
+   * Calculate spectrum (column heights) for a board
+   */
+  private calculateSpectrum(board: number[][]): number[] {
+    const width = board[0]?.length || 10;
+    const spectrum: number[] = new Array(width).fill(0);
+
+    for (let col = 0; col < width; col++) {
+      for (let row = 0; row < board.length; row++) {
+        if (board[row][col] !== 0) {
+          spectrum[col] = board.length - row;
+          break; // Found the highest block in this column
+        }
+      }
+    }
+
+    return spectrum;
   }
 
   private getNextPiecesPreview(): number[] {

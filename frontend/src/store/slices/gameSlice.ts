@@ -28,6 +28,10 @@ export interface PlayerGameState {
   spectrum: number[]; // Column heights for spectrum display
   score: number;
   isEliminated: boolean;
+  // Full game data for 2-player mode (optional, server may not always send these)
+  board?: number[][];
+  nextPieces?: number[];
+  currentPiece?: PieceState | null;
 }
 
 /**
@@ -136,6 +140,7 @@ export interface GameStateUpdate {
   isPaused?: boolean;
   isGameOver?: boolean;
   gameOverReason?: string | null;
+  opponents?: PlayerGameState[]; // Opponent data for multiplayer
 }
 
 const gameSlice = createSlice({
@@ -202,11 +207,16 @@ const gameSlice = createSlice({
         console.log('⏸ Setting isPaused to:', update.isPaused);
         state.isPaused = update.isPaused;
       }
+      if (update.opponents !== undefined) {
+        console.log(' Setting opponents to:', update.opponents);
+        state.opponents = update.opponents;
+      }
       
       console.log(' Final Redux state after updateGameState:', {
         isGameOver: state.isGameOver,
         gameOverReason: state.gameOverReason,
-        isPaused: state.isPaused
+        isPaused: state.isPaused,
+        opponents: state.opponents.length
       });
     },
 
