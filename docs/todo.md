@@ -4,7 +4,7 @@
 Gestion de la room 2 joueurs
 Edges cases
 Sockets
-Fix bugs room settings / dependencies des states
+Fix bugs room settings / dependencies des states -->
 Clean des rooms
 
 - Enregistrer l'historique des games et des scores

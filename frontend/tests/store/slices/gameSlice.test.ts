@@ -729,6 +729,40 @@ describe('gameSlice', () => {
 
           expect(result.lastAnimationTimestamp['PIECE_LOCK']).toBe(mockTimestamp);
         });
+
+        it('should handle PENALTY_LINES animation by setting penaltyRows', () => {
+          const animationData = {
+            type: 'PENALTY_LINES',
+            data: {
+              timestamp: mockTimestamp,
+              rows: [18, 19],
+              count: 2,
+            },
+          };
+
+          const result = gameSlice(initialState, handleAnimation(animationData));
+
+          expect(result.penaltyRows).toEqual([18, 19]);
+          expect(result.lastAnimationTimestamp['PENALTY_LINES']).toBe(mockTimestamp);
+        });
+
+        it('should prevent duplicate PENALTY_LINES animations', () => {
+          const animationData = {
+            type: 'PENALTY_LINES',
+            data: {
+              timestamp: mockTimestamp,
+              rows: [18, 19],
+              count: 2,
+            },
+          };
+
+          let state = gameSlice(initialState, handleAnimation(animationData));
+          expect(state.penaltyRows).toEqual([18, 19]);
+
+          // Same timestamp → duplicate is ignored
+          state = gameSlice(state, handleAnimation(animationData));
+          expect(state.penaltyRows).toEqual([18, 19]);
+        });
       });
 
       describe('clearLockedCells', () => {

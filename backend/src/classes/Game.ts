@@ -516,8 +516,12 @@ export class Game extends EventEmitter {
     const linesToClear: number[] = [];
 
     // Check each row for completed lines
+    // Penalty rows (containing type 8 blocks) are indestructible and cannot be cleared
     for (let y = 0; y < this.settings.boardHeight; y++) {
-      if (this.board[y].every((cell) => cell !== 0)) {
+      const row = this.board[y];
+      const isFull = row.every((cell) => cell !== 0);
+      const isPenaltyRow = row.some((cell) => cell === 8);
+      if (isFull && !isPenaltyRow) {
         linesToClear.push(y);
       }
     }
@@ -601,14 +605,53 @@ export class Game extends EventEmitter {
     Logger.info(`Game ${this.id} ended for player ${this.player.name}`);
   }
 
-  private addPenaltyLines(count: number): void {
+  /**
+   * Add indestructible penalty lines at the bottom of the board.
+   * Each penalty line is completely filled with a special block value (8 = PENALTY) — no gaps.
+   * Existing rows shift upward; top rows are removed to keep board size constant.
+   * If the displaced rows cause the current piece to overlap, the game ends.
+   */
+  public addPenaltyLines(count: number): void {
+    if (count <= 0) return;
     Logger.info(`Adding ${count} penalty lines to player ${this.player.name}`);
-    const penaltyLine = new Array(this.settings.boardWidth).fill(1);
 
-    // Add penalty lines at the bottom
+    const penaltyRowIndices: number[] = [];
+
     for (let i = 0; i < count; i++) {
-      this.board.pop(); // Remove top line
-      this.board.unshift(penaltyLine); // Add penalty line at the bottom
+      // Create a fully filled penalty line with indestructible blocks (type 8 = PENALTY)
+      // No gaps — penalty lines are completely solid and unclearable
+      const penaltyLine = new Array(this.settings.boardWidth).fill(8);
+
+      // Remove the top row (shift everything up)
+      this.board.shift();
+      // Add penalty line at the bottom
+      this.board.push([...penaltyLine]); // Push a copy to avoid any reference issues
+    }
+
+    // Adjust current piece position upward to compensate for board shift
+    // Without this, the piece would be "count" rows lower relative to the board content
+    if (this._currentPiece && !this._currentPiece.isLocked) {
+      this._currentPiece.position.y -= count;
+    }
+
+    // Collect penalty row indices (bottom N rows)
+    for (let i = 0; i < count; i++) {
+      penaltyRowIndices.push(this.settings.boardHeight - 1 - i);
+    }
+
+    // Broadcast penalty animation to this player so they see the warning flash
+    this.broadcastAnimation('PENALTY_LINES', {
+      rows: penaltyRowIndices,
+      count,
+      timestamp: Date.now(),
+    });
+
+    // Check if penalty lines pushed existing content into spawn area causing game over
+    if (this._currentPiece && !this._currentPiece.isLocked) {
+      if (this.checkCollision(this._currentPiece.position.x, this._currentPiece.position.y)) {
+        Logger.warn(`Penalty lines caused collision for player ${this.player.name} — Game Over`);
+        this.GameOver();
+      }
     }
   }
 
@@ -651,6 +694,15 @@ export class Game extends EventEmitter {
 
     // Update drop interval after clearing lines (for speed-based modes like Sprint)
     this.updateDropInterval();
+
+    // Emit penalty event for multiplayer: opponents receive (n - 1) indestructible lines
+    const penaltyCount = Math.max(0, linesToClear.length - 1);
+    if (penaltyCount > 0 && this.room) {
+      this.emit('penaltyLines', {
+        fromPlayerId: this.player.id,
+        count: penaltyCount,
+      });
+    }
   }
 
   private addHardDropBonus(bonus: number): void {

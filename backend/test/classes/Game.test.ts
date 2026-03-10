@@ -101,14 +101,165 @@ describe('Game', () => {
     expect((game as any).checkCollision(1, 1)).toBe(false);
   });
 
-  it('adds penalty lines while preserving board size', () => {
+  it('adds fully filled penalty lines at the bottom while preserving board size', () => {
     const game = createGame();
 
-    (game as any).addPenaltyLines(2);
+    // Mark row 0 so we can verify it shifts up
+    game.board[settings.boardHeight - 1][0] = 5;
+
+    game.addPenaltyLines(2);
 
     expect(game.board).toHaveLength(settings.boardHeight);
-    expect(game.board[0]).toEqual(new Array(settings.boardWidth).fill(1));
-    expect(game.board[1]).toEqual(new Array(settings.boardWidth).fill(1));
+    // Bottom 2 rows should be fully filled penalty lines (type 8) with no gaps
+    for (let r = settings.boardHeight - 2; r < settings.boardHeight; r++) {
+      const row = game.board[r];
+      const eights = row.filter((c: number) => c === 8).length;
+      expect(eights).toBe(settings.boardWidth); // Completely filled, no gaps
+      expect(row.every((c: number) => c === 8)).toBe(true);
+    }
+    // The original bottom row content should have shifted up by 2
+    expect(game.board[settings.boardHeight - 3][0]).toBe(5);
+  });
+
+  it('does nothing when adding 0 penalty lines', () => {
+    const game = createGame();
+    const boardBefore = JSON.stringify(game.board);
+
+    game.addPenaltyLines(0);
+
+    expect(JSON.stringify(game.board)).toBe(boardBefore);
+  });
+
+  it('broadcasts PENALTY_LINES animation when penalty lines are added', () => {
+    const game = createGame();
+    const emit = jest.fn();
+    (game as any)._socket = { emit };
+
+    game.addPenaltyLines(2);
+
+    expect(emit).toHaveBeenCalledWith('GAME_ANIMATION', expect.objectContaining({
+      type: 'PENALTY_LINES',
+      data: expect.objectContaining({ count: 2 }),
+    }));
+  });
+
+  it('adjusts current piece position upward when penalty lines are added', () => {
+    const game = createGame();
+    const gameAny = game as any;
+    gameAny._currentPiece = new Piece(TETROMINO_DICTIONARY[PieceType.T]);
+    gameAny._currentPiece.position = { x: 3, y: 10 };
+    gameAny._currentPiece.isLocked = false;
+
+    game.addPenaltyLines(3);
+
+    // Piece should shift up by 3 to compensate for the board shift
+    expect(gameAny._currentPiece.position.y).toBe(7);
+  });
+
+  it('triggers game over when penalty lines cause collision with current piece', () => {
+    const game = createGame();
+    const gameAny = game as any;
+
+    // Fill the board almost entirely so penalty lines push content into the piece
+    for (let row = 1; row < settings.boardHeight; row++) {
+      game.board[row] = new Array(settings.boardWidth).fill(1);
+    }
+
+    // Place current piece at the top
+    gameAny._currentPiece = new Piece(TETROMINO_DICTIONARY[PieceType.O]);
+    gameAny._currentPiece.position = { x: 0, y: 0 };
+    gameAny._currentPiece.isLocked = false;
+
+    const gameOverSpy = jest.spyOn(gameAny, 'GameOver');
+
+    game.addPenaltyLines(2);
+
+    expect(gameOverSpy).toHaveBeenCalled();
+  });
+
+  it('emits penaltyLines event after clearing 2+ lines in multiplayer', () => {
+    const game = createGame();
+    const emit = jest.fn();
+    (game as any)._socket = { emit };
+
+    // Set up a mock room so the penalty event is emitted
+    const mockRoom = { id: 'test-room' };
+    (game as any).room = mockRoom;
+
+    const eventSpy = jest.fn();
+    game.on('penaltyLines', eventSpy);
+
+    // Fill bottom 2 rows to trigger a double line clear
+    game.board[settings.boardHeight - 1] = new Array(settings.boardWidth).fill(1);
+    game.board[settings.boardHeight - 2] = new Array(settings.boardWidth).fill(1);
+
+    (game as any).checkAndClearLines();
+
+    // 2 lines cleared → penalty = 2 - 1 = 1
+    expect(eventSpy).toHaveBeenCalledWith({
+      fromPlayerId: game.player.id,
+      count: 1,
+    });
+  });
+
+  it('does not emit penaltyLines event when only 1 line is cleared', () => {
+    const game = createGame();
+    const emit = jest.fn();
+    (game as any)._socket = { emit };
+
+    const mockRoom = { id: 'test-room' };
+    (game as any).room = mockRoom;
+
+    const eventSpy = jest.fn();
+    game.on('penaltyLines', eventSpy);
+
+    // Fill only 1 row
+    game.board[settings.boardHeight - 1] = new Array(settings.boardWidth).fill(1);
+
+    (game as any).checkAndClearLines();
+
+    // 1 line cleared → penalty = 1 - 1 = 0 → no event
+    expect(eventSpy).not.toHaveBeenCalled();
+  });
+
+  it('does not emit penaltyLines event in solo mode (no room)', () => {
+    const game = createGame();
+    const emit = jest.fn();
+    (game as any)._socket = { emit };
+
+    // No room set (solo mode)
+    const eventSpy = jest.fn();
+    game.on('penaltyLines', eventSpy);
+
+    // Fill bottom 3 rows
+    game.board[settings.boardHeight - 1] = new Array(settings.boardWidth).fill(1);
+    game.board[settings.boardHeight - 2] = new Array(settings.boardWidth).fill(1);
+    game.board[settings.boardHeight - 3] = new Array(settings.boardWidth).fill(1);
+
+    (game as any).checkAndClearLines();
+
+    // Even though 3 lines cleared, no room → no penalty event
+    expect(eventSpy).not.toHaveBeenCalled();
+  });
+
+  it('does not clear penalty rows even when fully filled', () => {
+    const game = createGame();
+    const emit = jest.fn();
+    (game as any)._socket = { emit };
+
+    // Add a penalty line at the bottom (type 8, fully filled, no gaps)
+    game.addPenaltyLines(1);
+
+    // The bottom row should already be fully non-zero (all 8s)
+    const bottomRow = game.board[settings.boardHeight - 1];
+    expect(bottomRow.every((c: number) => c !== 0)).toBe(true);
+    expect(bottomRow.every((c: number) => c === 8)).toBe(true);
+
+    // checkAndClearLines should NOT clear this row because it contains penalty blocks
+    (game as any).checkAndClearLines();
+
+    // The penalty row should still be at the bottom, not cleared
+    expect(game.board[settings.boardHeight - 1].every((c: number) => c === 8)).toBe(true);
   });
 
   it('marks game eliminated and stops loop', () => {

@@ -99,6 +99,7 @@ export function GameView({
   const lockedCellsTimeoutRef = useRef<number | null>(null);
   const hardDropTimeoutRef = useRef<number | null>(null);
   const lineClearTimeoutRef = useRef<number | null>(null);
+  const penaltyRowsTimeoutRef = useRef<number | null>(null);
 
   // Handle animation clearing with timeouts
   useEffect(() => {
@@ -163,6 +164,27 @@ export function GameView({
       };
     }
   }, [clearingRows, dispatch]);
+
+  // Auto-clear penalty rows animation after a delay
+  useEffect(() => {
+    if (penaltyRows.length > 0) {
+      if (penaltyRowsTimeoutRef.current) {
+        return;
+      }
+      
+      penaltyRowsTimeoutRef.current = setTimeout(() => {
+        dispatch(clearPenaltyRows());
+        penaltyRowsTimeoutRef.current = null;
+      }, 600);
+      
+      return () => {
+        if (penaltyRowsTimeoutRef.current) {
+          clearTimeout(penaltyRowsTimeoutRef.current);
+          penaltyRowsTimeoutRef.current = null;
+        }
+      };
+    }
+  }, [penaltyRows, dispatch]);
 
   // === DEBUG HANDLERS ===
   const handleDebugLineClear = () => {

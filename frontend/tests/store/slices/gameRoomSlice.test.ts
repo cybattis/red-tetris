@@ -854,7 +854,7 @@ describe('gameRoomSlice', () => {
           
           const errorEvent: RoomErrorEvent = {
             roomId: 'room-123',
-            error: 'Room is full',
+            reason: 'Room is full',
             code: 'ROOM_FULL',
           };
           

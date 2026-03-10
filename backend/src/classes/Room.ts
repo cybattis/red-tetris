@@ -254,6 +254,11 @@ export class Room {
           }
         });
 
+        // Listen for penalty lines event (multiplayer: n-1 lines sent to opponents)
+        game.on('penaltyLines', (data: { fromPlayerId: string; count: number }) => {
+          this.relayPenaltyLines(data.fromPlayerId, data.count);
+        });
+
         // Start the game
         game.start();
         gameIds.push(game.id);
@@ -301,6 +306,31 @@ export class Room {
 
   public getGame(playerId: string): Game | null {
     return this._games.get(playerId) || null;
+  }
+
+  /**
+   * Relay penalty lines from one player to all other alive opponents.
+   * Called when a player clears n lines — opponents receive (n - 1) indestructible lines.
+   * Only active in multiplayer (2+ players).
+   */
+  private relayPenaltyLines(fromPlayerId: string, count: number): void {
+    if (count <= 0 || this._players.size < 2) return;
+
+    Logger.info(
+      `Relaying ${count} penalty lines from player ${fromPlayerId} to opponents in room ${this.id}`,
+    );
+
+    for (const [playerId, game] of this._games.entries()) {
+      // Skip the player who cleared the lines and any eliminated players
+      if (playerId === fromPlayerId || !game.isAlive) {
+        continue;
+      }
+
+      game.addPenaltyLines(count);
+      Logger.info(
+        `Applied ${count} penalty lines to player ${playerId} in room ${this.id}`,
+      );
+    }
   }
 
   /**
