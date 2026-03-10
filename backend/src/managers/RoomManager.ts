@@ -9,7 +9,7 @@ import {
   RoomLeaveEvent,
   RoomResults,
 } from '@shared/types/room';
-import { Socket } from 'socket.io';
+import { Server, Socket } from 'socket.io';
 
 export class RoomManager {
   private static instance: RoomManager;
@@ -125,10 +125,8 @@ export class RoomManager {
         id: player.id,
         name: player.name,
         isHost: room.isHost(player.id),
-        isReady: true,
         isSpectator: result.isSpectator || false,
-      },
-      isSpectator: result.isSpectator || false,
+      }
     };
 
     return {
@@ -198,6 +196,7 @@ export class RoomManager {
     roomId: string,
     hostId: string,
     gameSettings?: Partial<GameSettings>,
+    io: Server
   ): { success: boolean; error?: RoomErrorEvent; roomUpdate?: RoomStateUpdateEvent; gameIds?: string[] } {
     Logger.debug(`RoomManager.startGame() called for room ${roomId} by host ${hostId}`);
 
@@ -224,7 +223,7 @@ export class RoomManager {
       };
     }
 
-    const startResult = room.startGame(gameSettings);
+    const startResult = room.startGame(gameSettings, io);
     if (!startResult.success) {
       const errorCode = this.getErrorCode(startResult.reason!);
       return {
@@ -353,7 +352,7 @@ export class RoomManager {
       playingRooms: rooms.filter((room) => room.state === 'playing').length,
     };
   }
-  
+
   // Cleanup methods
   public cleanupEmptyRooms(): number {
     let cleanedCount = 0;
@@ -366,7 +365,8 @@ export class RoomManager {
     }
 
     for (const roomId of roomsToDelete) {
-      this.deleteRoom(roomId);
+      const room = this._rooms.get(roomId);
+      this.deleteRoom(room!);
       cleanedCount++;
     }
 

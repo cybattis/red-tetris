@@ -37,7 +37,6 @@ export class WebSocketManager {
         const data = result.data;
         const roomId = data?.roomUpdated?.id || data?.playerLeft?.roomId;
         if (!roomId) {
-          Logger.warn(`Could not determine room for disconnected socket: ${socket.id}`);
           return;
         }
 

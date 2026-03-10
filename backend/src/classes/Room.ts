@@ -182,7 +182,7 @@ export class Room {
 
   // Game management
   // --------------------------------------------------------------
-  public startGame(customSettings?: Partial<GameSettings>): {
+  public startGame(customSettings?: Partial<GameSettings>,): {
     success: boolean;
     reason?: string;
     gameIds?: string[];
@@ -364,7 +364,6 @@ export class Room {
       id: player.id,
       name: player.name,
       isHost: this.isHost(player.id),
-      isReady: true, // TODO: Implement ready state
       isSpectator: false,
     }));
 
@@ -372,7 +371,6 @@ export class Room {
       id: player.id,
       name: player.name,
       isHost: false,
-      isReady: false,
       isSpectator: true,
     }));
 

@@ -75,7 +75,7 @@ export function wsRoomHandler(socket: Socket, io: Server) {
 			gameSettings,
 		);
 
-		const result = roomManager.startGame(roomId, socket.id, gameSettings);
+		const result = roomManager.startGame(roomId, socket.id, gameSettings, io);
 		if (!result.success) {
 			Logger.warn(`[START_GAME] Failed for room ${roomId}: ${result.error?.reason}`);
 			socket.emit('ROOM_ERROR', result.error);

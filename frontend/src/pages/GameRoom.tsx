@@ -66,7 +66,7 @@ export function GameRoom() {
 
   // Derived state
   const isSoloGame = players.length === 1;
-  
+
   // Ref to prevent duplicate room joining
   const hasJoinedRoom = useRef(false);
 
@@ -162,7 +162,7 @@ export function GameRoom() {
     // End the current game state and immediately start a new game
     dispatch({ type: 'gameRoom/endGame' });
     dispatch(resetGame());
-    
+
     // Automatically start a new game with the same settings
     setTimeout(() => {
       if (gameCreationData) {

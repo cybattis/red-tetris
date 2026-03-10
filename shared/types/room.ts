@@ -6,7 +6,6 @@ export interface RoomPlayer {
   id: string;
   name: string;
   isHost: boolean;
-  isReady: boolean;
   isSpectator: boolean;
 }
 
@@ -48,7 +47,6 @@ export interface HostTransferEvent {
 export interface PlayerJoinedEvent {
   roomId: string;
   player: RoomPlayer;
-  isSpectator: boolean;
 }
 
 export interface PlayerLeftEvent {

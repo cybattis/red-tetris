@@ -6,19 +6,6 @@ import { Logger } from "../utils/helpers";
 
 export function wsGameHandler(socket: Socket) {
 	const gameManager = GameManager.getInstance();
-	// Remove the START_GAME handler from here as it's now handled by wsRoomHandler
-	// The room system manages game creation through rooms
-
-	socket.on('STOP_GAME', (data: SocketEvents) => {
-		const { gameId } = data.data as { gameId: string };
-		const game = gameManager.getGame(gameId);
-		if (game) {
-			game.stopGame();
-			socket.emit('GAME_STOPPED', { gameId });
-		} else {
-			Logger.warn(`Game not found: ${gameId}`);
-		}
-	});
 
 	socket.on('PLAYER_INPUT', (payload: SocketEvents<'PLAYER_INPUT'>) => {
 		const { gameId, input } = payload.data;
@@ -73,17 +60,6 @@ export function wsGameHandler(socket: Socket) {
 		if (roomId && gameMode) {
 			socket.to(roomId).emit('GAME_MODE_UPDATED', { gameMode });
 			socket.emit('GAME_MODE_UPDATED', { gameMode });
-		}
-	});
-
-	socket.on('CANCEL_START', (data: { roomId: string }) => {
-		// TODO: Implement proper cancel start logic with room management
-		const { roomId } = data;
-
-		// For now, just broadcast the game start cancellation to the room
-		if (roomId) {
-			socket.to(roomId).emit('GAME_START_CANCELED', {});
-			socket.emit('GAME_START_CANCELED', {});
 		}
 	});
 }

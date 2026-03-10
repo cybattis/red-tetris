@@ -9,6 +9,7 @@ import { Position } from '../types/IPiece';
 import type { Socket } from 'socket.io';
 import { EventEmitter } from 'node:events';
 import type { Room } from './Room';
+import { io } from 'socket.io-client';
 
 export class Game extends EventEmitter {
   // Game state and public properties
@@ -245,7 +246,11 @@ export class Game extends EventEmitter {
   private broadcastGameState(): void {
     if (!this._socket) return;
     const gameState = this.getGameState();
-    this._socket.emit('GAME_STATE_UPDATE', gameState);
+    Logger.dump('Broadcasting game state to client:', {
+      roomId: this.room?.id,
+      gameState: gameState,
+    });
+    this._socket.to(this.room?.id!).emit('GAME_STATE_UPDATE', gameState);
   }
 
   private broadcastAnimation(animationType: string, data: any): void {
