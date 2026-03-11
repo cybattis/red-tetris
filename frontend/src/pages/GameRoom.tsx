@@ -8,7 +8,6 @@ import { useAppDispatch, useAppSelector } from "../store/index.js";
 import {
   joinRoom,
   leaveRoom,
-  updatePlayerReady,
   updateGameMode,
   updateSetting,
   resetSettings,
@@ -141,18 +140,6 @@ export function GameRoom() {
     dispatch(cancelCountdown());
   };
 
-  const handleToggleReady = () => {
-    if (!currentPlayer) return;
-
-    const newReadyStatus = !currentPlayer.isReady;
-    dispatch(
-      updatePlayerReady({
-        playerId: currentPlayer.id,
-        isReady: newReadyStatus,
-      }),
-    );
-  };
-
   const handleLeaveRoom = () => {
     dispatch(leaveRoom());
     navigate("/");
@@ -188,6 +175,7 @@ export function GameRoom() {
   // Handle game input actions - send to server
   // MUST be memoized to prevent useGameInput from re-registering event listeners on every render
   const handleGameAction = useCallback((action: GameAction) => {
+    console.log("Game Action:", action, gameId, gameStarted);
     if (socket && socket.connected && gameStarted && gameId) {
       socket.emit('PLAYER_INPUT', {
         message: 'PLAYER_INPUT',
@@ -303,19 +291,7 @@ export function GameRoom() {
                 : "Start Game"}
             </Button>
           ) : (
-            <Button
-              onClick={handleToggleReady}
-              variant={currentPlayer?.isReady ? "secondary" : "primary"}
-              size="large"
-              fullWidth
-              disabled={countdown !== null}
-            >
-              {countdown !== null
-                ? `Starting in ${countdown}...`
-                : currentPlayer?.isReady
-                  ? "Ready ✓"
-                  : "Ready Up"}
-            </Button>
+            <span className={styles.waitingText}>Waiting for host to start the game...</span>
           )}
         </div>
       </main>
