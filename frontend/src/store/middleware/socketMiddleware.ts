@@ -179,11 +179,14 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
         });
 
         socket.on('SETTINGS_UPDATED', (data) => {
-          dispatch(updateSettings(data.settings));
+          dispatch(updateSettings({ ...data.settings, _fromSocket: true } as any));
         });
 
         socket.on('GAME_MODE_UPDATED', (data) => {
-          dispatch(updateGameMode(data.gameMode));
+          // Mark this action as coming from socket to prevent re-emission
+          const action = updateGameMode(data.gameMode);
+          (action as any).meta = { fromSocket: true };
+          dispatch(action);
         });
 
         socket.on('GAME_STARTING', (data) => {
@@ -211,7 +214,7 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
         });
 
         socket.on('GAME_STATE_UPDATE', (data) => {
-          console.log('🎮 Frontend received GAME_STATE_UPDATE:', data);
+          console.log(' Frontend received GAME_STATE_UPDATE:', data);
           dispatch({ type: 'game/updateGameState', payload: data });
         });
 
@@ -300,7 +303,28 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
         break;
       }
 
+      case 'gameRoom/updateSettings': {
+        // Don't emit if this action came from a socket event (prevents infinite loop)
+        if ((action as any).meta?.fromSocket || (action.payload as any)?._fromSocket) {
+          break;
+        }
+        
+        const socket = state.connection.socket;
+        if (socket && socket.connected) {
+          socket.emit('UPDATE_SETTINGS', {
+            roomId: state.gameRoom.roomId,
+            settings: state.gameRoom.settings,
+          });
+        }
+        break;
+      }
+
       case 'gameRoom/updateGameMode': {
+        // Don't emit if this action came from a socket event (prevents infinite loop)
+        if ((action as any).meta?.fromSocket) {
+          break;
+        }
+        
         const socket = state.connection.socket;
         if (socket && socket.connected) {
           socket.emit('UPDATE_GAME_MODE', {
@@ -363,7 +387,7 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
         const socket = state.connection.socket;
         if (socket && socket.connected) {
           socket.emit('LEAVE_ROOM', {
-            roomId: state.gameRoom.roomId,
+            roomId: prevState.gameRoom.roomId,
           });
         }
         break;
@@ -387,6 +411,13 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
   };
 };
 
-const defaultSocketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000';
+/**
+ * Socket URL is injected via Vite's define (see vite.config.ts).
+ * In Jest, it is set via the test setup (see tests/setup.ts).
+ * Using a declared global avoids import.meta.env which ts-jest cannot compile.
+ */
+declare const __SOCKET_URL__: string | undefined;
+const defaultSocketUrl: string =
+  (typeof __SOCKET_URL__ !== 'undefined' ? __SOCKET_URL__ : undefined) || 'http://localhost:3000';
 
 export const socketMiddleware = createSocketMiddleware(defaultSocketUrl);

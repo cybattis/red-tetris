@@ -1,8 +1,12 @@
+/* ═══════════════════════════════════════════════════════════
+   GameView — Dark Neon Theme (In-Game)
+   ═══════════════════════════════════════════════════════════ */
+
 .container {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f0f23 100%);
+  background: #0a0a12;
   color: #fff;
   overflow: hidden;
 }
@@ -12,23 +16,30 @@
   align-items: center;
   justify-content: space-between;
   padding: 0.75rem 1.5rem;
-  background: rgba(0, 0, 0, 0.3);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(10, 10, 20, 0.85);
+  border-bottom: 1px solid rgba(0, 229, 255, 0.12);
+  backdrop-filter: blur(12px);
   flex-shrink: 0;
 }
 
 .roomName {
   margin: 0;
-  font-size: 1.25rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  color: #00d4ff;
-  text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+  font-size: 1.15rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #00e5ff;
+  text-shadow:
+    0 0 6px rgba(0, 229, 255, 0.9),
+    0 0 20px rgba(0, 229, 255, 0.45),
+    0 0 40px rgba(0, 229, 255, 0.2);
 }
 
 .headerSpacer {
   width: 100px;
 }
+
+/* ── Game Area ─────────────────────────────────────────── */
 
 .gameArea {
   flex: 1;
@@ -57,17 +68,20 @@
 
 .multiplayerLayout .playerBoardWrapper {
   padding-right: 1.5rem;
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  border-right: 1px solid rgba(0, 229, 255, 0.12);
 }
 
 .multiplayerLayout .opponentBoardWrapper {
   padding-left: 1.5rem;
 }
 
+/* ── Footer ────────────────────────────────────────────── */
+
 .footer {
   padding: 0.75rem 1rem;
-  background: rgba(0, 0, 0, 0.3);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(10, 10, 20, 0.85);
+  border-top: 1px solid rgba(0, 229, 255, 0.12);
+  backdrop-filter: blur(12px);
   flex-shrink: 0;
 }
 
@@ -76,8 +90,9 @@
   justify-content: center;
   flex-wrap: wrap;
   gap: 1.5rem;
-  font-size: 0.75rem;
-  color: #666;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.25);
+  letter-spacing: 0.04em;
 }
 
 .controls span {
@@ -85,6 +100,8 @@
   gap: 0.25rem;
   white-space: nowrap;
 }
+
+/* ── Responsive ────────────────────────────────────────── */
 
 @media (max-width: 1200px) {
   .multiplayerLayout {
@@ -96,7 +113,7 @@
     padding-right: 0;
     border-right: none;
     padding-bottom: 1.5rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(0, 229, 255, 0.12);
   }
 
   .multiplayerLayout .opponentBoardWrapper {
@@ -111,7 +128,7 @@
   }
 
   .roomName {
-    font-size: 1rem;
+    font-size: 0.95rem;
   }
 
   .controls {
@@ -120,7 +137,7 @@
   }
 }
 
-/* Debug Panel - Remove in production */
+/* ── Debug Panel ───────────────────────────────────────── */
 .debugPanel {
   position: fixed;
   bottom: 1rem;
@@ -129,33 +146,39 @@
   flex-direction: column;
   gap: 0.5rem;
   padding: 0.75rem;
-  background: rgba(0, 0, 0, 0.9);
-  border: 1px solid rgba(255, 200, 0, 0.5);
-  border-radius: 8px;
+  background: rgba(10, 10, 20, 0.95);
+  border: 1px solid rgba(255, 200, 0, 0.4);
+  border-radius: 6px;
   z-index: 50;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
 }
 
 .debugTitle {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 700;
   color: #ffc800;
   text-align: center;
   margin-bottom: 0.25rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .debugPanel button {
   padding: 0.4rem 0.75rem;
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   font-weight: 600;
   color: #fff;
-  background: rgba(255, 200, 0, 0.2);
-  border: 1px solid rgba(255, 200, 0, 0.4);
+  background: rgba(255, 200, 0, 0.08);
+  border: 1px solid rgba(255, 200, 0, 0.3);
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.15s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .debugPanel button:hover {
-  background: rgba(255, 200, 0, 0.3);
-  border-color: rgba(255, 200, 0, 0.6);
+  background: rgba(255, 200, 0, 0.15);
+  border-color: rgba(255, 200, 0, 0.5);
+  transform: translateY(-1px);
 }

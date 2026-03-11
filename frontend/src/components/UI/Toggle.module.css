@@ -7,11 +7,11 @@
 }
 
 .label {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #888;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.45);
   text-align: center;
 }
 
@@ -23,21 +23,22 @@
 
 .toggleButton {
   padding: 0.5rem 1.25rem;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  color: #888;
+  letter-spacing: 0.06em;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(0, 229, 255, 0.1);
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.35);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .toggleButton:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(0, 229, 255, 0.06);
+  border-color: rgba(0, 229, 255, 0.25);
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .toggleButton:disabled {
@@ -46,12 +47,13 @@
 }
 
 .toggleButton.active {
-  background: rgba(0, 255, 255, 0.2);
-  border-color: #00ffff;
-  color: #00ffff;
-  box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+  background: rgba(0, 229, 255, 0.12);
+  border-color: rgba(0, 229, 255, 0.5);
+  color: #00e5ff;
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.2);
+  text-shadow: 0 0 6px rgba(0, 229, 255, 0.3);
 }
 
 .toggleButton.active:hover:not(:disabled) {
-  background: rgba(0, 255, 255, 0.3);
+  background: rgba(0, 229, 255, 0.18);
 }

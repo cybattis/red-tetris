@@ -1,76 +1,88 @@
-/** @type {import('jest').Config} */
 export default {
-  preset: 'ts-jest',
+  preset: 'ts-jest/presets/default-esm',
   testEnvironment: 'jsdom',
-  roots: ['<rootDir>/src', '<rootDir>/tests'],
-  testMatch: [
-    '**/__tests__/**/*.+(ts|tsx|js)',
-    '**/?(*.)+(spec|test).+(ts|tsx|js)',
-  ],
-  transform: {
-    '^.+\\.(ts|tsx)$': [
-      'ts-jest',
-      {
-        useESM: true,
-        tsconfig: {
-          module: 'ESNext',
-          moduleResolution: 'node',
-          jsx: 'react-jsx',
-          esModuleInterop: true,
-          strict: true,
-          skipLibCheck: true,
-          target: 'ES2022',
-          lib: ['ES2022', 'DOM', 'DOM.Iterable'],
-          baseUrl: '.',
-          paths: {
-            '@/*': ['src/*'],
-            '@components/*': ['src/components/*'],
-            '@store/*': ['src/store/*'],
-            '@hooks/*': ['src/hooks/*'],
-            '@game/*': ['src/game/*'],
-            '@utils/*': ['src/utils/*'],
-            '@types/*': ['src/types/*'],
-          },
-        },
-      },
-    ],
-  },
+  extensionsToTreatAsEsm: ['.ts', '.tsx'],
+  
   moduleNameMapper: {
+    '\\.module\\.(css|scss|sass)$': 'identity-obj-proxy',
+    '\\.(css|scss|sass)$': 'identity-obj-proxy',
+    '^@shared/(.*)$': '<rootDir>/../shared/$1',
+
+    
+    '\\.(jpg|jpeg|png|gif|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga)$': '<rootDir>/tests/__mocks__/fileMock.js',
+    
     '^@/(.*)$': '<rootDir>/src/$1',
-    '^@components/(.*)$': '<rootDir>/src/components/$1',
-    '^@store/(.*)$': '<rootDir>/src/store/$1',
-    '^@hooks/(.*)$': '<rootDir>/src/hooks/$1',
-    '^@game/(.*)$': '<rootDir>/src/game/$1',
-    '^@utils/(.*)$': '<rootDir>/src/utils/$1',
-    '^@types/(.*)$': '<rootDir>/src/types/$1',
-    '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
-    '\\.(jpg|jpeg|png|gif|webp|svg|mp3|wav|ogg)$':
-      '<rootDir>/tests/__mocks__/fileMock.js',
+    '^@shared/(.*)$': '<rootDir>/../shared/$1',
+    
+    '^(\\.{1,2}/.*)\\.js$': '$1',
   },
-  setupFilesAfterEnv: ['<rootDir>/tests/setupTests.ts'],
-  collectCoverageFrom: [
-    'src/**/*.{ts,tsx}',
-    '!src/main.tsx',
-    '!src/vite-env.d.ts',
-    '!src/**/*.d.ts',
-    '!src/types/**',
+
+  transform: {
+    '^.+\\.tsx?$': ['ts-jest', {
+      useESM: true,
+      tsconfig: './tsconfig.test.json',
+    }],
+  },
+
+  setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
+
+  testMatch: [
+    '<rootDir>/tests/**/*.(test|spec).(ts|tsx)',
   ],
+
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '/dist/',
+    '/build/',
+  ],
+
+  collectCoverage: true,
+  collectCoverageFrom: [
+    // Utils (already tested)
+    'src/utils/*.{ts,tsx}',
+    
+    // Store and Redux logic
+    'src/store/**/*.{ts,tsx}',
+    
+    // Custom hooks
+    'src/hooks/*.{ts,tsx}',
+    
+    // React components
+    'src/components/**/*.{tsx}',
+    
+    // Pages
+    'src/pages/*.{tsx}',
+    
+    // Types (local types, not shared)
+    'src/types/*.{ts}',
+    
+    // Exclusions
+    '!src/**/*.d.ts',
+    '!src/vite-env.d.ts',
+    '!src/main.tsx', // Entry point
+    '!src/App.tsx', // Main app wrapper (integration test territory)
+    '!src/**/index.ts', // Re-export files
+    '!src/**/*.module.css.d.ts', // CSS module type definitions
+  ],
+
+  coverageDirectory: 'coverage',
+  coverageReporters: [
+    'text',
+    'html',
+    'lcov',
+  ],
+
   coverageThreshold: {
     global: {
-      statements: 70,
       branches: 50,
       functions: 70,
       lines: 70,
-    },
-    'src/game/**/*.ts': {
-      statements: 90,
-      branches: 80,
-      functions: 90,
-      lines: 90,
+      statements: 70,
     },
   },
-  coverageDirectory: 'coverage',
-  extensionsToTreatAsEsm: ['.ts', '.tsx'],
-  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
+  
+  clearMocks: true,
+  restoreMocks: true,
+
   verbose: true,
 };

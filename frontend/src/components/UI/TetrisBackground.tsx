@@ -33,21 +33,25 @@ interface FallingPiece {
   size: number;
   opacity: number;
   rotationDirection: 'clockwise' | 'counter-clockwise';
+  /** Initial progress through the animation (0–1) so pieces are already on-screen at load */
+  initialOffset: number;
 }
 
 function generatePieces(count: number): FallingPiece[] {
   const pieces: FallingPiece[] = [];
   
   for (let i = 0; i < count; i++) {
+    const duration = 10 + Math.random() * 25; // 10-35 seconds
     pieces.push({
       id: i,
       type: PIECE_TYPES[Math.floor(Math.random() * PIECE_TYPES.length)],
       left: Math.random() * 100,
-      delay: Math.random() * 15,
-      duration: 8 + Math.random() * 25, // 8-33 seconds
+      delay: 0, // No delay — offset handles initial spread
+      duration,
       size: 15 + Math.random() * 30,
-      opacity: 0.15 + Math.random() * 0.2,
+      opacity: 0.2 + Math.random() * 0.25,
       rotationDirection: Math.random() < 0.5 ? 'clockwise' : 'counter-clockwise',
+      initialOffset: Math.random(), // Random position in the cycle
     });
   }
   
@@ -75,7 +79,7 @@ export const TetrisBackground = memo(function TetrisBackground({
           }`}
           style={{
             '--piece-left': `${piece.left}%`,
-            '--piece-delay': `${piece.delay}s`,
+            '--piece-delay': `${-piece.initialOffset * piece.duration}s`,
             '--piece-duration': `${piece.duration}s`,
             '--piece-size': `${piece.size}px`,
             '--piece-color': PIECE_COLORS[piece.type],
