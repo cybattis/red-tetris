@@ -30,6 +30,7 @@ import {
   setCurrentPlayerId,
 } from '../slices/gameRoomSlice.js';
 import { showToast } from '../slices/uiSlice.js';
+import type { RoomInfo } from '@shared/types/room.js';
 
 export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootState> => {
   // Track if socket has been initialized to prevent duplicate initialization
@@ -104,14 +105,14 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
         });
 
         // New room management event handlers
-        socket.on('ROOM_STATE_UPDATE', (data) => {
-          dispatch(updateRoomState(data.room));
+        socket.on('ROOM_STATE_UPDATE', (roomInfo: RoomInfo) => {
+          dispatch(updateRoomState(roomInfo));
 
           // Set current player ID if not already set (when first joining)
           const currentState = store.getState();
           if (!currentState.gameRoom.currentPlayerId && socket.id) {
             // Find the player in the room data that matches our socket ID
-            const currentPlayer = [...data.room.players, ...data.room.spectators].find(p => p.id === socket.id);
+            const currentPlayer = [...roomInfo.players, ...roomInfo.spectators].find(p => p.id === socket.id);
             if (currentPlayer) {
               dispatch(setCurrentPlayerId(socket.id));
             }

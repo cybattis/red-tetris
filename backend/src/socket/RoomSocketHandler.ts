@@ -50,9 +50,9 @@ export function wsRoomHandler(playerSocket: Socket) {
 			return;
 		}
 
-		if (data.roomUpdated) {
+		if (data.roomInfo) {
 			// Notify remaining players
-			playerSocket.to(roomId).emit('ROOM_STATE_UPDATE', data.roomUpdated);
+			playerSocket.to(roomId).emit('ROOM_STATE_UPDATE', data.roomInfo);
 		}
 
 		if (data.playerLeft) {

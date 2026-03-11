@@ -190,7 +190,7 @@ export class Room {
 
   // Game management
   // --------------------------------------------------------------
-  public startGame(customSettings?: Partial<GameSettings>,): RoomResults<{ gameIds: string[]; roomUpdate: RoomInfo }> {
+  public startGame(customSettings?: Partial<GameSettings>,): RoomResults<{ gameIds: string[]; roomInfo: RoomInfo }> {
     Logger.info(`Room.startGame() called for room ${this.id}, current state: ${this._state}`);
 
     if (this._state === 'playing') {
@@ -284,7 +284,7 @@ export class Room {
     }
 
     Logger.info(`Game started in room ${this.id} with ${this._players.size} players`);
-    return { success: true, data: { gameIds, roomUpdate: this.toRoomInfo() } };
+    return { success: true, data: { gameIds, roomInfo: this.toRoomInfo() } };
   }
 
   public endGame(): void {

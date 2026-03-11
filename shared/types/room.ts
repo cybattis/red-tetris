@@ -55,7 +55,7 @@ export interface PlayerLeftEvent {
 }
 
 export interface RoomLeaveEvent {
-  roomUpdated?: RoomInfo;
+  roomInfo?: RoomInfo;
   playerLeft?: PlayerLeftEvent;
   hostTransfer?: HostTransferEvent;
   roomDeleted?: boolean;

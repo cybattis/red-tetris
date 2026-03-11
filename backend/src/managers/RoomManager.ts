@@ -125,7 +125,10 @@ export class RoomManager {
 
     return {
       success: true,
-      data: { roomInfo: room.toRoomInfo(), playerJoined },
+      data: {
+        roomInfo: room.toRoomInfo(),
+        playerJoined
+      },
     };
   }
 
@@ -164,7 +167,7 @@ export class RoomManager {
     }
 
     let result: RoomLeaveEvent = {
-      roomUpdated: room.toRoomInfo(),
+      roomInfo: room.toRoomInfo(),
       playerLeft: {
         roomId,
         playerId,

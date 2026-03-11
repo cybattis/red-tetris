@@ -35,7 +35,7 @@ export class WebSocketManager {
         }
 
         const data = result.data;
-        const roomId = data?.roomUpdated?.id || data?.playerLeft?.roomId;
+        const roomId = data?.roomInfo?.id || data?.playerLeft?.roomId;
         if (!roomId) {
           return;
         }
@@ -46,9 +46,9 @@ export class WebSocketManager {
           return;
         }
 
-        if (data.roomUpdated) {
+        if (data.roomInfo) {
           // Notify remaining players
-          socket.to(roomId).emit('ROOM_STATE_UPDATE', data.roomUpdated);
+          socket.to(roomId).emit('ROOM_STATE_UPDATE', data.roomInfo);
         }
 
         if (data.playerLeft) {
