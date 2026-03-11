@@ -122,13 +122,6 @@ const gameRoomSlice = createSlice({
       state.players = state.players.filter(p => p.id !== action.payload);
     },
 
-    updatePlayerReady: (state, action: PayloadAction<{ playerId: string; isReady: boolean }>) => {
-      const player = state.players.find(p => p.id === action.payload.playerId);
-      if (player) {
-        player.isReady = action.payload.isReady;
-      }
-    },
-
     updateGameMode: (state, action: PayloadAction<GameMode>) => {
       state.gameMode = action.payload;
       // Also update the settings so it's sent to the backend correctly
@@ -178,11 +171,6 @@ const gameRoomSlice = createSlice({
       state.gameStarted = false;
       state.countdown = null;
       state.roomStatus = 'finished';
-      state.players.forEach(player => {
-        if (!player.isHost) {
-          player.isReady = false;
-        }
-      });
     },
 
     resetToLobby: (state) => {
@@ -222,7 +210,6 @@ const gameRoomSlice = createSlice({
         id: p.id,
         name: p.name,
         isHost: p.isHost,
-        isReady: p.isReady,
       }));
 
       console.log('Frontend players after conversion:', state.players);
@@ -232,7 +219,6 @@ const gameRoomSlice = createSlice({
         id: p.id,
         name: p.name,
         isHost: false,
-        isReady: false,
       }));
 
       // Update current player status
@@ -264,7 +250,6 @@ const gameRoomSlice = createSlice({
         id: player.id,
         name: player.name,
         isHost: player.isHost,
-        isReady: player.isReady,
       };
 
       if (isSpectator) {
@@ -320,7 +305,6 @@ export const {
   leaveRoom,
   addPlayer,
   removePlayer,
-  updatePlayerReady,
   updateGameMode,
   updateSettings,
   updateSetting,

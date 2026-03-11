@@ -70,11 +70,11 @@ export interface GameState {
   // Animation state (for visual effects)
   clearingRows: number[];  // Row indices currently being cleared
   penaltyRows: number[];   // Row indices that are penalty lines (for animation)
-  
+
   // Animation data from server
   lockedCells: { x: number; y: number; type: number; id?: string }[];
   hardDropTrail: { x: number; startY: number; endY: number; type: number; id?: string }[];
-  
+
   // Animation deduplication
   lastAnimationTimestamp: { [key: string]: number };
 }
@@ -110,15 +110,15 @@ const initialState: GameState = {
   // No opponents for solo games (will be populated for multiplayer)
   opponents: [],
   pendingPenaltyLines: 0,
-  
+
   // Animation state
   clearingRows: [],
   penaltyRows: [],
-  
+
   // Animation data from server
   lockedCells: [],
   hardDropTrail: [],
-  
+
   // Animation deduplication
   lastAnimationTimestamp: {},
 };
@@ -211,7 +211,7 @@ const gameSlice = createSlice({
         console.log(' Setting opponents to:', update.opponents);
         state.opponents = update.opponents;
       }
-      
+
       console.log(' Final Redux state after updateGameState:', {
         isGameOver: state.isGameOver,
         gameOverReason: state.gameOverReason,
@@ -339,14 +339,14 @@ const gameSlice = createSlice({
     handleAnimation: (state, action: PayloadAction<{ type: string; data: any }>) => {
       const { type, data } = action.payload;
       const timestamp = data.timestamp || Date.now();
-      
+
       // Prevent duplicate animations by checking timestamp
       if (state.lastAnimationTimestamp[type] === timestamp) {
         return; // Skip duplicate animation
       }
-      
+
       state.lastAnimationTimestamp[type] = timestamp;
-      
+
       switch (type) {
         case 'PIECE_LOCK':
           // Clear any existing lock animation first
@@ -357,7 +357,7 @@ const gameSlice = createSlice({
             id: `lock-${timestamp}-${index}`
           }));
           break;
-          
+
         case 'HARD_DROP':
           // Clear any existing trail animation first
           state.hardDropTrail = [];
@@ -367,12 +367,12 @@ const gameSlice = createSlice({
             id: `trail-${timestamp}-${index}`
           }));
           break;
-          
+
         case 'LINE_CLEAR':
           // Show line clear animation (only set once, don't clear first)
           state.clearingRows = data.rows;
           break;
-          
+
         case 'PENALTY_LINES':
           // Show penalty line warning animation at the bottom rows
           state.penaltyRows = data.rows;

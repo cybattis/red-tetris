@@ -15,7 +15,6 @@ export interface Player {
   id: string;
   name: string;
   isHost: boolean;
-  isReady: boolean;
 }
 
 // Backend communication interface for game creation
@@ -35,7 +34,6 @@ export interface SocketEvents {
   CREATE_GAME: GameCreationData;
   UPDATE_SETTINGS: { roomId: string; settings: GameSettings };
   UPDATE_GAME_MODE: { roomId: string; gameMode: GameMode };
-  PLAYER_READY: { roomId: string; playerId: string; isReady: boolean };
   START_GAME: { roomId: string };
   CANCEL_START: { roomId: string };
   JOIN_ROOM: { roomId: string; playerName: string };
@@ -47,9 +45,8 @@ export interface SocketEvents {
   GAME_MODE_UPDATED: { gameMode: GameMode };
   PLAYER_JOINED: { player: Player };
   PLAYER_LEFT: { playerId: string };
-  PLAYER_READY_STATUS: { playerId: string; isReady: boolean };
   GAME_STARTING: { countdown: number };
-  GAME_START_CANCELED: {};
+  GAME_START_CANCELED: object;
   GAME_STARTED: { gameId: string };
   ROOM_NOT_FOUND: { error: string };
   ROOM_FULL: { error: string };

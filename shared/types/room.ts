@@ -47,6 +47,7 @@ export interface HostTransferEvent {
 export interface PlayerJoinedEvent {
   roomId: string;
   player: RoomPlayer;
+  isSpectator: boolean;
 }
 
 export interface PlayerLeftEvent {

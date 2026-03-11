@@ -216,7 +216,12 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
 
         socket.on('GAME_STATE_UPDATE', (data) => {
           console.log(' Frontend received GAME_STATE_UPDATE:', data);
-          dispatch({ type: 'game/updateGameState', payload: data });
+          // TODO: fix this
+          if (data.playerId && data.playerId === state.game.playerId) {
+            dispatch({ type: 'game/updateGameState', payload: data });
+          } else {
+            dispatch({ type: 'game/updateGameState', payload: { opponents: [data], isOpponent: true } });
+          }
         });
 
         socket.on('GAME_ANIMATION', (animationData) => {
@@ -311,7 +316,7 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
         if ((action as any).meta?.fromSocket || (action.payload as any)?._fromSocket) {
           break;
         }
-        
+
         const socket = state.connection.socket;
         if (socket && socket.connected) {
           socket.emit('UPDATE_SETTINGS', {
@@ -327,7 +332,7 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
         if ((action as any).meta?.fromSocket) {
           break;
         }
-        
+
         const socket = state.connection.socket;
         if (socket && socket.connected) {
           socket.emit('UPDATE_GAME_MODE', {
