@@ -233,7 +233,7 @@ export class RoomManager {
     roomId: string,
     playerId: string,
     reason: string,
-  ): { success: boolean; error?: RoomErrorEvent; roomUpdate?: RoomStateUpdateEvent } {
+  ): RoomResults<{ roomInfo: RoomInfo }> {
     const room = this.getRoom(roomId);
     if (!room) {
       return {
@@ -262,8 +262,8 @@ export class RoomManager {
 
     return {
       success: true,
-      roomUpdate: {
-        room: room.toRoomInfo(),
+      data: {
+        roomInfo: room.toRoomInfo(),
       },
     };
   }
@@ -271,7 +271,7 @@ export class RoomManager {
   public resetGame(
     roomId: string,
     hostId: string,
-  ): { success: boolean; error?: RoomErrorEvent; roomUpdate?: RoomStateUpdateEvent } {
+  ): RoomResults<{ roomInfo: RoomInfo }> {
     const room = this.getRoom(roomId);
     if (!room) {
       return {
@@ -310,7 +310,9 @@ export class RoomManager {
 
     return {
       success: true,
-      roomUpdate: { room: room.toRoomInfo() },
+      data: {
+        roomInfo: room.toRoomInfo(),
+      },
     };
   }
 
