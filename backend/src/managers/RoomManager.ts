@@ -8,8 +8,9 @@ import {
   RoomErrorEvent,
   RoomLeaveEvent,
   RoomResults,
+  RoomInfo,
 } from '@shared/types/room';
-import { Server, Socket } from 'socket.io';
+import { Socket } from 'socket.io';
 
 export class RoomManager {
   private static instance: RoomManager;
@@ -195,9 +196,8 @@ export class RoomManager {
   public startGame(
     roomId: string,
     hostId: string,
-    gameSettings?: Partial<GameSettings>,
-    io: Server
-  ): { success: boolean; error?: RoomErrorEvent; roomUpdate?: RoomStateUpdateEvent; gameIds?: string[] } {
+    gameSettings?: Partial<GameSettings>
+  ): RoomResults<{ roomInfo: RoomInfo; gameIds: string[] }> {
     Logger.debug(`RoomManager.startGame() called for room ${roomId} by host ${hostId}`);
 
     const room = this.getRoom(roomId);
@@ -223,23 +223,17 @@ export class RoomManager {
       };
     }
 
-    const startResult = room.startGame(gameSettings, io);
+    const startResult = room.startGame(gameSettings);
     if (!startResult.success) {
-      const errorCode = this.getErrorCode(startResult.reason!);
-      return {
-        success: false,
-        error: {
-          roomId,
-          reason: startResult.reason!,
-          code: errorCode,
-        },
-      };
+      return startResult;
     }
 
     return {
       success: true,
-      roomUpdate: { room: room.toRoomInfo() },
-      gameIds: startResult.gameIds,
+      data: {
+        gameIds: startResult.data!.gameIds,
+        roomInfo: room.toRoomInfo()
+      },
     };
   }
 

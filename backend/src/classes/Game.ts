@@ -5,11 +5,10 @@ import { PiecesSequence } from './PiecesSequence';
 import { Piece } from './Piece';
 import { Logger } from '../utils/helpers';
 import { TETROMINO_DICTIONARY } from '../pieces/TetrominoFactory';
-import { Position } from '../types/IPiece';
-import type { Socket } from 'socket.io';
+import type { Server } from 'socket.io';
 import { EventEmitter } from 'node:events';
 import type { Room } from './Room';
-import { io } from 'socket.io-client';
+import { wsManager } from '../server';
 
 export class Game extends EventEmitter {
   // Game state and public properties
@@ -17,7 +16,10 @@ export class Game extends EventEmitter {
   public readonly player: Player;
   public readonly settings: GameSettings;
   public readonly piecesSequence: PiecesSequence;
-  public readonly room: Room | null; // Reference to the room for multiplayer
+  public readonly room: Room;
+
+  // Access the WebSocket server instance from GameManager
+  private readonly io: Server = wsManager.io;
 
   public state: GameState = GameState.Waiting;
   public board: number[][];
@@ -33,7 +35,6 @@ export class Game extends EventEmitter {
 
   // Store original gravity and current effective gravity for Sprint mode
   private readonly originalGravity: number;
-  private currentGravity: number; // Current effective gravity (modified during Sprint mode)
 
   // Sprint mode constants - simplified approach using gravity acceleration
   private static readonly SPRINT_GRAVITY_INCREASE_PER_LINE = 0.05; // Gravity increases by 0.05 per line cleared
@@ -50,22 +51,16 @@ export class Game extends EventEmitter {
   private _gravityAccumulatorMs = 0;
   private _currentPiece: Piece;
   private _playerInput: GameAction = GameAction.NO_INPUT;
-  private _socket: Socket | null = null;
   private _starting: boolean = true; // Flag to indicate the first tick for proper initial piece spawning
 
-  // Broadcast throttling for performance
-  private lastBroadcastTime: number = 0;
-  private readonly BROADCAST_THROTTLE_MS = 33; // ~30 FPS max (reduced from 60 FPS to improve performance)
-
-  constructor(player: Player, seed: number, settings: GameSettings, socket?: Socket, room?: Room) {
+  constructor(player: Player, seed: number, settings: GameSettings, room: Room) {
     super();
     this.id = randomUUID();
     this.player = player;
     this.settings = { ...settings }; // Create a copy to avoid modifying the original settings
     this.originalGravity = settings.gravity; // Store original gravity for restoration
-    this.currentGravity = settings.gravity; // Initialize current gravity to original value
-    this.room = room || null; // Store room reference for multiplayer
-    this._socket = socket || null;
+    this.room = room;
+
     this.piecesSequence = new PiecesSequence(seed, 7);
     this.board = this.createEmptyBoard();
     this._currentPiece = this.getNextPiece();
@@ -98,11 +93,7 @@ export class Game extends EventEmitter {
     }
 
     // Reset gravity to original value to prevent persistent effects
-    this.currentGravity = this.originalGravity;
     this.settings.gravity = this.originalGravity;
-
-    // Clear socket reference to prevent memory leaks
-    this._socket = null;
 
     // Remove all event listeners from this EventEmitter
     this.removeAllListeners();
@@ -118,9 +109,6 @@ export class Game extends EventEmitter {
   // Game state serialization for frontend
   // ============================================
   public getGameState() {
-    // Get opponent data if in multiplayer
-    const opponents = this.getOpponentsData();
-
     const gameState = {
       gameId: this.id,
       board: this.board,
@@ -143,7 +131,6 @@ export class Game extends EventEmitter {
       boardWidth: this.settings.boardWidth,
       boardHeight: this.settings.boardHeight,
       gameMode: this.settings.gameMode,
-      opponents, // Include opponent data for multiplayer
     };
 
     Logger.dump('Backend getGameState() returning:', {
@@ -152,56 +139,10 @@ export class Game extends EventEmitter {
       isGameOver: gameState.isGameOver,
       gameOverReason: gameState.gameOverReason,
       isPaused: gameState.isPaused,
-      opponentsCount: opponents.length,
+      opponentsCount: this.room?.playerCount
     });
 
     return gameState;
-  }
-
-  /**
-   * Get opponent data for multiplayer games
-   */
-  private getOpponentsData() {
-    if (!this.room) {
-      return []; // Single player mode
-    }
-
-    const opponents: any[] = [];
-    const allPlayers = this.room.players;
-
-    for (const player of allPlayers) {
-      // Skip the current player
-      if (player.id === this.player.id) {
-        continue;
-      }
-
-      // Get the opponent's game
-      const opponentGame = this.room.getGame(player.id);
-      if (!opponentGame) {
-        continue; // Skip if game not found
-      }
-
-      // Include full game data for 2-player mode
-      opponents.push({
-        playerId: player.id,
-        playerName: player.name,
-        spectrum: this.calculateSpectrum(opponentGame.board),
-        score: opponentGame.score,
-        isEliminated: !opponentGame.isAlive,
-        // Include full board data for 2-player visibility
-        board: opponentGame.board,
-        nextPieces: opponentGame.getNextPiecesPreview(),
-        currentPiece: opponentGame._currentPiece
-          ? {
-            type: opponentGame._currentPiece.id,
-            position: opponentGame._currentPiece.position,
-            shape: opponentGame._currentPiece.shape,
-          }
-          : null,
-      });
-    }
-
-    return opponents;
   }
 
   /**
@@ -232,33 +173,19 @@ export class Game extends EventEmitter {
     });
   }
 
-  // Socket communication methods
-  // ============================================
-  public setSocket(socket: Socket): void {
-    this._socket = socket;
-
-    // Broadcast initial game state
-    if (this.state === GameState.Playing) {
-      this.broadcastGameState();
+  private broadcastGameState(): void {
+    const gameState = this.getGameState();
+    if (!this.io.to(this.room?.id!).emit('GAME_STATE_UPDATE', gameState)) {
+      Logger.warn(`Failed to broadcast game state for game ${this.id} in room ${this.room?.id}`);
     }
   }
 
-  private broadcastGameState(): void {
-    if (!this._socket) return;
-    const gameState = this.getGameState();
-    Logger.dump('Broadcasting game state to client:', {
-      roomId: this.room?.id,
-      gameState: gameState,
-    });
-    this._socket.to(this.room?.id!).emit('GAME_STATE_UPDATE', gameState);
-  }
-
   private broadcastAnimation(animationType: string, data: any): void {
-    if (this._socket) {
-      this._socket.emit('GAME_ANIMATION', {
-        type: animationType,
-        data: data,
-      });
+    if (!this.io.to(this.room?.id!).emit('GAME_ANIMATION', {
+      type: animationType,
+      data: data,
+    })) {
+      Logger.warn(`Failed to broadcast game animation for game ${this.id} in room ${this.room?.id}`);
     }
   }
 
@@ -577,7 +504,6 @@ export class Game extends EventEmitter {
   }
 
   private GameOver(): void {
-    Logger.info('Backend GameOver() called - setting isAlive to false');
     this.isAlive = false;
     this.state = GameState.Ended;
 
@@ -589,17 +515,7 @@ export class Game extends EventEmitter {
     // Broadcast final game state to the client
     this.broadcastGameState();
 
-    // Emit GAME_ENDED event to notify the server/room management
-    if (this._socket) {
-      this._socket.emit('GAME_ENDED', {
-        gameId: this.id,
-        playerId: this.player.id,
-        reason: 'Game Over',
-      });
-    }
-
-    // Emit internal game ended event for GameManager/Room to listen
-    this.emit('gameEnded', {
+    this.room.io.to(this.room?.id!).emit('GAME_OVER', {
       gameId: this.id,
       playerId: this.player.id,
       reason: 'Game Over',

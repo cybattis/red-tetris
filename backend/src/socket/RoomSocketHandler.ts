@@ -4,41 +4,42 @@ import { GameManager } from "../managers/GameManager";
 import { RoomManager } from "../managers/RoomManager";
 import { Logger } from "../utils/helpers";
 import { Server, Socket } from "socket.io";
+import { wsManager } from "../server";
 
-export function wsRoomHandler(socket: Socket, io: Server) {
+export function wsRoomHandler(playerSocket: Socket, io: Server) {
 	const roomManager = RoomManager.getInstance();
 
-	socket.on('JOIN_ROOM', (data: JoinRoomEvent) => {
-		const { roomId, playerName } = data;
+	playerSocket.on('JOIN_ROOM', (payload: JoinRoomEvent) => {
+		const { roomId, playerName } = payload;
 
 		// Create player with socket ID
-		const player = new Player(socket.id);
+		const player = new Player(playerSocket.id);
 		player.name = playerName;
 
 		// Join room through RoomManager
-		const result = roomManager.joinRoom(roomId, player, socket);
+		const result = roomManager.joinRoom(roomId, player, playerSocket);
 
 		if (!result.success) {
 			// Send error to the requesting client
-			socket.emit('ROOM_ERROR', result.error);
+			playerSocket.emit('ROOM_ERROR', result.error);
 			return;
 		}
 
 		// Send room state to the joining player
-		socket.emit('ROOM_STATE_UPDATE', result.roomUpdate);
+		playerSocket.emit('ROOM_STATE_UPDATE', result.roomUpdate);
 
 		// Notify other players in the room about the new player
 		if (result.playerJoined) {
-			socket.to(roomId).emit('PLAYER_JOINED', result.playerJoined);
+			playerSocket.to(roomId).emit('PLAYER_JOINED', result.playerJoined);
 		}
 	});
 
-	socket.on('LEAVE_ROOM', (event: LeaveRoomEvent) => {
-		const { roomId } = event;
+	playerSocket.on('LEAVE_ROOM', (payload: LeaveRoomEvent) => {
+		const { roomId } = payload;
 
-		const result = roomManager.leaveRoom(socket.id, socket);
+		const result = roomManager.leaveRoom(playerSocket.id, playerSocket);
 		if (!result.success) {
-			socket.emit('ROOM_ERROR', result);
+			playerSocket.emit('ROOM_ERROR', result);
 			return;
 		}
 
@@ -46,89 +47,55 @@ export function wsRoomHandler(socket: Socket, io: Server) {
 
 		if (data.roomDeleted) {
 			// Confirm to the leaving player
-			socket.emit('LEFT_ROOM', { roomId });
+			playerSocket.emit('LEFT_ROOM', { roomId });
 			return;
 		}
 
 		if (data.roomUpdated) {
 			// Notify remaining players
-			socket.to(roomId).emit('ROOM_STATE_UPDATE', data.roomUpdated);
+			playerSocket.to(roomId).emit('ROOM_STATE_UPDATE', data.roomUpdated);
 		}
 
 		if (data.playerLeft) {
-			socket.to(roomId).emit('PLAYER_LEFT', data.playerLeft);
+			playerSocket.to(roomId).emit('PLAYER_LEFT', data.playerLeft);
 		}
 
 		if (data.hostTransfer) {
-			socket.to(roomId).emit('HOST_TRANSFER', data.hostTransfer);
+			playerSocket.to(roomId).emit('HOST_TRANSFER', data.hostTransfer);
 		}
 
 		// Confirm to the leaving player
-		socket.emit('LEFT_ROOM', { roomId });
+		playerSocket.emit('LEFT_ROOM', { roomId });
 	});
 
-	socket.on('START_GAME', (data: StartGameEvent) => {
-		const { roomId, gameSettings } = data;
+	playerSocket.on('START_GAME', (payload: StartGameEvent) => {
+		const { roomId, gameSettings } = payload;
 
 		Logger.debug(
-			`[START_GAME] Received from socket ${socket.id} for room ${roomId} with settings:`,
+			`[START_GAME] Received from socket ${playerSocket.id} for room ${roomId} with settings:`,
 			gameSettings,
 		);
 
-		const result = roomManager.startGame(roomId, socket.id, gameSettings, io);
+		const result = roomManager.startGame(roomId, playerSocket.id, gameSettings);
 		if (!result.success) {
 			Logger.warn(`[START_GAME] Failed for room ${roomId}: ${result.error?.reason}`);
-			socket.emit('ROOM_ERROR', result.error);
+			playerSocket.emit('ROOM_ERROR', result.error);
 			return;
 		}
 
-		Logger.info(`[START_GAME] Success for room ${roomId}, created ${result.gameIds?.length} games`);
+		const data = result.data;
+		Logger.info(`[START_GAME] Success for room ${roomId}`);
 
-		// Set up socket connections for each created game
-		if (result.gameIds && result.roomUpdate) {
-			const room = roomManager.getRoom(roomId);
-			if (room) {
-				const gameManager = GameManager.getInstance();
-
-				// Connect each game to its player's socket
-				for (const gameId of result.gameIds) {
-					const game = gameManager.getGame(gameId);
-					if (game) {
-						// Find the socket for this game's player
-						const playerSocket = io.sockets.sockets.get(game.player.socketId);
-						if (playerSocket) {
-							game.setSocket(playerSocket);
-							// Emit game started with the specific gameId to this player
-							playerSocket.emit('GAME_STARTED', { gameId });
-						}
+		for (const gameId of data.gameIds) {
+			const playerSocketIds = wsManager.io.sockets.adapter.rooms.get(roomId);
+			if (playerSocketIds) {
+				for (const socketId of playerSocketIds) {
+					const socket = wsManager.io.sockets.sockets.get(socketId);
+					if (socket) {
+						socket.emit('GAME_STARTED', { roomInfo: data.roomInfo, gameId });
 					}
 				}
 			}
-
-			// Broadcast room state update to all players
-			io.to(roomId).emit('ROOM_STATE_UPDATE', result.roomUpdate);
 		}
-	});
-
-	socket.on('RESTART_GAME', (data: RestartGameEvent) => {
-		const { roomId } = data;
-
-		const result = roomManager.resetGame(roomId, socket.id);
-
-		if (!result.success) {
-			socket.emit('ROOM_ERROR', result.error);
-			return;
-		}
-
-		// Broadcast game reset to all players in room
-		if (result.roomUpdate) {
-			io.to(roomId).emit('ROOM_STATE_UPDATE', result.roomUpdate);
-			io.to(roomId).emit('GAME_RESET', { roomId });
-		}
-	});
-
-	// Handle ping/pong for latency measurement
-	socket.on('ping', (timestamp: number) => {
-		socket.emit('pong', timestamp);
 	});
 }

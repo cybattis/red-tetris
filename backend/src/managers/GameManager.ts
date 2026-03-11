@@ -2,7 +2,6 @@ import { Game } from '../classes/Game.js';
 import { Player } from '../classes/Player.js';
 import { GameSettings } from '@shared/types/game';
 import { Logger } from '../utils/helpers';
-import type { Socket } from 'socket.io';
 import type { Room } from '../classes/Room.js';
 
 export class GameManager {
@@ -23,10 +22,9 @@ export class GameManager {
     player: Player,
     settings: GameSettings,
     seed: number,
-    socket?: Socket,
-    room?: Room,
+    room: Room,
   ): Game {
-    const game = new Game(player, seed, settings, socket, room);
+    const game = new Game(player, seed, settings, room);
     this._games.set(game.id, game);
     Logger.info(
       `GameManager: Created game ${game.id} for player ${player.name}. Total active games: ${this._games.size}`,

@@ -3,7 +3,9 @@ import { Game } from './Game';
 import { Logger } from '../utils/helpers';
 import { GameManager } from '../managers/GameManager';
 import { GameSettings, GameMode } from '@shared/types/game';
-import { RoomState, RoomPlayer, RoomInfo, ROOM_CONFIG } from '@shared/types/room';
+import { RoomState, RoomPlayer, RoomInfo, ROOM_CONFIG, RoomResults } from '@shared/types/room';
+import { Server } from 'socket.io';
+import { wsManager } from '../server';
 
 // Default game settings for rooms
 const DEFAULT_GAME_SETTINGS: GameSettings = {
@@ -26,6 +28,9 @@ export class Room {
   private _state: RoomState = 'waiting';
   private _gameStartedAt?: Date;
   private _cleanupTimer?: NodeJS.Timeout;
+
+  private readonly _io: Server = wsManager.io;
+  private readonly _gameManager: GameManager = GameManager.getInstance();
 
   constructor(id: string) {
     this.id = id;
@@ -63,6 +68,10 @@ export class Room {
 
   get isFull(): boolean {
     return this._players.size >= ROOM_CONFIG.MAX_PLAYERS;
+  }
+
+  get io(): Server {
+    return this._io;
   }
 
   // Player management
@@ -119,8 +128,7 @@ export class Room {
     }
 
     // Clean up any associated games through GameManager
-    const gameManager = GameManager.getInstance();
-    const stoppedGames = gameManager.stopGamesByPlayerId(playerId);
+    const stoppedGames = this._gameManager.stopGamesByPlayerId(playerId);
     if (stoppedGames > 0) {
       Logger.info(`Stopped ${stoppedGames} game(s) for player ${playerId} leaving room ${this.id}`);
     }
@@ -182,27 +190,31 @@ export class Room {
 
   // Game management
   // --------------------------------------------------------------
-  public startGame(customSettings?: Partial<GameSettings>,): {
-    success: boolean;
-    reason?: string;
-    gameIds?: string[];
-  } {
+  public startGame(customSettings?: Partial<GameSettings>,): RoomResults<{ gameIds: string[]; roomUpdate: RoomInfo }> {
     Logger.info(`Room.startGame() called for room ${this.id}, current state: ${this._state}`);
 
     if (this._state === 'playing') {
       Logger.info(`Cannot start game - already playing`);
-      return { success: false, reason: 'Game already in progress' };
+      return {
+        success: false,
+        error: {
+          reason: 'Game already in progress',
+          roomId: this.id,
+          code: 'ALREADY_PLAYING',
+        },
+      };
     }
-
-    // If the previous game ended, reset to waiting state to allow a new game
-    if (this._state === 'ended') {
-      Logger.info(`Resetting room ${this.id} from 'ended' to 'waiting' to start new game`);
-      this._state = 'waiting';
-    } // TODO Check if previous game is saved in history and allow starting new game without resetting if so
 
     if (this._players.size === 0) {
       Logger.error(`Cannot start game - no players`);
-      return { success: false, reason: 'No players in room' };
+      return {
+        success: false,
+        error: {
+          reason: 'No players in room',
+          roomId: this.id,
+          code: 'ROOM_NOT_FOUND'
+        }
+      };
     }
 
     Logger.info(`Room ${this.id} ready to start game with ${this._players.size} players`);
@@ -227,14 +239,12 @@ export class Room {
     // Create games for each player using GameManager
     for (const player of this._players.values()) {
       try {
-
         // Create game using GameManager
-        const game = GameManager.getInstance().createGame(
+        const game = this._gameManager.createGame(
           player,
           gameSettings,
           seed,
-          undefined, // socket will be set up separately
-          this, // Pass room reference for multiplayer support
+          this // Room reference for multiplayer interactions
         );
 
         // Store game in Room's map for tracking
@@ -274,7 +284,7 @@ export class Room {
     }
 
     Logger.info(`Game started in room ${this.id} with ${this._players.size} players`);
-    return { success: true, gameIds };
+    return { success: true, data: { gameIds, roomUpdate: this.toRoomInfo() } };
   }
 
   public endGame(): void {
@@ -338,22 +348,20 @@ export class Room {
    * This ensures no orphaned game loops or memory leaks
    */
   private cleanupGames(): void {
-    const gameManager = GameManager.getInstance();
-
     // Stop and remove games from Room's map
     for (const game of this._games.values()) {
       game.stopGame();
-      gameManager.removeGame(game.id);
+      this._gameManager.removeGame(game.id);
     }
     this._games.clear();
 
     // Also clean up any games in GameManager that belong to players in this room
     for (const player of this._players.values()) {
-      const playerGames = gameManager.getGamesByPlayerId(player.id);
+      const playerGames = this._gameManager.getGamesByPlayerId(player.id);
       for (const game of playerGames) {
         Logger.info(`Cleaning up orphaned game ${game.id} for player ${player.name}`);
         game.stopGame();
-        gameManager.removeGame(game.id);
+        this._gameManager.removeGame(game.id);
       }
     }
   }
@@ -406,7 +414,7 @@ export class Room {
   private endAllGames(): void {
     // End all games associated with this room's players
     for (const playerId of this._players.keys()) {
-      GameManager.getInstance().stopGamesByPlayerId(playerId);
+      this._gameManager.stopGamesByPlayerId(playerId);
     }
   }
 

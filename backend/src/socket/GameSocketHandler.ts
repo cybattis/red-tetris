@@ -1,13 +1,13 @@
 import { GameMode, GameSettings, SocketEvents } from "@shared/types/game";
 import { Socket } from "socket.io";
 import { GameManager } from "../managers/GameManager";
-import { RoomManager } from "../managers/RoomManager";
 import { Logger } from "../utils/helpers";
 
 export function wsGameHandler(socket: Socket) {
 	const gameManager = GameManager.getInstance();
 
 	socket.on('PLAYER_INPUT', (payload: SocketEvents<'PLAYER_INPUT'>) => {
+		Logger.debug(`Received PLAYER_INPUT from ${socket.id}:`, payload.data);
 		const { gameId, input } = payload.data;
 		const game = gameManager.getGame(gameId);
 		if (game) {
@@ -15,29 +15,6 @@ export function wsGameHandler(socket: Socket) {
 		} else {
 			Logger.warn(`Game not found: ${gameId}`);
 		}
-	});
-
-	// Handle game ended event (from Game class)
-	socket.on('GAME_ENDED', (data: { gameId: string; playerId: string; reason: string }) => {
-		Logger.info(`Game ended: ${data.gameId} for player ${data.playerId} - reason: ${data.reason}`);
-
-		const roomManager = RoomManager.getInstance();
-
-		// Find which room this player belongs to
-		const room = roomManager.findRoomByPlayerId(data.playerId);
-		if (room) {
-			// Notify room that game ended
-			const result = roomManager.endGame(room.id, data.playerId, data.reason);
-			if (result.success && result.roomUpdate) {
-				// Broadcast room state update to all players in the room
-				// For now, we'll rely on the ROOM_STATE_UPDATE being sent elsewhere
-				// TODO: Fix the io scope issue to enable proper broadcasting
-				Logger.info('Game ended, room state should be updated for room:', room.id);
-			}
-		}
-
-		// Clean up the game from GameManager
-		gameManager.removeGame(data.gameId);
 	});
 
 	// Additional socket event handlers for room management

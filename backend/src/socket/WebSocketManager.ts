@@ -13,7 +13,7 @@ export class WebSocketManager {
       cors: {
         origin: '*', // Adjust for production
         methods: ['GET', 'POST'],
-      },
+      }
     });
     Logger.info('WebSocket server initialized');
 
@@ -62,6 +62,11 @@ export class WebSocketManager {
         // Confirm to the leaving player
         socket.emit('LEFT_ROOM', { roomId });
       });
+
+      // Handle ping/pong for latency measurement
+      socket.on('ping', (timestamp: number) => {
+        socket.emit('pong', timestamp);
+      });
     });
   }
 
@@ -72,5 +77,8 @@ export class WebSocketManager {
         Logger.info('WebSocket server closed');
       });
   }
-}
 
+  public getSocketById(socketId: string): Socket | undefined {
+    return this.io.sockets.sockets.get(socketId);
+  }
+}
