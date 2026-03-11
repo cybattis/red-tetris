@@ -118,9 +118,8 @@ export function prepareGameCreationData(
 }
 
 export function canStartGame(players: Player[]): boolean {
-  const allPlayersReady = players.every(p => p.isHost || p.isReady); // Host is always ready
   const hasMinPlayers = players.length >= ROOM_CONFIG.MIN_PLAYERS;
-  return allPlayersReady && hasMinPlayers;
+  return hasMinPlayers;
 }
 
 export function validateGameSettings(settings: GameSettings): boolean {

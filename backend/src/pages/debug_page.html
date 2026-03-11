@@ -29,7 +29,7 @@
 			padding: 1rem;
 		}
 
-		main > .card {
+		main>.card {
 			margin-bottom: .75rem;
 		}
 
@@ -207,6 +207,56 @@
 			background: #0c0f14;
 		}
 
+		.game-item {
+			margin-top: .45rem;
+			padding: .5rem;
+			border: 1px solid var(--border);
+			border-radius: .5rem;
+			background: #111622;
+			display: grid;
+			gap: .2rem;
+		}
+
+		.game-item:first-of-type {
+			margin-top: .35rem;
+		}
+
+		.game-line {
+			display: flex;
+			gap: .35rem;
+			flex-wrap: wrap;
+			font-size: .85rem;
+		}
+
+		.game-label {
+			color: var(--muted);
+			min-width: 4.8rem;
+		}
+
+		.game-value {
+			font-weight: 600;
+		}
+
+		.game-state {
+			display: inline-flex;
+			align-items: center;
+			padding: .08rem .4rem;
+			border-radius: 999px;
+			border: 1px solid var(--border);
+			background: #0c0f14;
+			font-size: .75rem;
+		}
+
+		.game-state.playing {
+			color: #56f0a7;
+			border-color: #1f5b3e;
+		}
+
+		.game-state.ended {
+			color: #f06b6b;
+			border-color: #5b1f1f;
+		}
+
 		.list-header {
 			display: flex;
 			align-items: center;
@@ -271,9 +321,6 @@
 				<div class="row">
 					<label for="playerId">Player ID:</label>
 					<input id="playerId" type="text" value="" placeholder="(socket id)" />
-					<label for="playerReady">Ready:</label>
-					<input id="playerReady" type="checkbox" />
-					<button id="playerReadyBtn" type="button" data-requires-connection>Send Ready</button>
 				</div>
 			</section>
 
@@ -561,7 +608,13 @@
 				const room = rooms.get(roomId);
 				const roomState = room ? room.room.state : 'unknown';
 				const rows = roomGames
-					.map((game) => `<div class="muted">Game: ${game.id} · Player: ${game.playerId} · State: ${game.state}</div>`)
+					.map((game) => `
+						<div class="game-item">
+							<div class="game-line"><span class="game-label">Game</span><span class="game-value">${game.id}</span></div>
+							<div class="game-line"><span class="game-label">Player</span><span class="game-value">${game.playerId || '—'}</span></div>
+							<div class="game-line"><span class="game-label">State</span><span class="game-state ${game.state === 'ended' ? 'ended' : 'playing'}">${game.state}</span></div>
+						</div>
+					`)
 					.join('');
 				card.innerHTML = `
 					<strong>Room: ${roomId}</strong>

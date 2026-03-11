@@ -8,7 +8,6 @@ import { useAppDispatch, useAppSelector } from "../store/index.js";
 import {
   joinRoom,
   leaveRoom,
-  updatePlayerReady,
   updateGameMode,
   updateSetting,
   resetSettings,
@@ -66,7 +65,7 @@ export function GameRoom() {
 
   // Derived state
   const isSoloGame = players.length === 1;
-  
+
   // Ref to prevent duplicate room joining
   const hasJoinedRoom = useRef(false);
 
@@ -137,16 +136,8 @@ export function GameRoom() {
     }
   };
 
-  const handleToggleReady = () => {
-    if (!currentPlayer) return;
-
-    const newReadyStatus = !currentPlayer.isReady;
-    dispatch(
-      updatePlayerReady({
-        playerId: currentPlayer.id,
-        isReady: newReadyStatus,
-      }),
-    );
+  const handleCancelCountdown = () => {
+    dispatch(cancelCountdown());
   };
 
   const handleLeaveRoom = () => {
@@ -286,19 +277,7 @@ export function GameRoom() {
                 : "Start Game"}
             </Button>
           ) : (
-            <Button
-              onClick={handleToggleReady}
-              variant={currentPlayer?.isReady ? "secondary" : "primary"}
-              size="large"
-              fullWidth
-              disabled={countdown !== null}
-            >
-              {countdown !== null
-                ? `Starting in ${countdown}...`
-                : currentPlayer?.isReady
-                  ? "Ready ✓"
-                  : "Ready Up"}
-            </Button>
+            <span className={styles.waitingText}>Waiting for host to start the game...</span>
           )}
         </div>
       </main>

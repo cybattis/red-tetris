@@ -372,6 +372,11 @@ const gameSlice = createSlice({
           // Show line clear animation (only set once, don't clear first)
           state.clearingRows = data.rows;
           break;
+          
+        case 'PENALTY_LINES':
+          // Show penalty line warning animation at the bottom rows
+          state.penaltyRows = data.rows;
+          break;
       }
     },
 

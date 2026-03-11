@@ -3,7 +3,9 @@ import { Game } from './Game';
 import { Logger } from '../utils/helpers';
 import { GameManager } from '../managers/GameManager';
 import { GameSettings, GameMode } from '@shared/types/game';
-import { RoomState, RoomPlayer, RoomInfo, ROOM_CONFIG } from '@shared/types/room';
+import { RoomState, RoomPlayer, RoomInfo, ROOM_CONFIG, RoomResults } from '@shared/types/room';
+import { Server } from 'socket.io';
+import { wsManager } from '../server';
 
 // Default game settings for rooms
 const DEFAULT_GAME_SETTINGS: GameSettings = {
@@ -20,16 +22,19 @@ export class Room {
   private readonly _players: Map<string, Player> = new Map();
   private readonly _spectators: Map<string, Player> = new Map();
   private readonly _games: Map<string, Game> = new Map();
+  private readonly _createdAt: Date;
+
   private _hostId: string | null = null;
   private _state: RoomState = 'waiting';
-  private readonly _createdAt: Date;
   private _gameStartedAt?: Date;
   private _cleanupTimer?: NodeJS.Timeout;
+
+  private readonly _io: Server = wsManager.io;
+  private readonly _gameManager: GameManager = GameManager.getInstance();
 
   constructor(id: string) {
     this.id = id;
     this._createdAt = new Date();
-    Logger.info(`Created room: ${this.id}`);
   }
 
   // Getters
@@ -65,20 +70,20 @@ export class Room {
     return this._players.size >= ROOM_CONFIG.MAX_PLAYERS;
   }
 
+  get io(): Server {
+    return this._io;
+  }
+
   // Player management
+  // --------------------------------------------------------------
   public addPlayer(player: Player): { success: boolean; reason?: string; isSpectator?: boolean } {
     // Check if player already exists
     if (this._players.has(player.id) || this._spectators.has(player.id)) {
       return { success: false, reason: 'Player already in room' };
     }
 
-    // Check if game is in progress (only allow spectators)
-    if (this._state === 'playing') {
-      return this.addSpectator(player);
-    }
-
-    // Check if room is full (add as spectator)
-    if (this.isFull) {
+    // Check if game is in progress or room is full - add as spectator
+    if (this._state === 'playing' || this.isFull) {
       return this.addSpectator(player);
     }
 
@@ -123,8 +128,7 @@ export class Room {
     }
 
     // Clean up any associated games through GameManager
-    const gameManager = GameManager.getInstance();
-    const stoppedGames = gameManager.stopGamesByPlayerId(playerId);
+    const stoppedGames = this._gameManager.stopGamesByPlayerId(playerId);
     if (stoppedGames > 0) {
       Logger.info(`Stopped ${stoppedGames} game(s) for player ${playerId} leaving room ${this.id}`);
     }
@@ -185,27 +189,32 @@ export class Room {
   }
 
   // Game management
-  public startGame(customSettings?: Partial<GameSettings>): {
-    success: boolean;
-    reason?: string;
-    gameIds?: string[];
-  } {
+  // --------------------------------------------------------------
+  public startGame(customSettings?: Partial<GameSettings>,): RoomResults<{ gameIds: string[]; roomInfo: RoomInfo }> {
     Logger.info(`Room.startGame() called for room ${this.id}, current state: ${this._state}`);
 
     if (this._state === 'playing') {
       Logger.info(`Cannot start game - already playing`);
-      return { success: false, reason: 'Game already in progress' };
-    }
-
-    // If the previous game ended, reset to waiting state to allow a new game
-    if (this._state === 'ended') {
-      Logger.info(`Resetting room ${this.id} from 'ended' to 'waiting' to start new game`);
-      this._state = 'waiting';
+      return {
+        success: false,
+        error: {
+          reason: 'Game already in progress',
+          roomId: this.id,
+          code: 'ALREADY_PLAYING',
+        },
+      };
     }
 
     if (this._players.size === 0) {
       Logger.error(`Cannot start game - no players`);
-      return { success: false, reason: 'No players in room' };
+      return {
+        success: false,
+        error: {
+          reason: 'No players in room',
+          roomId: this.id,
+          code: 'ROOM_NOT_FOUND'
+        }
+      };
     }
 
     Logger.info(`Room ${this.id} ready to start game with ${this._players.size} players`);
@@ -224,19 +233,18 @@ export class Room {
 
     const gameIds: string[] = [];
 
+    // Generate a seed for the game (could be room-based for synchronized pieces in multiplayer)
+    const seed = Date.now() + Math.random();
+
     // Create games for each player using GameManager
     for (const player of this._players.values()) {
       try {
-        // Generate a seed for the game (could be room-based for synchronized pieces in multiplayer)
-        const seed = Date.now() + Math.random();
-
         // Create game using GameManager
-        const game = GameManager.getInstance().createGame(
+        const game = this._gameManager.createGame(
           player,
           gameSettings,
           seed,
-          undefined, // socket will be set up separately
-          this, // Pass room reference for multiplayer support
+          this // Room reference for multiplayer interactions
         );
 
         // Store game in Room's map for tracking
@@ -256,6 +264,11 @@ export class Room {
           }
         });
 
+        // Listen for penalty lines event (multiplayer: n-1 lines sent to opponents)
+        game.on('penaltyLines', (data: { fromPlayerId: string; count: number }) => {
+          this.relayPenaltyLines(data.fromPlayerId, data.count);
+        });
+
         // Start the game
         game.start();
         gameIds.push(game.id);
@@ -271,7 +284,7 @@ export class Room {
     }
 
     Logger.info(`Game started in room ${this.id} with ${this._players.size} players`);
-    return { success: true, gameIds };
+    return { success: true, data: { gameIds, roomInfo: this.toRoomInfo() } };
   }
 
   public endGame(): void {
@@ -306,26 +319,49 @@ export class Room {
   }
 
   /**
+   * Relay penalty lines from one player to all other alive opponents.
+   * Called when a player clears n lines — opponents receive (n - 1) indestructible lines.
+   * Only active in multiplayer (2+ players).
+   */
+  private relayPenaltyLines(fromPlayerId: string, count: number): void {
+    if (count <= 0 || this._players.size < 2) return;
+
+    Logger.info(
+      `Relaying ${count} penalty lines from player ${fromPlayerId} to opponents in room ${this.id}`,
+    );
+
+    for (const [playerId, game] of this._games.entries()) {
+      // Skip the player who cleared the lines and any eliminated players
+      if (playerId === fromPlayerId || !game.isAlive) {
+        continue;
+      }
+
+      game.addPenaltyLines(count);
+      Logger.info(
+        `Applied ${count} penalty lines to player ${playerId} in room ${this.id}`,
+      );
+    }
+  }
+
+  /**
    * Clean up all games for players in this room
    * This ensures no orphaned game loops or memory leaks
    */
   private cleanupGames(): void {
-    const gameManager = GameManager.getInstance();
-
     // Stop and remove games from Room's map
     for (const game of this._games.values()) {
       game.stopGame();
-      gameManager.removeGame(game.id);
+      this._gameManager.removeGame(game.id);
     }
     this._games.clear();
 
     // Also clean up any games in GameManager that belong to players in this room
     for (const player of this._players.values()) {
-      const playerGames = gameManager.getGamesByPlayerId(player.id);
+      const playerGames = this._gameManager.getGamesByPlayerId(player.id);
       for (const game of playerGames) {
         Logger.info(`Cleaning up orphaned game ${game.id} for player ${player.name}`);
         game.stopGame();
-        gameManager.removeGame(game.id);
+        this._gameManager.removeGame(game.id);
       }
     }
   }
@@ -336,7 +372,6 @@ export class Room {
       id: player.id,
       name: player.name,
       isHost: this.isHost(player.id),
-      isReady: true, // TODO: Implement ready state
       isSpectator: false,
     }));
 
@@ -344,7 +379,6 @@ export class Room {
       id: player.id,
       name: player.name,
       isHost: false,
-      isReady: false,
       isSpectator: true,
     }));
 
@@ -380,7 +414,7 @@ export class Room {
   private endAllGames(): void {
     // End all games associated with this room's players
     for (const playerId of this._players.keys()) {
-      GameManager.getInstance().stopGamesByPlayerId(playerId);
+      this._gameManager.stopGamesByPlayerId(playerId);
     }
   }
 

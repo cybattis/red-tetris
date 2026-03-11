@@ -50,11 +50,11 @@ import { GameMode } from '@shared/types/game';
 import type { 
   Player, 
   GameSettings 
-} from '../../../src/types/game';
+} from '@types/game.ts';
 import { 
   DEFAULT_SETTINGS, 
   ROOM_CONFIG 
-} from '../../../src/types/game';
+} from '@types/game.ts';
 import type {
   RoomInfo,
   RoomState as BackendRoomState,

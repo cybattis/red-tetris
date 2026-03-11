@@ -45,7 +45,7 @@ export function SocketTest() {
     if (socket) return;
 
     // Adjust URL if your backend runs on a different port/host
-    const newSocket = io('ws://localhost:8000', {
+    const newSocket = io('ws://192.168.122.1:8000', {
       transports: ['websocket'],
     });
 

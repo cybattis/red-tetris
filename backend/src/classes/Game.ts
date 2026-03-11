@@ -5,10 +5,10 @@ import { PiecesSequence } from './PiecesSequence';
 import { Piece } from './Piece';
 import { Logger } from '../utils/helpers';
 import { TETROMINO_DICTIONARY } from '../pieces/TetrominoFactory';
-import { Position } from '../types/IPiece';
-import type { Socket } from 'socket.io';
+import type { Server } from 'socket.io';
 import { EventEmitter } from 'node:events';
 import type { Room } from './Room';
+import { wsManager } from '../server';
 
 export class Game extends EventEmitter {
   // Game state and public properties
@@ -16,7 +16,10 @@ export class Game extends EventEmitter {
   public readonly player: Player;
   public readonly settings: GameSettings;
   public readonly piecesSequence: PiecesSequence;
-  public readonly room: Room | null; // Reference to the room for multiplayer
+  public readonly room: Room;
+
+  // Access the WebSocket server instance from GameManager
+  private readonly io: Server = wsManager.io;
 
   public state: GameState = GameState.Waiting;
   public board: number[][];
@@ -32,7 +35,6 @@ export class Game extends EventEmitter {
 
   // Store original gravity and current effective gravity for Sprint mode
   private readonly originalGravity: number;
-  private currentGravity: number; // Current effective gravity (modified during Sprint mode)
 
   // Sprint mode constants - simplified approach using gravity acceleration
   private static readonly SPRINT_GRAVITY_INCREASE_PER_LINE = 0.05; // Gravity increases by 0.05 per line cleared
@@ -49,21 +51,16 @@ export class Game extends EventEmitter {
   private _gravityAccumulatorMs = 0;
   private _currentPiece: Piece;
   private _playerInput: GameAction = GameAction.NO_INPUT;
-  private _socket: Socket | null = null;
+  private _starting: boolean = true; // Flag to indicate the first tick for proper initial piece spawning
 
-  // Broadcast throttling for performance
-  private lastBroadcastTime: number = 0;
-  private readonly BROADCAST_THROTTLE_MS = 33; // ~30 FPS max (reduced from 60 FPS to improve performance)
-
-  constructor(player: Player, seed: number, settings: GameSettings, socket?: Socket, room?: Room) {
+  constructor(player: Player, seed: number, settings: GameSettings, room: Room) {
     super();
     this.id = randomUUID();
     this.player = player;
     this.settings = { ...settings }; // Create a copy to avoid modifying the original settings
     this.originalGravity = settings.gravity; // Store original gravity for restoration
-    this.currentGravity = settings.gravity; // Initialize current gravity to original value
-    this.room = room || null; // Store room reference for multiplayer
-    this._socket = socket || null;
+    this.room = room;
+
     this.piecesSequence = new PiecesSequence(seed, 7);
     this.board = this.createEmptyBoard();
     this._currentPiece = this.getNextPiece();
@@ -96,11 +93,7 @@ export class Game extends EventEmitter {
     }
 
     // Reset gravity to original value to prevent persistent effects
-    this.currentGravity = this.originalGravity;
     this.settings.gravity = this.originalGravity;
-
-    // Clear socket reference to prevent memory leaks
-    this._socket = null;
 
     // Remove all event listeners from this EventEmitter
     this.removeAllListeners();
@@ -124,10 +117,10 @@ export class Game extends EventEmitter {
       board: this.board,
       currentPiece: this._currentPiece
         ? {
-            type: this._currentPiece.id,
-            position: this._currentPiece.position,
-            shape: this._currentPiece.shape,
-          }
+          type: this._currentPiece.id,
+          position: this._currentPiece.position,
+          shape: this._currentPiece.shape,
+        }
         : null,
       ghostPiece: this.settings.ghostPiece ? this.calculateGhostPiece() : null,
       nextPieces: this.getNextPiecesPreview(),
@@ -150,56 +143,10 @@ export class Game extends EventEmitter {
       isGameOver: gameState.isGameOver,
       gameOverReason: gameState.gameOverReason,
       isPaused: gameState.isPaused,
-      opponentsCount: opponents.length,
+      opponentsCount: this.room?.playerCount
     });
 
     return gameState;
-  }
-
-  /**
-   * Get opponent data for multiplayer games
-   */
-  private getOpponentsData() {
-    if (!this.room) {
-      return []; // Single player mode
-    }
-
-    const opponents: any[] = [];
-    const allPlayers = this.room.players;
-
-    for (const player of allPlayers) {
-      // Skip the current player
-      if (player.id === this.player.id) {
-        continue;
-      }
-
-      // Get the opponent's game
-      const opponentGame = this.room.getGame(player.id);
-      if (!opponentGame) {
-        continue; // Skip if game not found
-      }
-
-      // Include full game data for 2-player mode
-      opponents.push({
-        playerId: player.id,
-        playerName: player.name,
-        spectrum: this.calculateSpectrum(opponentGame.board),
-        score: opponentGame.score,
-        isEliminated: !opponentGame.isAlive,
-        // Include full board data for 2-player visibility
-        board: opponentGame.board,
-        nextPieces: opponentGame.getNextPiecesPreview(),
-        currentPiece: opponentGame._currentPiece
-          ? {
-              type: opponentGame._currentPiece.id,
-              position: opponentGame._currentPiece.position,
-              shape: opponentGame._currentPiece.shape,
-            }
-          : null,
-      });
-    }
-
-    return opponents;
   }
 
   /**
@@ -230,37 +177,19 @@ export class Game extends EventEmitter {
     });
   }
 
-  // Socket communication methods
-  // ============================================
-  public setSocket(socket: Socket): void {
-    this._socket = socket;
-
-    // Broadcast initial game state
-    if (this.state === GameState.Playing) {
-      this.broadcastGameState();
-    }
-  }
-
   private broadcastGameState(): void {
-    if (!this._socket) return;
-
-    // Throttle broadcasts to prevent excessive network traffic and improve performance
-    const now = Date.now();
-    if (now - this.lastBroadcastTime < this.BROADCAST_THROTTLE_MS) {
-      return; // Skip broadcast if within throttle window
-    }
-
-    this.lastBroadcastTime = now;
     const gameState = this.getGameState();
-    this._socket.emit('GAME_STATE_UPDATE', gameState);
+    if (!this.io.to(this.room?.id!).emit('GAME_STATE_UPDATE', gameState)) {
+      Logger.warn(`Failed to broadcast game state for game ${this.id} in room ${this.room?.id}`);
+    }
   }
 
   private broadcastAnimation(animationType: string, data: any): void {
-    if (this._socket) {
-      this._socket.emit('GAME_ANIMATION', {
-        type: animationType,
-        data: data,
-      });
+    if (!this.io.to(this.room?.id!).emit('GAME_ANIMATION', {
+      type: animationType,
+      data: data,
+    })) {
+      Logger.warn(`Failed to broadcast game animation for game ${this.id} in room ${this.room?.id}`);
     }
   }
 
@@ -278,6 +207,7 @@ export class Game extends EventEmitter {
     const deltaTime = now - this._lastTickAt;
     this._lastTickAt = now;
     this._gravityAccumulatorMs += deltaTime;
+    const hasInput = this._playerInput !== GameAction.NO_INPUT;
 
     // Player input first
     this.processPlayerInput();
@@ -289,7 +219,8 @@ export class Game extends EventEmitter {
     }
 
     // Handle gravity
-    if (this._gravityAccumulatorMs >= this.dropInterval) {
+    const gravityActivation = this._gravityAccumulatorMs >= this.dropInterval;
+    if (gravityActivation) {
       this._gravityAccumulatorMs = 0;
       const gravityPos = {
         x: this._currentPiece.position.x,
@@ -315,8 +246,95 @@ export class Game extends EventEmitter {
     // Update the board (handles piece placement and spawning if needed)
     this.updateBoard();
 
-    // Broadcast game state to connected clients
-    this.broadcastGameState();
+    if (hasInput || gravityActivation || this._starting) {
+      this._starting = false; // Clear the starting flag after the first update
+      // Broadcast game state to connected clients
+      this.broadcastGameState();
+    }
+  }
+
+  /**
+   * Process player input independently from gravity.
+   * Horizontal moves are validated on their own so a wall collision
+   * cannot be confused with a downward collision.
+   */
+  private processPlayerInput(): void {
+    const input = this._playerInput;
+    if (input === GameAction.NO_INPUT) return;
+
+    // Clear the buffered input immediately to prevent re-processing
+    this._playerInput = GameAction.NO_INPUT;
+
+    if (input === GameAction.ROTATE_CW) {
+      this.attemptRotation();
+      return;
+    }
+
+    if (input === GameAction.HARD_DROP) {
+      const dropDistance = this.calculateHardDropDistance();
+      const startY = this._currentPiece.position.y;
+      const endY = startY + dropDistance;
+
+      const hardDropBonus = dropDistance + 1;
+      this.addHardDropBonus(hardDropBonus);
+
+      // Create hard drop trail data for each column of the piece
+      const trailData = [];
+      for (const cell of this._currentPiece.getOccupiedCells()) {
+        trailData.push({
+          x: this._currentPiece.position.x + cell.x,
+          startY: startY + cell.y,
+          endY: endY + cell.y,
+          type: this._currentPiece.id,
+        });
+      }
+
+      this.broadcastAnimation('HARD_DROP', {
+        trail: trailData,
+        timestamp: Date.now(),
+      });
+
+      this._currentPiece.position.y += dropDistance;
+      this._currentPiece.isLocked = true;
+      return;
+    }
+
+    if (input === GameAction.SOFT_DROP) {
+      // Soft drop: move down by one
+      const softDropPos = {
+        x: this._currentPiece.position.x,
+        y: this._currentPiece.position.y + 1,
+      };
+      this._gravityAccumulatorMs = 0;
+
+      if (this.checkCollision(softDropPos.x, softDropPos.y)) {
+        // Soft drop hit something
+        if (!this._currentPiece.isLocked) {
+          if (this._currentPiece.position.y <= 0) {
+            this.GameOver();
+            return;
+          }
+          this._currentPiece.isLocked = true;
+        }
+      } else {
+        this._currentPiece.position = softDropPos;
+      }
+      return;
+    }
+
+    // Horizontal movement independent from vertical movement
+    if (input === GameAction.MOVE_LEFT || input === GameAction.MOVE_RIGHT) {
+      const dx = input === GameAction.MOVE_LEFT ? -1 : 1;
+      const movePos = {
+        x: this._currentPiece.position.x + dx,
+        y: this._currentPiece.position.y,
+      };
+
+      if (!this.checkCollision(movePos.x, movePos.y)) {
+        this._currentPiece.position = movePos;
+      }
+      // If collision, simply ignore the horizontal move (no locking!)
+    }
   }
 
   /**
@@ -518,8 +536,12 @@ export class Game extends EventEmitter {
     const linesToClear: number[] = [];
 
     // Check each row for completed lines
+    // Penalty rows (containing type 8 blocks) are indestructible and cannot be cleared
     for (let y = 0; y < this.settings.boardHeight; y++) {
-      if (this.board[y].every((cell) => cell !== 0)) {
+      const row = this.board[y];
+      const isFull = row.every((cell) => cell !== 0);
+      const isPenaltyRow = row.some((cell) => cell === 8);
+      if (isFull && !isPenaltyRow) {
         linesToClear.push(y);
       }
     }
@@ -570,7 +592,6 @@ export class Game extends EventEmitter {
   }
 
   private GameOver(): void {
-    Logger.info('Backend GameOver() called - setting isAlive to false');
     this.isAlive = false;
     this.state = GameState.Ended;
 
@@ -582,17 +603,7 @@ export class Game extends EventEmitter {
     // Broadcast final game state to the client
     this.broadcastGameState();
 
-    // Emit GAME_ENDED event to notify the server/room management
-    if (this._socket) {
-      this._socket.emit('GAME_ENDED', {
-        gameId: this.id,
-        playerId: this.player.id,
-        reason: 'Game Over',
-      });
-    }
-
-    // Emit internal game ended event for GameManager/Room to listen
-    this.emit('gameEnded', {
+    this.room.io.to(this.room?.id!).emit('GAME_OVER', {
       gameId: this.id,
       playerId: this.player.id,
       reason: 'Game Over',
@@ -603,14 +614,53 @@ export class Game extends EventEmitter {
     Logger.info(`Game ${this.id} ended for player ${this.player.name}`);
   }
 
-  private addPenaltyLines(count: number): void {
+  /**
+   * Add indestructible penalty lines at the bottom of the board.
+   * Each penalty line is completely filled with a special block value (8 = PENALTY) — no gaps.
+   * Existing rows shift upward; top rows are removed to keep board size constant.
+   * If the displaced rows cause the current piece to overlap, the game ends.
+   */
+  public addPenaltyLines(count: number): void {
+    if (count <= 0) return;
     Logger.info(`Adding ${count} penalty lines to player ${this.player.name}`);
-    const penaltyLine = new Array(this.settings.boardWidth).fill(1);
 
-    // Add penalty lines at the bottom
+    const penaltyRowIndices: number[] = [];
+
     for (let i = 0; i < count; i++) {
-      this.board.pop(); // Remove top line
-      this.board.unshift(penaltyLine); // Add penalty line at the bottom
+      // Create a fully filled penalty line with indestructible blocks (type 8 = PENALTY)
+      // No gaps — penalty lines are completely solid and unclearable
+      const penaltyLine = new Array(this.settings.boardWidth).fill(8);
+
+      // Remove the top row (shift everything up)
+      this.board.shift();
+      // Add penalty line at the bottom
+      this.board.push([...penaltyLine]); // Push a copy to avoid any reference issues
+    }
+
+    // Adjust current piece position upward to compensate for board shift
+    // Without this, the piece would be "count" rows lower relative to the board content
+    if (this._currentPiece && !this._currentPiece.isLocked) {
+      this._currentPiece.position.y -= count;
+    }
+
+    // Collect penalty row indices (bottom N rows)
+    for (let i = 0; i < count; i++) {
+      penaltyRowIndices.push(this.settings.boardHeight - 1 - i);
+    }
+
+    // Broadcast penalty animation to this player so they see the warning flash
+    this.broadcastAnimation('PENALTY_LINES', {
+      rows: penaltyRowIndices,
+      count,
+      timestamp: Date.now(),
+    });
+
+    // Check if penalty lines pushed existing content into spawn area causing game over
+    if (this._currentPiece && !this._currentPiece.isLocked) {
+      if (this.checkCollision(this._currentPiece.position.x, this._currentPiece.position.y)) {
+        Logger.warn(`Penalty lines caused collision for player ${this.player.name} — Game Over`);
+        this.GameOver();
+      }
     }
   }
 
@@ -648,17 +698,20 @@ export class Game extends EventEmitter {
       });
     }
 
-    // Reduce excessive board logging for performance
-    // Only log in debug mode or for significant events
-    // for (let i = 0; i < Math.min(10, this.board.length); i++) {
-    //   Logger.info(`   ${i}: ${this.board[i].join(' ')}`);
-    // }
-
     // Update score based on lines cleared
     this.updateScore(linesToClear.length);
 
     // Update drop interval after clearing lines (for speed-based modes like Sprint)
     this.updateDropInterval();
+
+    // Emit penalty event for multiplayer: opponents receive (n - 1) indestructible lines
+    const penaltyCount = Math.max(0, linesToClear.length - 1);
+    if (penaltyCount > 0 && this.room) {
+      this.emit('penaltyLines', {
+        fromPlayerId: this.player.id,
+        count: penaltyCount,
+      });
+    }
   }
 
   private addHardDropBonus(bonus: number): void {

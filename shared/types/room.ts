@@ -1,4 +1,4 @@
-import { GameSettings } from './game';
+import type { GameSettings } from './game';
 
 export type RoomState = 'waiting' | 'playing' | 'ended';
 
@@ -6,7 +6,6 @@ export interface RoomPlayer {
   id: string;
   name: string;
   isHost: boolean;
-  isReady: boolean;
   isSpectator: boolean;
 }
 
@@ -48,7 +47,6 @@ export interface HostTransferEvent {
 export interface PlayerJoinedEvent {
   roomId: string;
   player: RoomPlayer;
-  isSpectator: boolean;
 }
 
 export interface PlayerLeftEvent {
@@ -56,8 +54,11 @@ export interface PlayerLeftEvent {
   playerId: string;
 }
 
-export interface RoomStateUpdateEvent {
-  room: RoomInfo;
+export interface RoomLeaveEvent {
+  roomInfo?: RoomInfo;
+  playerLeft?: PlayerLeftEvent;
+  hostTransfer?: HostTransferEvent;
+  roomDeleted?: boolean;
 }
 
 export interface SpectatorJoinedEvent {
@@ -67,8 +68,9 @@ export interface SpectatorJoinedEvent {
 
 export interface RoomErrorEvent {
   roomId: string;
-  error: string;
-  code: 'ROOM_FULL' | 'ROOM_NOT_FOUND' | 'PLAYER_EXISTS' | 'GAME_IN_PROGRESS' | 'NOT_HOST';
+  reason: string;
+  code: 'ROOM_FULL' | 'ROOM_NOT_FOUND' | 'PLAYER_EXISTS' | 'GAME_IN_PROGRESS' |
+  'NOT_HOST' | 'NOT_READY' | 'UNKNOWN_ERROR' | 'ALREADY_PLAYING';
 }
 
 // Room configuration
@@ -77,3 +79,11 @@ export const ROOM_CONFIG = {
   CLEANUP_TIMEOUT_MS: 5 * 60 * 1000, // 5 minutes
   MAX_SPECTATORS: 10,
 } as const;
+
+export type RoomResults<T> = {
+  success: true;
+  data: T;
+} | {
+  success: false;
+  error: RoomErrorEvent;
+};
