@@ -179,11 +179,14 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
         });
 
         socket.on('SETTINGS_UPDATED', (data) => {
-          dispatch(updateSettings(data.settings));
+          dispatch(updateSettings({ ...data.settings, _fromSocket: true } as any));
         });
 
         socket.on('GAME_MODE_UPDATED', (data) => {
-          dispatch(updateGameMode(data.gameMode));
+          // Mark this action as coming from socket to prevent re-emission
+          const action = updateGameMode(data.gameMode);
+          (action as any).meta = { fromSocket: true };
+          dispatch(action);
         });
 
         socket.on('GAME_STARTING', (data) => {
@@ -300,7 +303,28 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
         break;
       }
 
+      case 'gameRoom/updateSettings': {
+        // Don't emit if this action came from a socket event (prevents infinite loop)
+        if ((action as any).meta?.fromSocket || (action.payload as any)?._fromSocket) {
+          break;
+        }
+        
+        const socket = state.connection.socket;
+        if (socket && socket.connected) {
+          socket.emit('UPDATE_SETTINGS', {
+            roomId: state.gameRoom.roomId,
+            settings: state.gameRoom.settings,
+          });
+        }
+        break;
+      }
+
       case 'gameRoom/updateGameMode': {
+        // Don't emit if this action came from a socket event (prevents infinite loop)
+        if ((action as any).meta?.fromSocket) {
+          break;
+        }
+        
         const socket = state.connection.socket;
         if (socket && socket.connected) {
           socket.emit('UPDATE_GAME_MODE', {

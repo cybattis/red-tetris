@@ -15,44 +15,47 @@
   justify-content: center;
   gap: 0.375rem;
   padding: 1rem 0.75rem;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(0, 229, 255, 0.08);
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .gameModeButton:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(0, 229, 255, 0.06);
+  border-color: rgba(0, 229, 255, 0.2);
 }
 
 .gameModeButton:disabled {
   cursor: not-allowed;
-  opacity: 0.6;
+  opacity: 0.5;
 }
 
 .gameModeButton.gameModeActive {
-  background: rgba(0, 255, 255, 0.1);
-  border-color: #00ffff;
-  box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+  background: rgba(0, 229, 255, 0.08);
+  border-color: rgba(0, 229, 255, 0.5);
+  box-shadow:
+    0 0 8px rgba(0, 229, 255, 0.15),
+    0 0 20px rgba(0, 229, 255, 0.08);
 }
 
 .gameModeName {
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #fff;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .gameModeActive .gameModeName {
-  color: #00ffff;
+  color: #00e5ff;
+  text-shadow: 0 0 8px rgba(0, 229, 255, 0.4);
 }
 
 .gameModeDescription {
-  font-size: 0.7rem;
-  color: #888;
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.3);
   text-align: center;
   line-height: 1.3;
 }

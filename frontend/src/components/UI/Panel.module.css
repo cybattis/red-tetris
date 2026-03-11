@@ -1,36 +1,44 @@
 .panel {
-  border-radius: 0.75rem;
+  border-radius: 8px;
   overflow: hidden;
+  transition: border-color 0.2s;
 }
 
 .default {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(10, 10, 20, 0.85);
+  border: 1px solid rgba(0, 229, 255, 0.15);
+  backdrop-filter: blur(12px);
+  box-shadow:
+    0 0 1px rgba(0, 229, 255, 0.2),
+    0 4px 24px rgba(0, 0, 0, 0.5);
 }
 
 .glass {
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+  background: rgba(10, 10, 20, 0.7);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(0, 229, 255, 0.12);
+  box-shadow:
+    0 0 1px rgba(0, 229, 255, 0.15),
+    0 4px 24px rgba(0, 0, 0, 0.4);
 }
 
 .solid {
-  background: #1a1f2e;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(12, 12, 24, 0.95);
+  border: 1px solid rgba(0, 229, 255, 0.12);
 }
 
 .title {
-  padding: 1rem 1.25rem;
+  padding: 0.85rem 1.25rem;
   margin: 0;
-  font-size: 0.875rem;
-  font-weight: 600;
+  font-size: 0.7rem;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: #00d4ff;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(0, 0, 0, 0.2);
+  letter-spacing: 0.18em;
+  color: rgba(0, 229, 255, 0.8);
+  border-bottom: 1px solid rgba(0, 229, 255, 0.12);
+  background: rgba(0, 229, 255, 0.04);
   text-align: center;
+  text-shadow: 0 0 8px rgba(0, 229, 255, 0.3);
 }
 
 .content {
@@ -38,5 +46,5 @@
 }
 
 .panel:hover {
-  border-color: rgba(255, 255, 255, 0.15);
+  border-color: rgba(0, 229, 255, 0.25);
 }

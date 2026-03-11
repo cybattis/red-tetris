@@ -13,7 +13,6 @@ export interface GameOverOverlayProps {
   reason?: string;
   stats: GameOverStats;
   isWinner?: boolean;
-  onPlayAgain?: () => void;
   onReturnToLobby?: () => void;
   onReturnHome?: () => void;
 }
@@ -23,7 +22,6 @@ export const GameOverOverlay = memo(function GameOverOverlay({
   reason = 'Game Over',
   stats,
   isWinner = false,
-  onPlayAgain,
   onReturnToLobby,
   onReturnHome,
 }: GameOverOverlayProps) {
@@ -77,13 +75,8 @@ export const GameOverOverlay = memo(function GameOverOverlay({
         </div>
 
         <div className={`${styles.buttonsContainer} ${showButtons ? styles.visible : ''}`}>
-          {onPlayAgain && (
-            <button className={styles.primaryButton} onClick={onPlayAgain}>
-              Play Again
-            </button>
-          )}
           {onReturnToLobby && (
-            <button className={styles.secondaryButton} onClick={onReturnToLobby}>
+            <button className={styles.primaryButton} onClick={onReturnToLobby}>
               Return to Lobby
             </button>
           )}

@@ -36,7 +36,6 @@ export interface GameViewProps {
   playerName?: string;
   isHost?: boolean;
   onLeave?: () => void;
-  onPlayAgain?: () => void;
   onReturnHome?: () => void;
 }
 
@@ -45,7 +44,6 @@ export function GameView({
   playerName = 'Player',
   isHost = false,
   onLeave,
-  onPlayAgain,
   onReturnHome,
 }: GameViewProps) {
   const dispatch = useAppDispatch();
@@ -67,6 +65,10 @@ export function GameView({
   const gameSettings = useAppSelector(selectGameSettings);
   const gameMode = useAppSelector(selectGameMode);
   
+  // Determine game mode based on opponents
+  const isSoloGame = opponents.length === 0;
+  const opponent = opponents[0]; // For 1v1, we only have one opponent
+  
   // Debug log game over state
   console.log(' GameView render - Game Over State:', {
     isGameOver,
@@ -75,13 +77,31 @@ export function GameView({
   });
   
   console.log(' GameView render - Multiplayer State:', {
-    isSoloGame: opponents.length === 0,
+    isSoloGame,
     opponentsCount: opponents.length,
-    opponent: opponents[0],
+    opponent,
   });
   
   // Determine if invisible mode is active
   const isInvisible = gameMode === 'invisible';
+  
+  // Check if all opponents are eliminated (victory condition for multiplayer)
+  const allOpponentsEliminated = !isSoloGame && opponents.length > 0 && 
+    opponents.every(opp => opp.isEliminated);
+  
+  // Determine if we should show game over overlay and whether it's a victory
+  const showGameOverOverlay = isGameOver || allOpponentsEliminated;
+  const isVictory = allOpponentsEliminated && !isGameOver;
+  
+  console.log(' GameView - Victory Logic:', {
+    allOpponentsEliminated,
+    showGameOverOverlay,
+    isVictory,
+    opponentsStatus: opponents.map(opp => ({
+      name: opp.playerName,
+      isEliminated: opp.isEliminated
+    }))
+  });
   
   // Animation data from server
   const lockedCells = useAppSelector(selectLockedCells);
@@ -90,10 +110,6 @@ export function GameView({
   // Local state for debug animations (keep for debugging)
   const [debugLockedCells, setDebugLockedCells] = useState<{ x: number; y: number; type: number }[]>([]);
   const [debugHardDropTrail, setDebugHardDropTrail] = useState<{ x: number; startY: number; endY: number; type: number }[]>([]);
-
-  // Determine game mode based on opponents
-  const isSoloGame = opponents.length === 0;
-  const opponent = opponents[0]; // For 1v1, we only have one opponent
 
   // Use refs to prevent multiple overlapping animations
   const lockedCellsTimeoutRef = useRef<number | null>(null);
@@ -216,16 +232,15 @@ export function GameView({
   return (
     <div className={styles.container}>
       <GameOverOverlay
-        isVisible={isGameOver}
-        reason={gameOverReason ?? 'Game Over'}
-        isWinner={gameOverReason === 'Victory!'}
+        isVisible={showGameOverOverlay}
+        reason={isVictory ? 'Victory!' : (gameOverReason ?? 'Game Over')}
+        isWinner={isVictory}
         stats={{
           score,
           linesCleared: totalLinesCleared,
-          placement: opponents.length > 0 ? 1 : undefined,
+          placement: opponents.length > 0 ? (isVictory ? 1 : 2) : undefined,
           totalPlayers: opponents.length > 0 ? opponents.length + 1 : undefined,
         }}
-        onPlayAgain={onPlayAgain}
         onReturnToLobby={onLeave}
         onReturnHome={onReturnHome}
       />

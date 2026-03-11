@@ -14,7 +14,6 @@ import {
   resetSettings,
   startCountdown,
   updateCountdown,
-  cancelCountdown,
   selectPlayers,
   selectCurrentPlayer,
   selectIsHost,
@@ -39,6 +38,7 @@ import {
   CountdownOverlay,
 } from "../components/Lobby";
 import { GameView } from "../components/Game";
+import { TetrisBackground } from "../components/UI/TetrisBackground";
 import { useGameInput } from "../hooks";
 
 export function GameRoom() {
@@ -137,10 +137,6 @@ export function GameRoom() {
     }
   };
 
-  const handleCancelCountdown = () => {
-    dispatch(cancelCountdown());
-  };
-
   const handleToggleReady = () => {
     if (!currentPlayer) return;
 
@@ -157,19 +153,6 @@ export function GameRoom() {
     dispatch(leaveRoom());
     navigate("/");
   };
-
-  const handlePlayAgain = useCallback(() => {
-    // End the current game state and immediately start a new game
-    dispatch({ type: 'gameRoom/endGame' });
-    dispatch(resetGame());
-    
-    // Automatically start a new game with the same settings
-    setTimeout(() => {
-      if (gameCreationData) {
-        dispatch(startCountdown());
-      }
-    }, 100); // Small delay to ensure state is updated
-  }, [dispatch, gameCreationData]);
 
   const handleReturnToLobby = useCallback(() => {
     // End the current game state and return to lobby
@@ -210,6 +193,7 @@ export function GameRoom() {
   if (error) {
     return (
       <div className={styles.container}>
+        <TetrisBackground pieceCount={50} />
         <div className={styles.gameView}>
           <h2>Error</h2>
           <p>{error}</p>
@@ -230,7 +214,6 @@ export function GameRoom() {
           playerName={playerName}
           isHost={isHost}
           onLeave={handleReturnToLobby}
-          onPlayAgain={handlePlayAgain}
           onReturnHome={handleReturnHome}
         />
       </>
@@ -239,11 +222,11 @@ export function GameRoom() {
 
   return (
     <div className={styles.container}>
+      <TetrisBackground pieceCount={50} />
+
       {countdown !== null && (
         <CountdownOverlay
           count={countdown}
-          showCancel={isHost}
-          onCancel={handleCancelCountdown}
         />
       )}
 

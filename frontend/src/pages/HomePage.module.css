@@ -1,3 +1,7 @@
+/* ═══════════════════════════════════════════════════════════
+   HomePage — Dark Neon Theme
+   ═══════════════════════════════════════════════════════════ */
+
 .container {
   position: relative;
   height: 100vh;
@@ -5,23 +9,69 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 1.5rem;
-  padding-top: 0;
-  gap: 2rem;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f0f23 100%);
+  padding: 2rem;
+  gap: 2.5rem;
+  background: #0a0a12;
   overflow: hidden;
 }
+
+/* ── Header / Logo ────────────────────────────────────── */
+
+.header {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.title {
+  font-size: 3.5rem;
+  font-weight: 900;
+  margin: 0;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.titleRed {
+  color: #ff003c;
+  text-shadow:
+    0 0 6px rgba(255, 0, 60, 0.9),
+    0 0 20px rgba(255, 0, 60, 0.5),
+    0 0 40px rgba(255, 0, 60, 0.25);
+}
+
+.titleTetris {
+  color: #00e5ff;
+  text-shadow:
+    0 0 6px rgba(0, 229, 255, 0.9),
+    0 0 20px rgba(0, 229, 255, 0.5),
+    0 0 40px rgba(0, 229, 255, 0.25);
+}
+
+.subtitle {
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 0.8rem;
+  margin: 0.5rem 0 0;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+/* ── Three-column grid ─────────────────────────────────── */
 
 .layout {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1.1fr 1fr;
   gap: 1.5rem;
   width: 100%;
-  max-width: 1100px;
-  align-items: stretch;
+  max-width: 1060px;
+  align-items: start;
 }
+
+/* ── Side Panels ───────────────────────────────────────── */
 
 .sidePanel {
   display: flex;
@@ -29,38 +79,42 @@
   min-height: 0;
 }
 
-.panelCard {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
+/* ── Shared Card ───────────────────────────────────────── */
+
+.card {
+  background: rgba(10, 10, 20, 0.85);
+  border: 1px solid rgba(0, 229, 255, 0.15);
+  border-radius: 8px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   min-height: 0;
   flex: 1;
+  backdrop-filter: blur(12px);
+  box-shadow:
+    0 0 1px rgba(0, 229, 255, 0.2),
+    0 4px 24px rgba(0, 0, 0, 0.5);
 }
 
-.panelTitle {
+.cardTitle {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding: 0.75rem 1rem;
+  padding: 0.85rem 1rem;
   margin: 0;
-  font-size: 0.875rem;
+  font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: #fff;
-  background: rgba(0, 0, 0, 0.2);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  letter-spacing: 0.18em;
+  color: rgba(0, 229, 255, 0.8);
+  background: rgba(0, 229, 255, 0.04);
+  border-bottom: 1px solid rgba(0, 229, 255, 0.12);
   flex-shrink: 0;
+  text-shadow: 0 0 8px rgba(0, 229, 255, 0.3);
 }
 
-.panelIcon {
-  font-size: 1.25rem;
-}
+/* ── Match History ─────────────────────────────────────── */
 
 .matchList {
   list-style: none;
@@ -73,36 +127,31 @@
 
 .matchList::-webkit-scrollbar,
 .leaderboardList::-webkit-scrollbar {
-  width: 6px;
+  width: 4px;
 }
 
 .matchList::-webkit-scrollbar-track,
 .leaderboardList::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
+  background: transparent;
 }
 
 .matchList::-webkit-scrollbar-thumb,
 .leaderboardList::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 3px;
-}
-
-.matchList::-webkit-scrollbar-thumb:hover,
-.leaderboardList::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(0, 229, 255, 0.2);
+  border-radius: 2px;
 }
 
 .matchItem {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.875rem 1.25rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  transition: background 0.2s;
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  transition: background 0.15s;
 }
 
 .matchItem:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(0, 229, 255, 0.04);
 }
 
 .matchItem:last-child {
@@ -112,39 +161,44 @@
 .matchPlayers {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
   flex-wrap: wrap;
 }
 
-.playerName {
-  color: #00ffff;
-  font-weight: 500;
-  font-size: 0.875rem;
+.playerNameHighlight {
+  color: #00e5ff;
+  font-weight: 600;
+  font-size: 0.8rem;
 }
 
 .matchVs {
-  color: #666;
-  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.2);
+  font-size: 0.65rem;
   text-transform: uppercase;
+  font-weight: 600;
 }
 
 .matchMode {
-  font-size: 0.75rem;
-  color: #888;
-  background: rgba(255, 255, 255, 0.1);
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
+  font-size: 0.6rem;
+  color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 0.2rem 0.5rem;
+  border-radius: 3px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .matchItemEmpty {
-  padding: 1.5rem 1.25rem;
+  padding: 1.25rem 1rem;
   text-align: center;
-  color: #555;
-  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.25);
+  font-size: 0.75rem;
   font-style: italic;
 }
+
+/* ── Leaderboards ──────────────────────────────────────── */
 
 .leaderboardList {
   list-style: none;
@@ -160,13 +214,13 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.875rem 1.25rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  transition: background 0.2s;
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  transition: background 0.15s;
 }
 
 .leaderboardItem:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(0, 229, 255, 0.04);
 }
 
 .leaderboardItem:last-child {
@@ -174,293 +228,162 @@
 }
 
 .leaderboardRank {
-  width: 1.75rem;
-  height: 1.75rem;
+  width: 1.5rem;
+  height: 1.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   font-weight: 700;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  color: #888;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.35);
 }
 
+/* Gold / Silver / Bronze */
 .leaderboardItem:nth-child(1) .leaderboardRank {
-  background: linear-gradient(135deg, #ffd700 0%, #ffaa00 100%);
+  background: #ffd700;
   color: #000;
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.35);
 }
 
 .leaderboardItem:nth-child(2) .leaderboardRank {
-  background: linear-gradient(135deg, #c0c0c0 0%, #a0a0a0 100%);
+  background: #b0b0b0;
   color: #000;
+  box-shadow: 0 0 6px rgba(176, 176, 176, 0.25);
 }
 
 .leaderboardItem:nth-child(3) .leaderboardRank {
-  background: linear-gradient(135deg, #cd7f32 0%, #a0522d 100%);
+  background: #cd7f32;
   color: #fff;
+  box-shadow: 0 0 6px rgba(205, 127, 50, 0.25);
 }
 
 .leaderboardName {
   flex: 1;
-  color: #fff;
+  color: rgba(255, 255, 255, 0.9);
   font-weight: 500;
-  font-size: 0.875rem;
+  font-size: 0.8rem;
 }
 
 .leaderboardScore {
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   font-weight: 700;
-  color: #00ffff;
-  font-family: 'Monaco', 'Consolas', monospace;
+  color: #00e5ff;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
 }
+
+/* ── Center Column (Join Form) ─────────────────────────── */
 
 .content {
   display: flex;
   flex-direction: column;
 }
 
-.header {
-  position: relative;
-  z-index: 1;
-  text-align: center;
-  flex-shrink: 0;
-  margin-top: -3rem;
-  margin-bottom: 3rem;
-}
-
-.title {
-  font-size: 2.5rem;
-  font-weight: 800;
-  margin: 0;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.titleRed {
-  color: #ff0000;
-  text-shadow: 
-    0 0 10px rgba(255, 0, 0, 0.8),
-    0 0 20px rgba(255, 0, 0, 0.6),
-    0 0 30px rgba(255, 0, 0, 0.4);
-}
-
-.titleTetris {
-  color: #00ffff;
-  text-shadow: 
-    0 0 10px rgba(0, 255, 255, 0.8),
-    0 0 20px rgba(0, 255, 255, 0.6),
-    0 0 30px rgba(0, 255, 255, 0.4);
-}
-
-.subtitle {
-  color: #888;
-  font-size: 0.875rem;
-  margin: 0.25rem 0 0;
-  letter-spacing: 0.2em;
-}
+/* ── Form ──────────────────────────────────────────────── */
 
 .form {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  padding: 1rem;
+  gap: 1.25rem;
+  padding: 1.25rem;
   flex: 1;
-}
-
-.modeToggle {
-  display: flex;
-  gap: 0.5rem;
-  padding: 0.25rem;
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 8px;
-}
-
-.modeButton {
-  flex: 1;
-  padding: 0.75rem 1rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: #666;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.modeButton:hover {
-  color: #aaa;
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.modeButtonActive {
-  background: linear-gradient(135deg, #ff0000 0%, #cc0000 100%);
-  color: white;
-  box-shadow: 0 2px 8px rgba(255, 0, 0, 0.3);
-}
-
-.modeButtonActive:hover {
-  color: white;
-  background: linear-gradient(135deg, #ff0000 0%, #cc0000 100%);
-}
-
-.matchmakingInfo {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.75rem 1rem;
-  padding-top: 22px;
-  background: rgba(0, 255, 255, 0.05);
-  border: 1px solid rgba(0, 255, 255, 0.2);
-  border-radius: 8px;
-  text-align: center;
-}
-
-.matchmakingInfo p {
-  margin: 0;
-  color: #aaa;
-  font-size: 1rem;
-  line-height: 1.4;
 }
 
 .inputGroup {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.4rem;
 }
 
 .label {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #aaa;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.55);
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.15em;
 }
 
 .input {
-  padding: 0.875rem 1rem;
-  font-size: 1rem;
-  border: 2px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.3);
+  padding: 0.75rem 0.875rem;
+  font-size: 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.5);
   color: #fff;
   transition: border-color 0.2s, box-shadow 0.2s;
+  font-family: inherit;
 }
 
 .input::placeholder {
-  color: #555;
+  color: rgba(255, 255, 255, 0.25);
 }
 
 .input:focus {
   outline: none;
-  border-color: #00ffff;
-  box-shadow: 0 0 0 3px rgba(0, 255, 255, 0.2);
+  border-color: #00e5ff;
+  box-shadow: 0 0 0 2px rgba(0, 229, 255, 0.15);
 }
 
 .error {
-  padding: 0.75rem 1rem;
-  background: rgba(255, 0, 0, 0.1);
-  border: 1px solid rgba(255, 0, 0, 0.3);
-  border-radius: 6px;
-  color: #ff6b6b;
-  font-size: 0.875rem;
+  padding: 0.6rem 0.875rem;
+  background: rgba(255, 0, 60, 0.08);
+  border: 1px solid rgba(255, 0, 60, 0.2);
+  border-radius: 4px;
+  color: #ff5c7c;
+  font-size: 0.8rem;
   text-align: center;
 }
 
+/* ── Submit Button ─────────────────────────────────────── */
+
 .submitButton {
-  padding: 1rem 2rem;
-  font-size: 1.125rem;
+  position: relative;
+  padding: 0.85rem 2rem;
+  font-size: 0.9rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   border: none;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #ff0000 0%, #cc0000 100%);
-  color: white;
+  border-radius: 4px;
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: transform 0.15s, box-shadow 0.15s;
+  overflow: hidden;
+
+  /* Neon red glow */
+  background: #ff003c;
+  color: #fff;
+  box-shadow:
+    0 0 12px rgba(255, 0, 60, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 .submitButton:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(255, 0, 0, 0.4);
+  transform: translateY(-1px);
+  box-shadow:
+    0 4px 20px rgba(255, 0, 60, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 .submitButton:active {
   transform: translateY(0);
+  box-shadow:
+    0 0 8px rgba(255, 0, 60, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .submitButton:disabled {
-  background: #444;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.2);
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
 }
 
-.instructions {
-  background: rgba(255, 255, 255, 0.03);
-  padding: 1.5rem;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-}
+/* ── Responsive ────────────────────────────────────────── */
 
-.instructionsTitle {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #888;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  margin: 0 0 1rem;
-}
-
-.instructionsList {
-  margin: 0;
-  padding-left: 1.25rem;
-  color: #aaa;
-  font-size: 0.875rem;
-  line-height: 1.8;
-}
-
-.instructionsList li {
-  margin-bottom: 0.25rem;
-}
-
-.controls {
-  text-align: center;
-}
-
-.controlsTitle {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #666;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  margin: 0 0 0.75rem;
-}
-
-.controlsGrid {
-  display: grid;
-  grid-template-columns: auto auto;
-  gap: 0.25rem 1rem;
-  justify-content: center;
-  font-size: 0.75rem;
-  color: #555;
-}
-
-.controlsGrid span:nth-child(odd) {
-  text-align: right;
-  font-family: monospace;
-  color: #666;
-}
-
-.controlsGrid span:nth-child(even) {
-  text-align: left;
-}
-
-@media (max-width: 1200px) {
+@media (max-width: 1100px) {
   .layout {
     grid-template-columns: 1fr;
     max-width: 400px;
@@ -477,35 +400,25 @@
 
   .matchList,
   .leaderboardList {
-    max-height: 250px;
+    max-height: 220px;
+  }
+
+  .title {
+    font-size: 2.5rem;
   }
 }
 
 @media (max-width: 480px) {
   .container {
     padding: 1rem;
-  }
-
-  .layout {
     gap: 1.5rem;
-    padding-top: 1rem;
   }
 
   .title {
-    font-size: 2.25rem;
+    font-size: 2rem;
   }
 
   .form {
-    padding: 1.5rem;
-  }
-
-  .panelTitle {
-    padding: 0.875rem 1rem;
-    font-size: 0.875rem;
-  }
-
-  .matchItem,
-  .leaderboardItem {
-    padding: 0.75rem 1rem;
+    padding: 1rem;
   }
 }
