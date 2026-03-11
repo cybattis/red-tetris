@@ -1,4 +1,4 @@
-import { GameSettings } from './game';
+import type { GameSettings } from './game';
 
 export type RoomState = 'waiting' | 'playing' | 'ended';
 
@@ -54,10 +54,6 @@ export interface PlayerLeftEvent {
   playerId: string;
 }
 
-export interface RoomStateUpdateEvent {
-  room: RoomInfo;
-}
-
 export interface RoomLeaveEvent {
   roomUpdated?: RoomInfo;
   playerLeft?: PlayerLeftEvent;
@@ -74,7 +70,7 @@ export interface RoomErrorEvent {
   roomId: string;
   reason: string;
   code: 'ROOM_FULL' | 'ROOM_NOT_FOUND' | 'PLAYER_EXISTS' | 'GAME_IN_PROGRESS' |
-  'NOT_HOST' | 'NOT_READY' | 'UNKNOWN_ERROR';
+  'NOT_HOST' | 'NOT_READY' | 'UNKNOWN_ERROR' | 'ALREADY_PLAYING';
 }
 
 // Room configuration
