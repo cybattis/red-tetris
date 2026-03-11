@@ -6,12 +6,17 @@
     "sourceMap": true,
     "outDir": "dist",
     "rootDir": "..",
-    "ignoreDeprecations": "6.0",
+    "ignoreDeprecations": "5.0",
     "baseUrl": "..",
     "paths": {
-      "@shared/*": ["shared/*"]
+      "@shared/*": [
+        "shared/*"
+      ]
     },
-    "typeRoots": ["./env.d.ts", "./node_modules/@types"],
+    "typeRoots": [
+      "./env.d.ts",
+      "./node_modules/@types"
+    ],
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,

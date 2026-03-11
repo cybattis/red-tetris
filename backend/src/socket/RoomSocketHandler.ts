@@ -1,12 +1,11 @@
-import { JoinRoomEvent, LeaveRoomEvent, StartGameEvent, RestartGameEvent } from "@shared/types/room";
+import { JoinRoomEvent, LeaveRoomEvent, StartGameEvent } from "@shared/types/room";
 import { Player } from "../classes/Player";
-import { GameManager } from "../managers/GameManager";
 import { RoomManager } from "../managers/RoomManager";
 import { Logger } from "../utils/helpers";
-import { Server, Socket } from "socket.io";
+import { Socket } from "socket.io";
 import { wsManager } from "../server";
 
-export function wsRoomHandler(playerSocket: Socket, io: Server) {
+export function wsRoomHandler(playerSocket: Socket) {
 	const roomManager = RoomManager.getInstance();
 
 	playerSocket.on('JOIN_ROOM', (payload: JoinRoomEvent) => {
@@ -18,19 +17,19 @@ export function wsRoomHandler(playerSocket: Socket, io: Server) {
 
 		// Join room through RoomManager
 		const result = roomManager.joinRoom(roomId, player, playerSocket);
-
 		if (!result.success) {
 			// Send error to the requesting client
 			playerSocket.emit('ROOM_ERROR', result.error);
 			return;
 		}
 
+		const data = result.data;
 		// Send room state to the joining player
-		playerSocket.emit('ROOM_STATE_UPDATE', result.roomUpdate);
+		playerSocket.emit('ROOM_STATE_UPDATE', data.roomInfo);
 
 		// Notify other players in the room about the new player
-		if (result.playerJoined) {
-			playerSocket.to(roomId).emit('PLAYER_JOINED', result.playerJoined);
+		if (data.playerJoined) {
+			playerSocket.to(roomId).emit('PLAYER_JOINED', data.playerJoined);
 		}
 	});
 

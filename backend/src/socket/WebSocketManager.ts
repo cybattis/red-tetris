@@ -20,7 +20,7 @@ export class WebSocketManager {
     this.io.on('connection', (socket: Socket) => {
       Logger.info(`Client connected: ${socket.id}`);
 
-      wsRoomHandler(socket, this.io);
+      wsRoomHandler(socket);
       wsGameHandler(socket);
 
       socket.on('disconnect', () => {

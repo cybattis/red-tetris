@@ -4,7 +4,6 @@ import { Logger } from '../utils/helpers';
 import { GameSettings } from '@shared/types/game';
 import {
   PlayerJoinedEvent,
-  RoomStateUpdateEvent,
   RoomErrorEvent,
   RoomLeaveEvent,
   RoomResults,
@@ -70,12 +69,7 @@ export class RoomManager {
     roomId: string,
     player: Player,
     socket: Socket,
-  ): {
-    success: boolean;
-    error?: RoomErrorEvent;
-    roomUpdate?: RoomStateUpdateEvent;
-    playerJoined?: PlayerJoinedEvent;
-  } {
+  ): RoomResults<{ roomInfo: RoomInfo; playerJoined?: PlayerJoinedEvent }> {
     // Check if player is already in a room
     const currentRoom = this.getRoomForPlayer(player.id);
     if (currentRoom) {
@@ -84,7 +78,7 @@ export class RoomManager {
         Logger.info(`Player ${player.name} (${player.id}) attempted to join room ${roomId} but is already in that room`);
         return {
           success: true,
-          roomUpdate: { room: currentRoom.toRoomInfo() },
+          data: { roomInfo: currentRoom.toRoomInfo() },
         };
       } else {
         // Player is in a different room, need to leave first
@@ -119,7 +113,6 @@ export class RoomManager {
     socket.join(roomId);
 
     // Prepare response events
-    const roomUpdate: RoomStateUpdateEvent = { room: room.toRoomInfo() };
     const playerJoined: PlayerJoinedEvent = {
       roomId,
       player: {
@@ -132,8 +125,7 @@ export class RoomManager {
 
     return {
       success: true,
-      roomUpdate,
-      playerJoined,
+      data: { roomInfo: room.toRoomInfo(), playerJoined },
     };
   }
 
