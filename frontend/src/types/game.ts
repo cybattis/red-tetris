@@ -28,30 +28,6 @@ export interface GameCreationData {
   timestamp: number;
 }
 
-// Socket event types for backend communication
-export interface SocketEvents {
-  // Outgoing events (client -> server)
-  CREATE_GAME: GameCreationData;
-  UPDATE_SETTINGS: { roomId: string; settings: GameSettings };
-  UPDATE_GAME_MODE: { roomId: string; gameMode: GameMode };
-  START_GAME: { roomId: string };
-  CANCEL_START: { roomId: string };
-  JOIN_ROOM: { roomId: string; playerName: string };
-  LEAVE_ROOM: { roomId: string; playerId: string };
-
-  // Incoming events (server -> client)
-  GAME_CREATED: { success: boolean; roomId: string; error?: string };
-  SETTINGS_UPDATED: { settings: GameSettings };
-  GAME_MODE_UPDATED: { gameMode: GameMode };
-  PLAYER_JOINED: { player: Player };
-  PLAYER_LEFT: { playerId: string };
-  GAME_STARTING: { countdown: number };
-  GAME_START_CANCELED: object;
-  GAME_STARTED: { gameId: string };
-  ROOM_NOT_FOUND: { error: string };
-  ROOM_FULL: { error: string };
-}
-
 // Game constants
 export const DEFAULT_SETTINGS: GameSettings = {
   gameMode: GameMode.Classic,

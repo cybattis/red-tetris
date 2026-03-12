@@ -127,6 +127,7 @@ const initialState: GameState = {
  * Game state update payload (from server)
  */
 export interface GameStateUpdate {
+  playerId?: string; // Optional player ID for identifying which player's state this is (for multiplayer)
   board?: number[][];
   currentPiece?: PieceState | null;
   ghostPiece?: PieceState | null;

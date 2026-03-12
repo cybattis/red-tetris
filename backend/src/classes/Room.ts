@@ -191,8 +191,6 @@ export class Room {
   // Game management
   // --------------------------------------------------------------
   public startGame(customSettings?: Partial<GameSettings>,): RoomResults<{ gameIds: string[]; roomInfo: RoomInfo }> {
-    Logger.info(`Room.startGame() called for room ${this.id}, current state: ${this._state}`);
-
     if (this._state === 'playing') {
       Logger.info(`Cannot start game - already playing`);
       return {
@@ -219,19 +217,15 @@ export class Room {
 
     Logger.info(`Room ${this.id} ready to start game with ${this._players.size} players`);
 
-    // Clean up any existing games from previous rounds
-    this.cleanupGames();
-
-    this._state = 'playing';
-    this._gameStartedAt = new Date();
-
+    const gameIds: string[] = [];
     // Merge custom settings with defaults
     const gameSettings: GameSettings = {
       ...DEFAULT_GAME_SETTINGS,
       ...customSettings,
     };
 
-    const gameIds: string[] = [];
+    this._state = 'playing';
+    this._gameStartedAt = new Date();
 
     // Generate a seed for the game (could be room-based for synchronized pieces in multiplayer)
     const seed = Date.now() + Math.random();
@@ -251,17 +245,10 @@ export class Room {
         this._games.set(player.id, game);
 
         // Listen for game ended event to update room state
-        game.once('gameEnded', (data) => {
+        game.once('gameOver', (data) => {
           Logger.info(`Game ${data.gameId} ended in room ${this.id}, calling endGame()`);
-
-          // Only end the room if this is the last active game
-          const activeGames = Array.from(this._games.values()).filter((g) => g.isAlive);
-          Logger.info(`Active games remaining in room ${this.id}: ${activeGames.length}`);
-
-          if (activeGames.length <= 1) {
-            // Including the game that just ended
-            this.endGame();
-          }
+          // Stop games for all players in the room when one game ends (for multiplayer)
+          this.endGame();
         });
 
         // Listen for penalty lines event (multiplayer: n-1 lines sent to opponents)
@@ -292,6 +279,8 @@ export class Room {
       `🏁 Room.endGame() called for room ${this.id}, changing state from '${this._state}' to 'ended'`,
     );
     this._state = 'ended';
+
+    // Save results, update stats, etc. (not implemented here)
 
     // Clean up all games properly
     this.cleanupGames();
@@ -350,6 +339,7 @@ export class Room {
   private cleanupGames(): void {
     // Stop and remove games from Room's map
     for (const game of this._games.values()) {
+      Logger.info(`Cleaning up game ${game.id} for room ${this.id}`);
       game.stopGame();
       this._gameManager.removeGame(game.id);
     }

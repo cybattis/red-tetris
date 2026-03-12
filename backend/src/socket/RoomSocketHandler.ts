@@ -85,15 +85,21 @@ export function wsRoomHandler(playerSocket: Socket) {
 		const data = result.data;
 		Logger.info(`[START_GAME] Success for room ${roomId}`);
 
-		for (const gameId of data.gameIds) {
-			const playerSocketIds = wsManager.io.sockets.adapter.rooms.get(roomId);
-			if (playerSocketIds) {
-				for (const socketId of playerSocketIds) {
-					const socket = wsManager.io.sockets.sockets.get(socketId);
-					if (socket) {
-						socket.emit('GAME_STARTED', { roomInfo: data.roomInfo, gameId });
-					}
-				}
+		const playerSocketIds = wsManager.io.sockets.adapter.rooms.get(roomId);
+		if (!playerSocketIds) {
+			Logger.error(`[START_GAME] No players found in room ${roomId} after starting game`);
+			return;
+		}
+
+		const gameIds = result.data.gameIds;
+
+		for (let i = 0; i < playerSocketIds.size; i++) {
+			const gameId = gameIds[i];
+			const socketId = Array.from(playerSocketIds)[i];
+			Logger.debug(`[START_GAME] Emitting GAME_STARTED to socket ${socketId} for game ${gameId}`);
+			const socket = wsManager.io.sockets.sockets.get(socketId);
+			if (socket) {
+				socket.emit('GAME_STARTED', { roomInfo: data.roomInfo, gameId });
 			}
 		}
 	});

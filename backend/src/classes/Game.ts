@@ -146,25 +146,6 @@ export class Game extends EventEmitter {
     return gameState;
   }
 
-  /**
-   * Calculate spectrum (column heights) for a board
-   */
-  private calculateSpectrum(board: number[][]): number[] {
-    const width = board[0]?.length || 10;
-    const spectrum: number[] = new Array(width).fill(0);
-
-    for (let col = 0; col < width; col++) {
-      for (let row = 0; row < board.length; row++) {
-        if (board[row][col] !== 0) {
-          spectrum[col] = board.length - row;
-          break; // Found the highest block in this column
-        }
-      }
-    }
-
-    return spectrum;
-  }
-
   private getNextPiecesPreview(): number[] {
     const nextPieceTypes = this.piecesSequence.peekNextPieces(this.settings.nextPieceCount);
 
@@ -499,23 +480,12 @@ export class Game extends EventEmitter {
     this.isAlive = false;
     this.state = GameState.Ended;
 
-    Logger.info('Backend GameOver() - current state:', {
-      isAlive: this.isAlive,
-      state: this.state,
-    });
-
     // Broadcast final game state to the client
     this.broadcastGameState();
 
-    this.room.io.to(this.room?.id!).emit('GAME_OVER', {
-      gameId: this.id,
-      playerId: this.player.id,
-      reason: 'Game Over',
-    });
+    this.emit('gameOver', { gameId: this.id, playerId: this.player.id });
 
-    this.stopGame();
-
-    Logger.info(`Game ${this.id} ended for player ${this.player.name}`);
+    Logger.info(`Game over for player ${this.player.name} (ID: ${this.player.id}) in game ${this.id}`);
   }
 
   /**
