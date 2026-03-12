@@ -14,7 +14,6 @@ import { resetGame } from '../slices/gameSlice.js';
 import {
   joinRoomSuccess,
   joinRoomError,
-  updatePlayerReady,
   updateGameMode,
   updateSettings,
   startCountdown,
@@ -32,7 +31,7 @@ import {
 import { showToast } from '../slices/uiSlice.js';
 import type { RoomInfo } from '@shared/types/room.js';
 
-export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootState> => {
+export const createSocketMiddleware = (socketUrl: string): Middleware<object, RootState> => {
   // Track if socket has been initialized to prevent duplicate initialization
   let socketInitialized = false;
   // Track if START_GAME has been emitted for current countdown to prevent duplicates
@@ -111,6 +110,7 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
           // Set current player ID if not already set (when first joining)
           const currentState = store.getState();
           if (!currentState.gameRoom.currentPlayerId && socket.id) {
+            console.log('[DEBUG] Setting current player ID from socket ID:', socket.id);
             // Find the player in the room data that matches our socket ID
             const currentPlayer = [...roomInfo.players, ...roomInfo.spectators].find(p => p.id === socket.id);
             if (currentPlayer) {
@@ -172,13 +172,6 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
           }
         });
 
-        socket.on('PLAYER_READY_STATUS', (data) => {
-          dispatch(updatePlayerReady({
-            playerId: data.playerId,
-            isReady: data.isReady,
-          }));
-        });
-
         socket.on('SETTINGS_UPDATED', (data) => {
           dispatch(updateSettings({ ...data.settings, _fromSocket: true } as any));
         });
@@ -216,11 +209,16 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
 
         socket.on('GAME_STATE_UPDATE', (data) => {
           console.log(' Frontend received GAME_STATE_UPDATE:', data);
-          // TODO: fix this
-          if (data.playerId && data.playerId === state.game.playerId) {
+
+          const playerId = store.getState().gameRoom.currentPlayerId;
+
+          console.log(`[DEBUG] Current player ID: ${playerId}, Incoming game state player ID: ${data.playerId}`);
+          if (data.playerId && data.playerId === playerId) {
+            console.log("[DEBUG] Updating game state for current player");
             dispatch({ type: 'game/updateGameState', payload: data });
           } else {
-            dispatch({ type: 'game/updateGameState', payload: { opponents: [data], isOpponent: true } });
+            console.log("[DEBUG] Updating game state for opponent");
+            dispatch({ type: 'game/updateGameState', payload: { opponents: [data] } });
           }
         });
 
@@ -338,18 +336,6 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
           socket.emit('UPDATE_GAME_MODE', {
             roomId: state.gameRoom.roomId,
             gameMode: action.payload,
-          });
-        }
-        break;
-      }
-
-      case 'gameRoom/updatePlayerReady': {
-        const socket = state.connection.socket;
-        if (socket && socket.connected) {
-          socket.emit('PLAYER_READY', {
-            roomId: state.gameRoom.roomId,
-            playerId: action.payload.playerId,
-            isReady: action.payload.isReady,
           });
         }
         break;
