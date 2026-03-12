@@ -93,9 +93,14 @@
   position: absolute;
   border-radius: 50%;
   pointer-events: none;
-  /* Single simple animation — avoid calc(var()) which is very slow in Firefox.
-     The actual movement is done via inline transform set from JS. */
-  animation: particleFade 0.6s ease-out forwards;
+  animation: particleFade 0.7s ease-out forwards;
+}
+
+.particleFirework {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 2px;
+  animation: confettiFall 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 }
 
 @keyframes particleFade {
@@ -103,15 +108,38 @@
     opacity: 1;
     scale: 1.3;
   }
+  50% {
+    opacity: 0.8;
+  }
   100% {
     opacity: 0;
-    scale: 0.2;
+    scale: 0.15;
   }
 }
 
-/* Removed all nth-child animation overrides (particleSparkle, particleTrail,
-   particleFall, particleImpact) — Firefox re-resolves nth-child selectors on
-   every DOM mutation inside the particles container, causing major lag. */
+@keyframes confettiFall {
+  0% {
+    opacity: 1;
+    translate: 0 0;
+    scale: 0.4;
+    filter: brightness(2);
+  }
+  15% {
+    opacity: 1;
+    scale: 1.1;
+    filter: brightness(1.6);
+  }
+  70% {
+    opacity: 0.8;
+    filter: brightness(1);
+  }
+  100% {
+    opacity: 0;
+    translate: var(--dx) var(--dy);
+    scale: 0.6;
+    filter: brightness(0.5);
+  }
+}
 
 .overlay {
   position: absolute;
@@ -123,7 +151,6 @@
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.85);
-  /* Removed backdrop-filter: blur(4px) — very expensive compositing operation */
   border-radius: 6px;
   z-index: 10;
 }

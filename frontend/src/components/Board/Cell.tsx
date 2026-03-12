@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import styles from './Cell.module.css';
-import { getCellColor, getCellBorderColor, PieceType } from '../../utils/colors';
+import { getCellColor, getCellBorderColor, getCellGlowColor, PieceType } from '../../utils/colors';
 
 export interface CellProps {
   /** Cell value (0 = empty, 1-7 = piece types, 8 = penalty) */
@@ -23,11 +23,13 @@ export const Cell = memo(function Cell({
   const isEmpty = value === PieceType.EMPTY && !isGhost;
   const backgroundColor = getCellColor(value, isGhost);
   const borderColor = isGhost ? getCellBorderColor(value) : 'transparent';
+  const glowColor = (!isEmpty && !isGhost) ? getCellGlowColor(value) : 'transparent';
 
   const style: React.CSSProperties = {
     backgroundColor,
     borderColor,
     '--cell-color': backgroundColor,
+    '--cell-glow': glowColor,
     ...(size && { width: size, height: size }),
   } as React.CSSProperties;
 

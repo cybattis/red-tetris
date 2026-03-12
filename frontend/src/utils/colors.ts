@@ -25,44 +25,50 @@ export type PieceTypeValue = PieceType;
 
 export const PIECE_COLORS: Record<PieceTypeValue, string> = {
   [PieceType.EMPTY]: 'transparent',
-  [PieceType.I]: '#00ffff', // Neon Cyan
-  [PieceType.O]: '#ffff00', // Neon Yellow
-  [PieceType.T]: '#ff00ff', // Neon Magenta
-  [PieceType.S]: '#39ff14', // Neon Green
-  [PieceType.Z]: '#ff073a', // Neon Red
-  [PieceType.J]: '#4d4dff', // Neon Blue
-  [PieceType.L]: '#ff6600', // Neon Orange
+  [PieceType.I]: '#00ffff', // Sharp Cyan
+  [PieceType.O]: '#ffff00', // Sharp Yellow
+  [PieceType.T]: '#aa00ff', // Sharp Purple
+  [PieceType.S]: '#00ff44', // Sharp Green
+  [PieceType.Z]: '#ff0066', // Sharp Red
+  [PieceType.J]: '#0088ff', // Sharp Blue
+  [PieceType.L]: '#ff8800', // Sharp Orange
   [PieceType.PENALTY]: '#666666', // Dark Gray
 };
 
-/**
- * Lighter/translucent colors for ghost piece preview
- */
-export const GHOST_PIECE_COLORS: Record<PieceTypeValue, string> = {
+export const PIECE_GLOW_COLORS: Record<PieceTypeValue, string> = {
   [PieceType.EMPTY]: 'transparent',
-  [PieceType.I]: 'rgba(0, 255, 255, 0.25)',
-  [PieceType.O]: 'rgba(255, 255, 0, 0.25)',
-  [PieceType.T]: 'rgba(255, 0, 255, 0.25)',
-  [PieceType.S]: 'rgba(57, 255, 20, 0.25)',
-  [PieceType.Z]: 'rgba(255, 7, 58, 0.25)',
-  [PieceType.J]: 'rgba(77, 77, 255, 0.25)',
-  [PieceType.L]: 'rgba(255, 102, 0, 0.25)',
-  [PieceType.PENALTY]: 'rgba(102, 102, 102, 0.25)',
+  [PieceType.I]: 'rgba(0, 255, 255, 0.60)', // Sharp Cyan glow
+  [PieceType.O]: 'rgba(255, 255, 0, 0.60)', // Sharp Yellow glow
+  [PieceType.T]: 'rgba(170, 0, 255, 0.60)', // Sharp Purple glow
+  [PieceType.S]: 'rgba(0, 255, 68, 0.60)', // Sharp Green glow
+  [PieceType.Z]: 'rgba(255, 0, 102, 0.60)', // Sharp Red glow
+  [PieceType.J]: 'rgba(0, 136, 255, 0.60)', // Sharp Blue glow
+  [PieceType.L]: 'rgba(255, 136, 0, 0.60)', // Sharp Orange glow
+  [PieceType.PENALTY]: 'rgba(102, 102, 102, 0.35)',
 };
 
-/**
- * Border/glow colors for active pieces
- */
+export const GHOST_PIECE_COLORS: Record<PieceTypeValue, string> = {
+  [PieceType.EMPTY]: 'transparent',
+  [PieceType.I]: 'rgba(0, 255, 255, 0.22)', // Sharp Cyan ghost
+  [PieceType.O]: 'rgba(255, 255, 0, 0.22)', // Sharp Yellow ghost
+  [PieceType.T]: 'rgba(170, 0, 255, 0.22)', // Sharp Purple ghost
+  [PieceType.S]: 'rgba(0, 255, 68, 0.22)', // Sharp Green ghost
+  [PieceType.Z]: 'rgba(255, 0, 102, 0.22)', // Sharp Red ghost
+  [PieceType.J]: 'rgba(0, 136, 255, 0.22)', // Sharp Blue ghost
+  [PieceType.L]: 'rgba(255, 136, 0, 0.22)', // Sharp Orange ghost
+  [PieceType.PENALTY]: 'rgba(102, 102, 102, 0.18)',
+};
+
 export const PIECE_BORDER_COLORS: Record<PieceTypeValue, string> = {
   [PieceType.EMPTY]: 'transparent',
-  [PieceType.I]: '#00ffff',
-  [PieceType.O]: '#ffff00',
-  [PieceType.T]: '#ff00ff',
-  [PieceType.S]: '#39ff14',
-  [PieceType.Z]: '#ff073a',
-  [PieceType.J]: '#4d4dff',
-  [PieceType.L]: '#ff6600',
-  [PieceType.PENALTY]: '#888888',
+  [PieceType.I]: '#00ffff', // Sharp Cyan
+  [PieceType.O]: '#ffff00', // Sharp Yellow
+  [PieceType.T]: '#aa00ff', // Sharp Purple
+  [PieceType.S]: '#00ff44', // Sharp Green
+  [PieceType.Z]: '#ff0066', // Sharp Red
+  [PieceType.J]: '#0088ff', // Sharp Blue
+  [PieceType.L]: '#ff8800', // Sharp Orange
+  [PieceType.PENALTY]: '#777777',
 };
 
 /**
@@ -99,4 +105,9 @@ export function getCellColor(
 export function getCellBorderColor(value: number): string {
   const pieceValue = value as PieceTypeValue;
   return PIECE_BORDER_COLORS[pieceValue] ?? PIECE_BORDER_COLORS[PieceType.EMPTY];
+}
+
+export function getCellGlowColor(value: number): string {
+  const pieceValue = value as PieceTypeValue;
+  return PIECE_GLOW_COLORS[pieceValue] ?? PIECE_GLOW_COLORS[PieceType.EMPTY];
 }

@@ -33,7 +33,10 @@ interface Particle {
   dy: number;
   color: string;
   size: number;
-  type?: 'explosion' | 'trail' | 'impact';
+  type?: 'explosion' | 'trail' | 'impact' | 'firework';
+  w?: number;
+  h?: number;
+  angle?: number;
 }
 
 function createDisplayBoard(
@@ -96,6 +99,7 @@ export const Board = memo(function Board({
   ghostPiece,
   width,
   height,
+  cellSize: cellSizeProp,
   isPaused = false,
   isGameOver = false,
   isInvisible = false,
@@ -108,7 +112,7 @@ export const Board = memo(function Board({
   const boardWidth = width ?? (board[0]?.length ?? 10);
 
   const standardWidth = 10;
-  const standardCellSize = CELL_SIZE;
+  const baseCellSize = cellSizeProp ?? CELL_SIZE;
   
   const widthRatio = boardWidth / standardWidth;
   
@@ -119,19 +123,20 @@ export const Board = memo(function Board({
     scaleFactor = Math.max(0.8, 1 - (widthRatio - 1) * 0.15);
   }
   
-  const actualCellSize = Math.round(standardCellSize * scaleFactor);
+  const actualCellSize = Math.round(baseCellSize * scaleFactor);
 
   const [isPenaltyWarning, setIsPenaltyWarning] = useState(false);
   const [isLockImpact, setIsLockImpact] = useState(false);
   const [particles, setParticles] = useState<Particle[]>([]);
   const [lockFlashCells, setLockFlashCells] = useState<Set<string>>(new Set());
+  const [clearingRowSet, setClearingRowSet] = useState<Set<number>>(new Set());
   
   // Use refs for deduplication to avoid triggering re-renders
   const lastClearRowsRef = useRef<string>('');
   const lastBoardSignatureRef = useRef<string>('');
 
   // Maximum concurrent particles to prevent performance degradation
-  const MAX_PARTICLES = 40;
+  const MAX_PARTICLES = 60;
 
   // Reset local state when a new game starts (detected by board becoming mostly empty)
   useEffect(() => {
@@ -143,6 +148,7 @@ export const Board = memo(function Board({
       // Reset all animation state
       setParticles([]);
       setLockFlashCells(new Set());
+      setClearingRowSet(new Set());
       lastClearRowsRef.current = '';
       setIsPenaltyWarning(false);
       setIsLockImpact(false);
@@ -157,57 +163,43 @@ export const Board = memo(function Board({
   const boardRef = useRef(board);
   boardRef.current = board;
 
-  const generateLineClearParticles = useCallback((rows: number[]) => {
+  const generateLineClearParticles = useCallback((_rows: number[]) => {
     const currentBoard = boardRef.current;
     const newParticles: Particle[] = [];
     
-    const colors = rows.flatMap(row => 
+    const cellColors = _rows.flatMap(row => 
       currentBoard[row]?.map(cell => getCellColor(cell, false)) ?? []
     ).filter(c => c !== 'transparent');
     
-    const sparkleColors = ['#fff', '#ffff00', '#00ffff', '#ff00ff', ...colors];
+    const sparkleColors = ['#ffffff', '#ffe7a0', '#a0e8ff', '#ff9de8', ...cellColors];
     
-    rows.forEach((row, rowIndex) => {
-      const rowY = row * (actualCellSize + CELL_GAP) + actualCellSize / 2;
+    const boardPixelWidth = boardWidth * (actualCellSize + CELL_GAP);
+    
+    const confettiCount = Math.min(30, 10 + _rows.length * 6);
+    
+    for (let i = 0; i < confettiCount; i++) {
+      const color = sparkleColors[Math.floor(Math.random() * sparkleColors.length)] || '#fff';
       
-      for (let cellX = 0; cellX < boardWidth; cellX += 2) {  // Every other cell for performance
-        const cellValue = currentBoard[row]?.[cellX];
-        if (cellValue && cellValue !== 0) { // Only create particles from filled cells
-          const cellCenterX = cellX * (actualCellSize + CELL_GAP) + actualCellSize / 2;
-          const cellColor = getCellColor(cellValue, false);
-          
-          const angle = Math.random() * Math.PI * 2;
-          const speed = 50 + Math.random() * 50;
-          const dx = Math.cos(angle) * speed;
-          const dy = Math.sin(angle) * speed;
-          
-          newParticles.push({
-            id: `lineclear-${Date.now()}-${rowIndex}-${cellX}`,
-            x: cellCenterX,
-            y: rowY,
-            dx,
-            dy,
-            color: Math.random() < 0.7 ? cellColor : sparkleColors[Math.floor(Math.random() * sparkleColors.length)] || '#fff',
-            size: 3 + Math.random() * 2,
-            type: 'explosion',
-          });
-        }
-      }
-    });
-    
-    for (let i = 0; i < 3; i++) {
-      const row = rows[Math.floor(Math.random() * rows.length)];
-      const rowY = row * (actualCellSize + CELL_GAP) + actualCellSize / 2;
+      const startX = Math.random() * boardPixelWidth;
+      const startY = -4 - Math.random() * 10; // just above the board edge
+
+      const dx = (Math.random() - 0.5) * 60;
+      const dy = 80 + Math.random() * 140;
+      
+      const isElongated = Math.random() < 0.45;
       
       newParticles.push({
-        id: `sparkle-${Date.now()}-${i}`,
-        x: Math.random() * boardWidth * (actualCellSize + CELL_GAP),
-        y: rowY,
-        dx: (Math.random() - 0.5) * 120,
-        dy: (Math.random() - 0.5) * 120,
-        color: sparkleColors[Math.floor(Math.random() * sparkleColors.length)] || '#fff',
-        size: 3 + Math.random() * 4,
-        type: 'explosion',
+        id: `conf-${Date.now()}-${i}`,
+        x: startX,
+        y: startY,
+        dx,
+        dy,
+        color,
+        size: isElongated ? 3 : 2 + Math.random() * 3,
+        w: isElongated ? (2 + Math.random() * 2) : undefined,
+        h: isElongated ? (5 + Math.random() * 5) : undefined,
+        angle: isElongated ? (Math.random() * 360) : undefined,
+        type: 'firework',
       });
     }
     
@@ -285,21 +277,29 @@ export const Board = memo(function Board({
       
       lastClearRowsRef.current = clearKey;
       
+      setClearingRowSet(new Set(clearingRows));
+      
       const newParticles = generateLineClearParticles(clearingRows);
       setParticles(prev => {
-        // Clear any existing line clear particles first
-        const filteredParticles = prev.filter(p => !p.id.startsWith('lineclear-') && !p.id.startsWith('sparkle-'));
+        const filteredParticles = prev.filter(p => 
+          p.type !== 'explosion' && p.type !== 'firework'
+        );
         const combined = [...filteredParticles, ...newParticles];
         // Cap total particles to prevent performance degradation
         return combined.slice(-MAX_PARTICLES);
       });
       
+      const flashTimer = setTimeout(() => {
+        setClearingRowSet(new Set());
+      }, 250);
+      
       const timer = setTimeout(() => {
-        setParticles(prev => prev.filter(p => p.type !== 'explosion'));
+        setParticles(prev => prev.filter(p => p.type !== 'explosion' && p.type !== 'firework'));
         lastClearRowsRef.current = '';
-      }, 800);
+      }, 2000);
       
       return () => {
+        clearTimeout(flashTimer);
         clearTimeout(timer);
       };
     }
@@ -314,7 +314,7 @@ export const Board = memo(function Board({
       
       const timer = setTimeout(() => {
         setParticles(prev => prev.filter(p => p.type !== 'trail'));
-      }, 400);
+      }, 300);
       
       return () => clearTimeout(timer);
     }
@@ -378,8 +378,8 @@ export const Board = memo(function Board({
             const isGhost = ghostCells.has(key);
             const isPenalty = penaltyRowSet.has(y);
             const isLocked = lockFlashCells.has(key);
+            const isClearing = clearingRowSet.has(y);
 
-            // Display logic is now handled entirely in createDisplayBoard
             const displayValue = isGhost && ghostPiece ? ghostPiece.type : cellValue;
 
             return (
@@ -387,7 +387,7 @@ export const Board = memo(function Board({
                 key={key}
                 value={displayValue}
                 isGhost={isGhost}
-                isClearing={false}
+                isClearing={isClearing}
                 isPenalty={isPenalty}
                 isLocked={isLocked}
                 size={actualCellSize}
@@ -398,20 +398,34 @@ export const Board = memo(function Board({
 
         {particles.length > 0 && (
           <div className={styles.particles}>
-            {particles.map((particle) => (
-              <div
-                key={particle.id}
-                className={styles.particle}
-                style={{
-                  left: particle.x,
-                  top: particle.y,
-                  width: particle.size,
-                  height: particle.size,
-                  backgroundColor: particle.color,
-                  transform: `translate(${particle.dx}px, ${particle.dy}px)`,
-                }}
-              />
-            ))}
+            {particles.map((particle) => {
+              const isFirework = particle.type === 'firework';
+              return (
+                <div
+                  key={particle.id}
+                  className={isFirework ? styles.particleFirework : styles.particle}
+                  style={{
+                    left: particle.x,
+                    top: particle.y,
+                    width: isFirework ? (particle.w ?? 2) : particle.size,
+                    height: isFirework ? (particle.h ?? 6) : particle.size,
+                    backgroundColor: particle.color,
+                    boxShadow: isFirework
+                      ? `0 0 4px ${particle.color}, 0 0 8px ${particle.color}`
+                      : `0 0 3px ${particle.color}`,
+                    ...(isFirework
+                      ? {
+                          '--dx': `${particle.dx}px`,
+                          '--dy': `${particle.dy}px`,
+                          rotate: particle.angle ? `${particle.angle}deg` : undefined,
+                        } as React.CSSProperties
+                      : {
+                          transform: `translate(${particle.dx}px, ${particle.dy}px)`,
+                        }),
+                  }}
+                />
+              );
+            })}
           </div>
         )}
       </div>

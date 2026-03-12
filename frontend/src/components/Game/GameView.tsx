@@ -280,17 +280,18 @@ export function GameView({
             hardDropTrail={hardDropTrail.length > 0 ? hardDropTrail : debugHardDropTrail}
             size="normal"
           />
-        </div>
 
-        {!isSoloGame && opponent && (
-          <div className={styles.opponentBoardWrapper}>
-            <OpponentBoard
-              opponent={opponent}
-              boardHeight={height}
-              maxNextDisplay={gameSettings.nextPieceCount}
-            />
-          </div>
-        )}
+          {!isSoloGame && opponent && (
+            <div className={styles.opponentBoardWrapper}>
+              <OpponentBoard
+                opponent={opponent}
+                boardHeight={height}
+                maxNextDisplay={1}
+                size="small"
+              />
+            </div>
+          )}
+        </div>
       </main>
 
       <footer className={styles.footer}>
@@ -299,7 +300,6 @@ export function GameView({
           <span>↑ Rotate</span>
           <span>↓ Soft Drop</span>
           <span>Space Hard Drop</span>
-          <span>Esc Pause</span>
         </div>
       </footer>
 
@@ -333,9 +333,10 @@ interface OpponentBoardProps {
   };
   boardHeight: number;
   maxNextDisplay: number;
+  size?: 'normal' | 'small';
 }
 
-function OpponentBoard({ opponent, boardHeight, maxNextDisplay }: OpponentBoardProps) {
+function OpponentBoard({ opponent, boardHeight, maxNextDisplay, size = 'normal' }: OpponentBoardProps) {
   
   if (opponent.board) {
     return (
@@ -350,7 +351,7 @@ function OpponentBoard({ opponent, boardHeight, maxNextDisplay }: OpponentBoardP
         maxNextDisplay={maxNextDisplay}
         score={opponent.score}
         isGameOver={opponent.isEliminated}
-        size="normal"
+        size={size}
       />
     );
   }
@@ -366,7 +367,7 @@ function OpponentBoard({ opponent, boardHeight, maxNextDisplay }: OpponentBoardP
       height={boardHeight}
       score={opponent.score}
       isGameOver={opponent.isEliminated}
-      size="normal"
+      size={size}
     />
   );
 }
