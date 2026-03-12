@@ -5,13 +5,13 @@ import type {
   GameMode,
   GameSettings,
   GameCreationData
-} from '../../types/game';
+} from '@types/game.ts';
 import {
   DEFAULT_SETTINGS,
   ROOM_CONFIG,
   canStartGame,
   prepareGameCreationData
-} from '../../types/game';
+} from '@types/game.ts';
 import type {
   RoomInfo,
   RoomState as BackendRoomState,
@@ -245,14 +245,14 @@ const gameRoomSlice = createSlice({
     },
 
     playerJoined: (state, action: PayloadAction<PlayerJoinedEvent>) => {
-      const { player, isSpectator } = action.payload;
+      const { roomId, player } = action.payload;
       const newPlayer: Player = {
         id: player.id,
         name: player.name,
         isHost: player.isHost,
       };
 
-      if (isSpectator) {
+      if (newPlayer.isSpectator) {
         // Add to spectators if not already present
         if (!state.spectators.find(p => p.id === player.id)) {
           state.spectators.push(newPlayer);
@@ -266,7 +266,7 @@ const gameRoomSlice = createSlice({
     },
 
     playerLeft: (state, action: PayloadAction<PlayerLeftEvent>) => {
-      const { playerId } = action.payload;
+      const { roomId, playerId } = action.payload;
 
       // Remove from players or spectators
       state.players = state.players.filter(p => p.id !== playerId);
@@ -274,7 +274,7 @@ const gameRoomSlice = createSlice({
     },
 
     hostTransferred: (state, action: PayloadAction<HostTransferEvent>) => {
-      const { newHostId } = action.payload;
+      const { roomId, newHostId } = action.payload;
 
       // Update host status for all players
       state.players.forEach(player => {

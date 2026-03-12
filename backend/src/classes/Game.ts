@@ -9,6 +9,7 @@ import type { Server } from 'socket.io';
 import { EventEmitter } from 'node:events';
 import type { Room } from './Room';
 import { wsManager } from '../server';
+import { Socket } from '@socket.io'
 
 export class Game extends EventEmitter {
   // Game state and public properties
@@ -17,6 +18,7 @@ export class Game extends EventEmitter {
   public readonly settings: GameSettings;
   public readonly piecesSequence: PiecesSequence;
   public readonly room: Room;
+  public socketId: Socket;
 
   // Access the WebSocket server instance from GameManager
   private readonly io: Server = wsManager.io;
@@ -53,13 +55,15 @@ export class Game extends EventEmitter {
   private _playerInput: GameAction = GameAction.NO_INPUT;
   private _starting: boolean = true; // Flag to indicate the first tick for proper initial piece spawning
 
-  constructor(player: Player, seed: number, settings: GameSettings, room: Room) {
+  constructor(player: Player, seed: number, settings: GameSettings, room: Room, playerSocket: Socket) {
     super();
     this.id = randomUUID();
     this.player = player;
     this.settings = { ...settings }; // Create a copy to avoid modifying the original settings
     this.originalGravity = settings.gravity; // Store original gravity for restoration
     this.room = room;
+
+    this.socketId = playerSocket;
 
     this.piecesSequence = new PiecesSequence(seed, 7);
     this.board = this.createEmptyBoard();
@@ -163,7 +167,7 @@ export class Game extends EventEmitter {
   }
 
   private broadcastAnimation(animationType: string, data: any): void {
-    if (!this.io.to(this.room?.id!).emit('GAME_ANIMATION', {
+    if (!this.socketId.emit('GAME_ANIMATION', {
       type: animationType,
       data: data,
     })) {

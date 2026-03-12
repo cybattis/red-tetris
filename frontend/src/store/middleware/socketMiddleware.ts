@@ -120,8 +120,9 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<object, Ro
         });
 
         socket.on('PLAYER_JOINED', (payload: SocketEvents<'PLAYER_JOINED'>) => {
-          dispatch(playerJoined(payload.data));
-          const player = payload.data.player;
+          console.log('Player joined:', payload);
+          dispatch(playerJoined(payload));
+          const player = payload.player;
           dispatch(showToast({
             message: `${player.name} joined the room${player.isSpectator ? ' as spectator' : ''}`,
             type: 'info'
@@ -129,7 +130,7 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<object, Ro
         });
 
         socket.on('PLAYER_LEFT', (payload: SocketEvents<'PLAYER_LEFT'>) => {
-          dispatch(playerLeft(payload.data));
+          dispatch(playerLeft(payload));
           dispatch(showToast({
             message: 'A player left the room',
             type: 'warning'

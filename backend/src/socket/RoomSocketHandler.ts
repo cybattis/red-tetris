@@ -29,6 +29,7 @@ export function wsRoomHandler(playerSocket: Socket) {
 
 		// Notify other players in the room about the new player
 		if (data.playerJoined) {
+			Logger.debug("Payload: ", data.playerJoined);
 			playerSocket.to(roomId).emit('PLAYER_JOINED', data.playerJoined);
 		}
 	});

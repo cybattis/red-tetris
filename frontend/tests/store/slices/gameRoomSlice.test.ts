@@ -5,7 +5,6 @@ import gameRoomSlice, {
   leaveRoom,
   addPlayer,
   removePlayer,
-  updatePlayerReady,
   updateGameMode,
   updateSettings,
   updateSetting,
