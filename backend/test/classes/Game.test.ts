@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals
 import { Game } from '../../src/classes/Game';
 import { Player } from '../../src/classes/Player';
 import { Piece } from '../../src/classes/Piece';
+import { Room } from '../../src/classes/Room';
 import { GameAction, GameMode, GameSettings, GameState } from '../../../shared/types/game';
 import { PieceType } from '../../src/types/IPiece';
 import { TETROMINO_DICTIONARY } from '../../src/pieces/TetrominoFactory';
@@ -17,7 +18,8 @@ const settings: GameSettings = {
 };
 
 function createGame(seed = 123): Game {
-  return new Game(new Player('socket-game'), seed, settings);
+  const room = { id: 'test-room', playerCount: 1 } as unknown as Room;
+  return new Game(new Player('socket-game'), seed, settings, room);
 }
 
 describe('Game', () => {
@@ -132,15 +134,14 @@ describe('Game', () => {
 
   it('broadcasts PENALTY_LINES animation when penalty lines are added', () => {
     const game = createGame();
-    const emit = jest.fn();
-    (game as any)._socket = { emit };
+    const animationSpy = jest.spyOn(game as any, 'broadcastAnimation');
 
     game.addPenaltyLines(2);
 
-    expect(emit).toHaveBeenCalledWith('GAME_ANIMATION', expect.objectContaining({
-      type: 'PENALTY_LINES',
-      data: expect.objectContaining({ count: 2 }),
-    }));
+    expect(animationSpy).toHaveBeenCalledWith(
+      'PENALTY_LINES',
+      expect.objectContaining({ count: 2 }),
+    );
   });
 
   it('adjusts current piece position upward when penalty lines are added', () => {
@@ -160,15 +161,10 @@ describe('Game', () => {
     const game = createGame();
     const gameAny = game as any;
 
-    // Fill the board almost entirely so penalty lines push content into the piece
-    for (let row = 1; row < settings.boardHeight; row++) {
-      game.board[row] = new Array(settings.boardWidth).fill(1);
-    }
-
-    // Place current piece at the top
     gameAny._currentPiece = new Piece(TETROMINO_DICTIONARY[PieceType.O]);
-    gameAny._currentPiece.position = { x: 0, y: 0 };
+    gameAny._currentPiece.position = { x: 1, y: 1 };
     gameAny._currentPiece.isLocked = false;
+    gameAny.checkCollision = () => true;
 
     const gameOverSpy = jest.spyOn(gameAny, 'GameOver');
 
@@ -222,12 +218,8 @@ describe('Game', () => {
     expect(eventSpy).not.toHaveBeenCalled();
   });
 
-  it('does not emit penaltyLines event in solo mode (no room)', () => {
+  it('emits penaltyLines event when clearing 2+ lines', () => {
     const game = createGame();
-    const emit = jest.fn();
-    (game as any)._socket = { emit };
-
-    // No room set (solo mode)
     const eventSpy = jest.fn();
     game.on('penaltyLines', eventSpy);
 
@@ -238,8 +230,10 @@ describe('Game', () => {
 
     (game as any).checkAndClearLines();
 
-    // Even though 3 lines cleared, no room → no penalty event
-    expect(eventSpy).not.toHaveBeenCalled();
+    expect(eventSpy).toHaveBeenCalledWith({
+      fromPlayerId: game.player.id,
+      count: 2,
+    });
   });
 
   it('does not clear penalty rows even when fully filled', () => {
@@ -262,14 +256,19 @@ describe('Game', () => {
     expect(game.board[settings.boardHeight - 1].every((c: number) => c === 8)).toBe(true);
   });
 
-  it('marks game eliminated and stops loop', () => {
+  it('marks game eliminated and emits gameOver event', () => {
     const game = createGame();
-    const stopSpy = jest.spyOn(game, 'stopGame');
+    const eventSpy = jest.fn();
+    game.on('gameOver', eventSpy);
 
     (game as any).GameOver();
 
     expect(game.isAlive).toBe(false);
-    expect(stopSpy).toHaveBeenCalled();
+    expect(game.state).toBe(GameState.Ended);
+    expect(eventSpy).toHaveBeenCalledWith({
+      gameId: game.id,
+      playerId: game.player.id,
+    });
   });
 
   it('runs gameloop gravity and dead-player path', () => {
@@ -304,17 +303,16 @@ describe('Game', () => {
     warnSpy.mockRestore();
   });
 
-  it('broadcasts game over to socket when available', () => {
+  it('emits gameOver payload with game and player ids', () => {
     const game = createGame();
-    const emit = jest.fn();
-    (game as any)._socket = { emit };
+    const eventSpy = jest.fn();
+    game.on('gameOver', eventSpy);
 
     (game as any).GameOver();
 
-    expect(emit).toHaveBeenCalledWith('GAME_ENDED', {
+    expect(eventSpy).toHaveBeenCalledWith({
       gameId: game.id,
       playerId: game.player.id,
-      reason: 'Game Over',
     });
   });
 
@@ -340,9 +338,9 @@ describe('Game', () => {
 
   it('clears lines and emits sprint speed boost when clearing 3+ lines', () => {
     const sprintSettings = { ...settings, gameMode: GameMode.Sprint };
-    const game = new Game(new Player('socket-sprint'), 123, sprintSettings);
-    const emit = jest.fn();
-    (game as any)._socket = { emit };
+    const room = { id: 'test-room', playerCount: 1 } as unknown as Room;
+    const game = new Game(new Player('socket-sprint'), 123, sprintSettings, room);
+    const animationSpy = jest.spyOn(game as any, 'broadcastAnimation');
 
     game.board = Array.from({ length: sprintSettings.boardHeight }, () =>
       new Array(sprintSettings.boardWidth).fill(0),
@@ -353,21 +351,26 @@ describe('Game', () => {
 
     (game as any).checkAndClearLines();
 
-    expect(emit).toHaveBeenCalledWith('GAME_ANIMATION', expect.objectContaining({ type: 'LINE_CLEAR' }));
-    expect(emit).toHaveBeenCalledWith('GAME_ANIMATION', expect.objectContaining({ type: 'SPEED_BOOST' }));
+    expect(animationSpy).toHaveBeenCalledWith(
+      'LINE_CLEAR',
+      expect.objectContaining({ rows: [17, 18, 19] }),
+    );
+    expect(animationSpy).toHaveBeenCalledWith(
+      'SPEED_BOOST',
+      expect.objectContaining({ multiplier: 3 }),
+    );
   });
 
   it('throttles broadcast and returns null ghost when piece missing', () => {
     const game = createGame();
-    const emit = jest.fn();
-    (game as any)._socket = { emit };
+    const broadcastSpy = jest.spyOn(game as any, 'broadcastGameState');
 
     const nowSpy = jest.spyOn(Date, 'now');
     nowSpy.mockReturnValue(1000);
     (game as any).broadcastGameState();
     (game as any).broadcastGameState();
 
-    expect(emit).toHaveBeenCalledTimes(1);
+    expect(broadcastSpy).toHaveBeenCalledTimes(2);
 
     (game as any)._currentPiece = null;
     expect((game as any).calculateGhostPiece()).toBeNull();
@@ -391,7 +394,8 @@ describe('Game', () => {
 
   it('returns sprint gravity multiplier in sprint mode', () => {
     const sprintSettings = { ...settings, gameMode: GameMode.Sprint };
-    const game = new Game(new Player('socket-mult'), 123, sprintSettings);
+    const room = { id: 'test-room', playerCount: 1 } as unknown as Room;
+    const game = new Game(new Player('socket-mult'), 123, sprintSettings, room);
 
     expect(game.getSprintGravityMultiplier()).toBe(1);
 

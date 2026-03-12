@@ -109,10 +109,8 @@ export class Game extends EventEmitter {
   // Game state serialization for frontend
   // ============================================
   public getGameState() {
-    // Get opponent data if in multiplayer
-    const opponents = this.getOpponentsData();
-
     const gameState = {
+      playerId: this.player.id,
       gameId: this.id,
       board: this.board,
       currentPiece: this._currentPiece
@@ -134,7 +132,6 @@ export class Game extends EventEmitter {
       boardWidth: this.settings.boardWidth,
       boardHeight: this.settings.boardHeight,
       gameMode: this.settings.gameMode,
-      opponents, // Include opponent data for multiplayer
     };
 
     Logger.dump('Backend getGameState() returning:', {
@@ -147,25 +144,6 @@ export class Game extends EventEmitter {
     });
 
     return gameState;
-  }
-
-  /**
-   * Calculate spectrum (column heights) for a board
-   */
-  private calculateSpectrum(board: number[][]): number[] {
-    const width = board[0]?.length || 10;
-    const spectrum: number[] = new Array(width).fill(0);
-
-    for (let col = 0; col < width; col++) {
-      for (let row = 0; row < board.length; row++) {
-        if (board[row][col] !== 0) {
-          spectrum[col] = board.length - row;
-          break; // Found the highest block in this column
-        }
-      }
-    }
-
-    return spectrum;
   }
 
   private getNextPiecesPreview(): number[] {
@@ -250,90 +228,6 @@ export class Game extends EventEmitter {
       this._starting = false; // Clear the starting flag after the first update
       // Broadcast game state to connected clients
       this.broadcastGameState();
-    }
-  }
-
-  /**
-   * Process player input independently from gravity.
-   * Horizontal moves are validated on their own so a wall collision
-   * cannot be confused with a downward collision.
-   */
-  private processPlayerInput(): void {
-    const input = this._playerInput;
-    if (input === GameAction.NO_INPUT) return;
-
-    // Clear the buffered input immediately to prevent re-processing
-    this._playerInput = GameAction.NO_INPUT;
-
-    if (input === GameAction.ROTATE_CW) {
-      this.attemptRotation();
-      return;
-    }
-
-    if (input === GameAction.HARD_DROP) {
-      const dropDistance = this.calculateHardDropDistance();
-      const startY = this._currentPiece.position.y;
-      const endY = startY + dropDistance;
-
-      const hardDropBonus = dropDistance + 1;
-      this.addHardDropBonus(hardDropBonus);
-
-      // Create hard drop trail data for each column of the piece
-      const trailData = [];
-      for (const cell of this._currentPiece.getOccupiedCells()) {
-        trailData.push({
-          x: this._currentPiece.position.x + cell.x,
-          startY: startY + cell.y,
-          endY: endY + cell.y,
-          type: this._currentPiece.id,
-        });
-      }
-
-      this.broadcastAnimation('HARD_DROP', {
-        trail: trailData,
-        timestamp: Date.now(),
-      });
-
-      this._currentPiece.position.y += dropDistance;
-      this._currentPiece.isLocked = true;
-      return;
-    }
-
-    if (input === GameAction.SOFT_DROP) {
-      // Soft drop: move down by one
-      const softDropPos = {
-        x: this._currentPiece.position.x,
-        y: this._currentPiece.position.y + 1,
-      };
-      this._gravityAccumulatorMs = 0;
-
-      if (this.checkCollision(softDropPos.x, softDropPos.y)) {
-        // Soft drop hit something
-        if (!this._currentPiece.isLocked) {
-          if (this._currentPiece.position.y <= 0) {
-            this.GameOver();
-            return;
-          }
-          this._currentPiece.isLocked = true;
-        }
-      } else {
-        this._currentPiece.position = softDropPos;
-      }
-      return;
-    }
-
-    // Horizontal movement independent from vertical movement
-    if (input === GameAction.MOVE_LEFT || input === GameAction.MOVE_RIGHT) {
-      const dx = input === GameAction.MOVE_LEFT ? -1 : 1;
-      const movePos = {
-        x: this._currentPiece.position.x + dx,
-        y: this._currentPiece.position.y,
-      };
-
-      if (!this.checkCollision(movePos.x, movePos.y)) {
-        this._currentPiece.position = movePos;
-      }
-      // If collision, simply ignore the horizontal move (no locking!)
     }
   }
 
@@ -551,8 +445,6 @@ export class Game extends EventEmitter {
     }
   }
 
-
-
   private checkCollision(x: number, y: number): boolean {
     for (const cell of this._currentPiece.getOccupiedCells()) {
       const boardX = x + cell.x;
@@ -584,34 +476,16 @@ export class Game extends EventEmitter {
 
   // Game condition checks, line clears, scoring, and other game logic methods would go here
   // ============================================
-  private Victory(): void {
-    this.stopGame();
-    // Send victory message to client here
-
-    // End-of-game logic and cleanup here
-  }
-
   private GameOver(): void {
     this.isAlive = false;
     this.state = GameState.Ended;
 
-    Logger.info('Backend GameOver() - current state:', {
-      isAlive: this.isAlive,
-      state: this.state,
-    });
-
     // Broadcast final game state to the client
     this.broadcastGameState();
 
-    this.room.io.to(this.room?.id!).emit('GAME_OVER', {
-      gameId: this.id,
-      playerId: this.player.id,
-      reason: 'Game Over',
-    });
+    this.emit('gameOver', { gameId: this.id, playerId: this.player.id });
 
-    this.stopGame();
-
-    Logger.info(`Game ${this.id} ended for player ${this.player.name}`);
+    Logger.info(`Game over for player ${this.player.name} (ID: ${this.player.id}) in game ${this.id}`);
   }
 
   /**

@@ -10,11 +10,9 @@ import {
   setConnectionError,
   updateLatency,
 } from '../slices/connectionSlice.js';
-import { resetGame } from '../slices/gameSlice.js';
+import { resetGame, type GameStateUpdate } from '../slices/gameSlice.js';
 import {
-  joinRoomSuccess,
   joinRoomError,
-  updatePlayerReady,
   updateGameMode,
   updateSettings,
   startCountdown,
@@ -30,9 +28,10 @@ import {
   setCurrentPlayerId,
 } from '../slices/gameRoomSlice.js';
 import { showToast } from '../slices/uiSlice.js';
-import type { RoomInfo } from '@shared/types/room.js';
+import type { HostTransferEvent, RoomErrorEvent, RoomInfo } from '@shared/types/room.js';
+import type { SocketEvents, SocketEventsType } from '@shared/types/game.js';
 
-export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootState> => {
+export const createSocketMiddleware = (socketUrl: string): Middleware<object, RootState> => {
   // Track if socket has been initialized to prevent duplicate initialization
   let socketInitialized = false;
   // Track if START_GAME has been emitted for current countdown to prevent duplicates
@@ -111,6 +110,7 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
           // Set current player ID if not already set (when first joining)
           const currentState = store.getState();
           if (!currentState.gameRoom.currentPlayerId && socket.id) {
+            console.log('[DEBUG] Setting current player ID from socket ID:', socket.id);
             // Find the player in the room data that matches our socket ID
             const currentPlayer = [...roomInfo.players, ...roomInfo.spectators].find(p => p.id === socket.id);
             if (currentPlayer) {
@@ -119,31 +119,32 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
           }
         });
 
-        socket.on('PLAYER_JOINED', (data) => {
-          dispatch(playerJoined(data));
+        socket.on('PLAYER_JOINED', (payload: SocketEvents<'PLAYER_JOINED'>) => {
+          dispatch(playerJoined(payload.data));
+          const player = payload.data.player;
           dispatch(showToast({
-            message: `${data.player.name} joined the room${data.isSpectator ? ' as spectator' : ''}`,
+            message: `${player.name} joined the room${player.isSpectator ? ' as spectator' : ''}`,
             type: 'info'
           }));
         });
 
-        socket.on('PLAYER_LEFT', (data) => {
-          dispatch(playerLeft(data));
+        socket.on('PLAYER_LEFT', (payload: SocketEvents<'PLAYER_LEFT'>) => {
+          dispatch(playerLeft(payload.data));
           dispatch(showToast({
             message: 'A player left the room',
             type: 'warning'
           }));
         });
 
-        socket.on('HOST_TRANSFER', (data) => {
-          dispatch(hostTransferred(data));
+        socket.on('HOST_TRANSFER', (payload: HostTransferEvent) => {
+          dispatch(hostTransferred(payload));
           dispatch(showToast({
             message: 'Host has been transferred',
             type: 'info'
           }));
         });
 
-        socket.on('ROOM_ERROR', (error) => {
+        socket.on('ROOM_ERROR', (error: RoomErrorEvent) => {
           dispatch(roomError(error));
           dispatch(showToast({
             message: `Room Error: ${error.reason}`,
@@ -158,41 +159,20 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
           }));
         });
 
-        // Legacy room event handlers (keeping for backward compatibility)
-        socket.on('GAME_CREATED', (data) => {
-          if (data.success) {
-            dispatch(joinRoomSuccess({
-              players: data.players || [],
-              currentPlayerId: data.currentPlayerId || '',
-              gameMode: data.gameMode,
-              settings: data.settings,
-            }));
-          } else {
-            dispatch(joinRoomError(data.error || 'Failed to create game'));
-          }
-        });
-
-        socket.on('PLAYER_READY_STATUS', (data) => {
-          dispatch(updatePlayerReady({
-            playerId: data.playerId,
-            isReady: data.isReady,
-          }));
-        });
-
         socket.on('SETTINGS_UPDATED', (data) => {
-          dispatch(updateSettings({ ...data.settings, _fromSocket: true } as any));
+          dispatch(updateSettings({ ...data.settings, _fromSocket: true }));
         });
 
-        socket.on('GAME_MODE_UPDATED', (data) => {
+        socket.on('GAME_MODE_UPDATED', (payload: SocketEvents<'GAME_MODE_UPDATED'>) => {
           // Mark this action as coming from socket to prevent re-emission
-          const action = updateGameMode(data.gameMode);
+          const action = updateGameMode(payload.data.gameMode);
           (action as any).meta = { fromSocket: true };
           dispatch(action);
         });
 
-        socket.on('GAME_STARTING', (data) => {
+        socket.on('GAME_STARTING', (payload: SocketEvents<'GAME_STARTING'>) => {
           dispatch(startCountdown());
-          dispatch(updateCountdown(data.countdown));
+          dispatch(updateCountdown(payload.data.countdown));
         });
 
         socket.on('GAME_START_CANCELED', () => {
@@ -214,9 +194,19 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
           }));
         });
 
-        socket.on('GAME_STATE_UPDATE', (data) => {
+        socket.on('GAME_STATE_UPDATE', (data: GameStateUpdate) => {
           console.log(' Frontend received GAME_STATE_UPDATE:', data);
-          dispatch({ type: 'game/updateGameState', payload: data });
+
+          const playerId = store.getState().gameRoom.currentPlayerId;
+
+          console.log(`[DEBUG] Current player ID: ${playerId}, Incoming game state player ID: ${data.playerId}`);
+          if (data.playerId && data.playerId === playerId) {
+            console.log("[DEBUG] Updating game state for current player");
+            dispatch({ type: 'game/updateGameState', payload: data });
+          } else {
+            console.log("[DEBUG] Updating game state for opponent");
+            dispatch({ type: 'game/updateGameState', payload: { opponents: [data] } });
+          }
         });
 
         socket.on('GAME_ANIMATION', (animationData) => {
@@ -311,7 +301,7 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
         if ((action as any).meta?.fromSocket || (action.payload as any)?._fromSocket) {
           break;
         }
-        
+
         const socket = state.connection.socket;
         if (socket && socket.connected) {
           socket.emit('UPDATE_SETTINGS', {
@@ -327,24 +317,12 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<{}, RootSt
         if ((action as any).meta?.fromSocket) {
           break;
         }
-        
+
         const socket = state.connection.socket;
         if (socket && socket.connected) {
           socket.emit('UPDATE_GAME_MODE', {
             roomId: state.gameRoom.roomId,
             gameMode: action.payload,
-          });
-        }
-        break;
-      }
-
-      case 'gameRoom/updatePlayerReady': {
-        const socket = state.connection.socket;
-        if (socket && socket.connected) {
-          socket.emit('PLAYER_READY', {
-            roomId: state.gameRoom.roomId,
-            playerId: action.payload.playerId,
-            isReady: action.payload.isReady,
           });
         }
         break;

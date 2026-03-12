@@ -15,7 +15,6 @@ import {
   startCountdown,
   updateCountdown,
   selectPlayers,
-  selectCurrentPlayer,
   selectIsHost,
   selectGameMode,
   selectGameSettings,
@@ -25,6 +24,7 @@ import {
   selectGameId,
   selectError,
   selectGameCreationData,
+  cancelCountdown,
 } from "../store/slices/gameRoomSlice.js";
 import { selectSocket, selectConnectionStatus } from "../store/slices/connectionSlice.js";
 import { resetGame } from "../store/slices/gameSlice.js";
@@ -51,7 +51,6 @@ export function GameRoom() {
 
   // Redux state selectors
   const players = useAppSelector(selectPlayers);
-  const currentPlayer = useAppSelector(selectCurrentPlayer);
   const isHost = useAppSelector(selectIsHost);
   const gameMode = useAppSelector(selectGameMode);
   const settings = useAppSelector(selectGameSettings);
@@ -171,6 +170,7 @@ export function GameRoom() {
   // Handle game input actions - send to server
   // MUST be memoized to prevent useGameInput from re-registering event listeners on every render
   const handleGameAction = useCallback((action: GameAction) => {
+    console.log("Handling game action:", socket?.id, action, { gameStarted, gameId });
     if (socket && socket.connected && gameStarted && gameId) {
       socket.emit('PLAYER_INPUT', {
         message: 'PLAYER_INPUT',
