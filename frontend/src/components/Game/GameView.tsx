@@ -28,8 +28,8 @@ import {
   clearHardDropTrail,
   gameOver,
   resetGame,
-} from '@store/slices/gameSlice.ts';
-import { selectGameSettings, selectGameMode } from '@store/slices/gameRoomSlice.ts';
+} from '../../store/slices/gameSlice';
+import { selectGameSettings, selectGameMode } from '../../store/slices/gameRoomSlice';
 
 export interface GameViewProps {
   roomName?: string;
@@ -68,7 +68,7 @@ export function GameView({
   // Determine game mode based on opponents
   const isSoloGame = opponents.length === 0;
   const opponent = opponents[0]; // For 1v1, we only have one opponent
-
+  
   // Debug log game over state
   console.log(' GameView render - Game Over State:', {
     isGameOver,
@@ -77,22 +77,22 @@ export function GameView({
   });
   
   console.log(' GameView render - Multiplayer State:', {
-    isSoloGame: opponents.length === 0,
+    isSoloGame,
     opponentsCount: opponents.length,
-    opponent: opponents[0],
+    opponent,
   });
-
+  
   // Determine if invisible mode is active
   const isInvisible = gameMode === 'invisible';
   
   // Check if all opponents are eliminated (victory condition for multiplayer)
-  const allOpponentsEliminated = !isSoloGame && opponents.length > 0 &&
+  const allOpponentsEliminated = !isSoloGame && opponents.length > 0 && 
     opponents.every(opp => opp.isEliminated);
-
+  
   // Determine if we should show game over overlay and whether it's a victory
   const showGameOverOverlay = isGameOver || allOpponentsEliminated;
   const isVictory = allOpponentsEliminated && !isGameOver;
-
+  
   console.log(' GameView - Victory Logic:', {
     allOpponentsEliminated,
     showGameOverOverlay,
@@ -102,7 +102,7 @@ export function GameView({
       isEliminated: opp.isEliminated
     }))
   });
-
+  
   // Animation data from server
   const lockedCells = useAppSelector(selectLockedCells);
   const hardDropTrail = useAppSelector(selectHardDropTrail);
@@ -280,17 +280,18 @@ export function GameView({
             hardDropTrail={hardDropTrail.length > 0 ? hardDropTrail : debugHardDropTrail}
             size="normal"
           />
-        </div>
 
-        {!isSoloGame && opponent && (
-          <div className={styles.opponentBoardWrapper}>
-            <OpponentBoard
-              opponent={opponent}
-              boardHeight={height}
-              maxNextDisplay={gameSettings.nextPieceCount}
-            />
-          </div>
-        )}
+          {!isSoloGame && opponent && (
+            <div className={styles.opponentBoardWrapper}>
+              <OpponentBoard
+                opponent={opponent}
+                boardHeight={height}
+                maxNextDisplay={1}
+                size="small"
+              />
+            </div>
+          )}
+        </div>
       </main>
 
       <footer className={styles.footer}>
@@ -299,7 +300,6 @@ export function GameView({
           <span>↑ Rotate</span>
           <span>↓ Soft Drop</span>
           <span>Space Hard Drop</span>
-          <span>Esc Pause</span>
         </div>
       </footer>
 
@@ -333,9 +333,10 @@ interface OpponentBoardProps {
   };
   boardHeight: number;
   maxNextDisplay: number;
+  size?: 'normal' | 'small';
 }
 
-function OpponentBoard({ opponent, boardHeight, maxNextDisplay }: OpponentBoardProps) {
+function OpponentBoard({ opponent, boardHeight, maxNextDisplay, size = 'normal' }: OpponentBoardProps) {
   
   if (opponent.board) {
     return (
@@ -350,7 +351,7 @@ function OpponentBoard({ opponent, boardHeight, maxNextDisplay }: OpponentBoardP
         maxNextDisplay={maxNextDisplay}
         score={opponent.score}
         isGameOver={opponent.isEliminated}
-        size="normal"
+        size={size}
       />
     );
   }
@@ -366,7 +367,7 @@ function OpponentBoard({ opponent, boardHeight, maxNextDisplay }: OpponentBoardP
       height={boardHeight}
       score={opponent.score}
       isGameOver={opponent.isEliminated}
-      size="normal"
+      size={size}
     />
   );
 }

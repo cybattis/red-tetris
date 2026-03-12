@@ -2,8 +2,10 @@ import {
   PieceType, 
   PIECE_COLORS, 
   PIECE_BORDER_COLORS,
+  PIECE_GLOW_COLORS,
   getCellColor, 
   getCellBorderColor,
+  getCellGlowColor,
   CELL_SIZE,
   CELL_GAP
 } from '../../src/utils/colors';
@@ -80,6 +82,25 @@ describe('Colors utility', () => {
 
     it('should handle invalid piece types', () => {
       expect(getCellBorderColor(999)).toBe(PIECE_BORDER_COLORS[PieceType.EMPTY]);
+    });
+  });
+
+  describe('PIECE_GLOW_COLORS mapping', () => {
+    it('should have glow colors for all piece types', () => {
+      expect(PIECE_GLOW_COLORS[PieceType.EMPTY]).toBe('transparent');
+      expect(PIECE_GLOW_COLORS[PieceType.I]).toBeDefined();
+      expect(PIECE_GLOW_COLORS[PieceType.PENALTY]).toBeDefined();
+    });
+  });
+
+  describe('getCellGlowColor function', () => {
+    it('should return correct glow colors', () => {
+      expect(getCellGlowColor(PieceType.EMPTY)).toBe('transparent');
+      expect(getCellGlowColor(PieceType.I)).toBe(PIECE_GLOW_COLORS[PieceType.I]);
+    });
+
+    it('should handle invalid piece types', () => {
+      expect(getCellGlowColor(999)).toBe(PIECE_GLOW_COLORS[PieceType.EMPTY]);
     });
   });
 
