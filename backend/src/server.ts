@@ -4,7 +4,6 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import http from 'node:http';
 import { WebSocketManager } from './socket/WebSocketManager.js';
-import { GameManager } from './managers/GameManager.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -43,8 +42,5 @@ if (process.env.NODE_ENV === 'production') {
 const server = http.createServer(app);
 // Initialize WebSocketManager to handle all Socket.io logic
 const wsManager = new WebSocketManager(server);
-// Initialize GameManager singleton
-const gameManager = GameManager.getInstance();
 
-
-export { app, server, wsManager, gameManager };
+export { app, server, wsManager };

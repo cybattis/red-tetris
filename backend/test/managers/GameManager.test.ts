@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 import { GameManager } from '../../src/managers/GameManager';
 import { Player } from '../../src/classes/Player';
+import { Room } from '../../src/classes/Room';
 import { GameMode, GameSettings } from '../../../shared/types/game';
 
 const settings: GameSettings = {
@@ -23,8 +24,9 @@ describe('GameManager', () => {
 	it('creates, fetches, lists, and removes games', () => {
 		const manager = GameManager.getInstance();
 		const player = new Player('socket-game-manager');
+		const room = { id: 'room-game-manager', playerCount: 1 } as unknown as Room;
 
-		const game = manager.createGame(player, settings, 1234);
+		const game = manager.createGame(player, settings, 1234, room);
 
 		expect(manager.getGame(game.id)).toBe(game);
 		expect(manager.getAllGames()).toContain(game);
