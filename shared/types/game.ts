@@ -3,9 +3,10 @@
  * Shared between frontend components and backend communication
  */
 
+import { Player } from "backend/src/classes/Player";
 import type { PlayerJoinedEvent, PlayerLeftEvent } from "./room";
 
-export interface Player {
+export interface PlayerRoom {
   id: string;
   name: string;
   isHost: boolean;
@@ -46,7 +47,7 @@ export interface GameSettings {
 
 // Game state interface for real-time updates
 export interface GameStateUpdate {
-  playerId?: string; // Optional player ID for identifying which player's state this is (for multiplayer)
+  player: Player; // Optional player ID for identifying which player's state this is (for multiplayer)
   gameId: string;
   board: number[][];
   currentPiece: {
@@ -66,9 +67,10 @@ export interface GameStateUpdate {
   totalLinesCleared: number;
   isPaused: boolean;
   isGameOver: boolean;
-  gameOverReason: string | null;
+  gameOverReason?: string;
   boardWidth: number;
   boardHeight: number;
+  gameMode: GameMode;
 }
 
 // Backend communication interface for game creation
@@ -77,9 +79,20 @@ export interface GameCreationData {
   hostPlayerId: string;
   gameMode: GameMode;
   settings: GameSettings;
-  players: Player[];
+  players: PlayerRoom[];
   maxPlayers: number;
   timestamp: number;
+}
+
+export type GameOverData = {
+  roomId: string;
+  playerId: string;
+}
+
+export enum EndGameState {
+  Victory = "victory",
+  Defeat = "defeat",
+  BoardOverflow = "board_overflow",
 }
 
 export interface SocketEvents<
@@ -162,7 +175,7 @@ export function prepareGameCreationData(
   roomId: string,
   gameMode: GameMode,
   settings: GameSettings,
-  players: Player[],
+  players: PlayerRoom[],
 ): GameCreationData {
   const hostPlayer = players.find((p) => p.isHost);
   if (!hostPlayer) {
@@ -180,7 +193,7 @@ export function prepareGameCreationData(
   };
 }
 
-export function canStartGame(players: Player[]): boolean {
+export function canStartGame(players: PlayerRoom[]): boolean {
   const hasMinPlayers = players.length >= ROOM_CONFIG.MIN_PLAYERS;
   return hasMinPlayers;
 }

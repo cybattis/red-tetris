@@ -29,7 +29,7 @@ import {
 } from '../slices/gameRoomSlice.js';
 import { showToast } from '../slices/uiSlice.js';
 import type { HostTransferEvent, RoomErrorEvent, RoomInfo } from '@shared/types/room.js';
-import type { SocketEvents, SocketEventsType } from '@shared/types/game.js';
+import { EndGameState, type GameOverData, type SocketEvents } from '@shared/types/game.js';
 
 export const createSocketMiddleware = (socketUrl: string): Middleware<object, RootState> => {
   // Track if socket has been initialized to prevent duplicate initialization
@@ -201,12 +201,25 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<object, Ro
           const playerId = store.getState().gameRoom.currentPlayerId;
 
           console.log(`[DEBUG] Current player ID: ${playerId}, Incoming game state player ID: ${data.playerId}`);
-          if (data.playerId && data.playerId === playerId) {
+          if (data.player && data.player.id === playerId) {
             console.log("[DEBUG] Updating game state for current player");
             dispatch({ type: 'game/updateGameState', payload: data });
           } else {
             console.log("[DEBUG] Updating game state for opponent");
-            dispatch({ type: 'game/updateGameState', payload: { opponents: [data] } });
+            dispatch({
+              type: 'game/updateGameState', payload: {
+                opponents: [{
+                  playerId: data.player.id,
+                  playerName: data.player.name,
+                  board: data.board,
+                  currentPiece: data.currentPiece,
+                  nextPieces: data.nextPieces,
+                  score: data.score,
+                  linesCleared: data.linesCleared,
+                  isEliminated: data.isGameOver
+                }],
+              }
+            });
           }
         });
 
@@ -215,20 +228,30 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<object, Ro
           dispatch({ type: 'game/handleAnimation', payload: animationData });
         });
 
-        socket.on('GAME_ENDED', (data: { gameId: string; playerId: string; reason: string }) => {
-          console.log(`Game ended: ${data.gameId} for player ${data.playerId} - reason: ${data.reason}`);
+        socket.on('GAME_ANIMATION', (animationData) => {
+          // Handle game animations from server
+          dispatch({ type: 'game/handleAnimation', payload: animationData });
+        });
+
+        socket.on('GAME_ENDED', (data: GameOverData) => {
+          console.log(`Game ended: ${data.roomId} for player ${data.playerId}`);
+
+          const currentPlayerId = store.getState().gameRoom.currentPlayerId;
+          console.log(`[DEBUG] Current player ID: ${currentPlayerId}, Game ended player ID: ${data.playerId}`);
+
+          const reason = data.playerId === currentPlayerId ? EndGameState.Defeat : EndGameState.Victory;
 
           // Properly end the game in the frontend state
           dispatch({
             type: 'game/gameEnded', payload: {
-              gameId: data.gameId,
-              reason: data.reason
+              roomId: data.roomId,
+              reason: reason
             }
           });
 
           // Show toast notification
           dispatch(showToast({
-            message: `Game ended: ${data.reason}`,
+            message: `Game ended: ${reason}`,
             type: 'info'
           }));
 

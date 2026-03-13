@@ -8,6 +8,7 @@
 
 import { createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
+import type { EndGameState, PlayerRoom } from '@shared/types/game';
 
 /**
  * Game state update as received from server
@@ -59,7 +60,7 @@ export interface GameState {
   // Game status
   isPaused: boolean;
   isGameOver: boolean;
-  gameOverReason: string | null;
+  endGameState: EndGameState | null;
 
   // Multiplayer - other players' states
   opponents: PlayerGameState[];
@@ -105,7 +106,7 @@ const initialState: GameState = {
 
   isPaused: false,
   isGameOver: false,
-  gameOverReason: null,
+  endGameState: null,
 
   // No opponents for solo games (will be populated for multiplayer)
   opponents: [],
@@ -127,7 +128,7 @@ const initialState: GameState = {
  * Game state update payload (from server)
  */
 export interface GameStateUpdate {
-  playerId?: string; // Optional player ID for identifying which player's state this is (for multiplayer)
+  player: PlayerRoom;
   board?: number[][];
   currentPiece?: PieceState | null;
   ghostPiece?: PieceState | null;
@@ -172,7 +173,7 @@ const gameSlice = createSlice({
       state.totalLinesCleared = 0;
       state.isPaused = false;
       state.isGameOver = false;
-      state.gameOverReason = null;
+      state.endGameState = null;
       state.opponents = [];
       state.pendingPenaltyLines = 0;
     },
@@ -200,10 +201,6 @@ const gameSlice = createSlice({
         console.log(' Setting isGameOver to:', update.isGameOver);
         state.isGameOver = update.isGameOver;
       }
-      if (update.gameOverReason !== undefined) {
-        console.log(' Setting gameOverReason to:', update.gameOverReason);
-        state.gameOverReason = update.gameOverReason;
-      }
       if (update.isPaused !== undefined) {
         console.log('⏸ Setting isPaused to:', update.isPaused);
         state.isPaused = update.isPaused;
@@ -215,7 +212,7 @@ const gameSlice = createSlice({
 
       console.log(' Final Redux state after updateGameState:', {
         isGameOver: state.isGameOver,
-        gameOverReason: state.gameOverReason,
+        gameOverReason: state.endGameState,
         isPaused: state.isPaused,
         opponents: state.opponents.length
       });
@@ -291,19 +288,18 @@ const gameSlice = createSlice({
     /**
      * Game over (from server)
      */
-    gameOver: (state, action: PayloadAction<{ reason?: string }>) => {
+    gameOver: (state, action: PayloadAction<{ reason: EndGameState }>) => {
       state.isGameOver = true;
-      state.gameOverReason = action.payload.reason ?? 'Game Over';
+      state.endGameState = action.payload.reason;
     },
 
     /**
      * Handle game ended from server - stops input and cleans up state
      */
-    gameEnded: (state, action: PayloadAction<{ gameId: string; reason: string }>) => {
+    gameEnded: (state, action: PayloadAction<{ roomId: string; reason: EndGameState }>) => {
       state.isGameOver = true;
-      state.gameOverReason = action.payload.reason;
+      state.endGameState = action.payload.reason;
       state.isPaused = true; // Stop the game loop
-      // Don't reset gameId here as it might be needed for cleanup
     },
 
     /**
@@ -439,7 +435,7 @@ export const selectTotalLinesCleared = (state: { game: GameState }) =>
   state.game.totalLinesCleared;
 export const selectIsPaused = (state: { game: GameState }) => state.game.isPaused;
 export const selectIsGameOver = (state: { game: GameState }) => state.game.isGameOver;
-export const selectGameOverReason = (state: { game: GameState }) => state.game.gameOverReason;
+export const selectGameOverReason = (state: { game: GameState }) => state.game.endGameState;
 export const selectOpponents = (state: { game: GameState }) => state.game.opponents;
 export const selectPendingPenaltyLines = (state: { game: GameState }) =>
   state.game.pendingPenaltyLines;

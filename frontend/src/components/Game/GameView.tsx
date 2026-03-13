@@ -30,6 +30,7 @@ import {
   resetGame,
 } from '../../store/slices/gameSlice';
 import { selectGameSettings, selectGameMode } from '../../store/slices/gameRoomSlice';
+import { EndGameState } from '@shared/types/game';
 
 export interface GameViewProps {
   roomName?: string;
@@ -39,8 +40,8 @@ export interface GameViewProps {
   onReturnHome?: () => void;
 }
 
-export function GameView({ 
-  roomName, 
+export function GameView({
+  roomName,
   playerName = 'Player',
   isHost = false,
   onLeave,
@@ -64,45 +65,45 @@ export function GameView({
   const penaltyRows = useAppSelector(selectPenaltyRows);
   const gameSettings = useAppSelector(selectGameSettings);
   const gameMode = useAppSelector(selectGameMode);
-  
+
   // Determine game mode based on opponents
   const isSoloGame = opponents.length === 0;
   const opponent = opponents[0]; // For 1v1, we only have one opponent
-  
+
   // Debug log game over state
   console.log(' GameView render - Game Over State:', {
     isGameOver,
     gameOverReason,
     isPaused
   });
-  
+
   console.log(' GameView render - Multiplayer State:', {
     isSoloGame,
     opponentsCount: opponents.length,
     opponent,
   });
-  
+
   // Determine if invisible mode is active
   const isInvisible = gameMode === 'invisible';
-  
+
   // Check if all opponents are eliminated (victory condition for multiplayer)
-  const allOpponentsEliminated = !isSoloGame && opponents.length > 0 && 
+  const allOpponentsEliminated = !isSoloGame && opponents.length > 0 &&
     opponents.every(opp => opp.isEliminated);
-  
+
   // Determine if we should show game over overlay and whether it's a victory
   const showGameOverOverlay = isGameOver || allOpponentsEliminated;
-  const isVictory = allOpponentsEliminated && !isGameOver;
-  
+  const isVictory = allOpponentsEliminated && gameOverReason === EndGameState.Victory;
+
   console.log(' GameView - Victory Logic:', {
     allOpponentsEliminated,
     showGameOverOverlay,
-    isVictory,
+    gameOverReason,
     opponentsStatus: opponents.map(opp => ({
       name: opp.playerName,
       isEliminated: opp.isEliminated
     }))
   });
-  
+
   // Animation data from server
   const lockedCells = useAppSelector(selectLockedCells);
   const hardDropTrail = useAppSelector(selectHardDropTrail);
@@ -123,12 +124,12 @@ export function GameView({
       if (lockedCellsTimeoutRef.current) {
         return;
       }
-      
+
       lockedCellsTimeoutRef.current = setTimeout(() => {
         dispatch(clearLockedCells());
         lockedCellsTimeoutRef.current = null;
       }, 400);
-      
+
       return () => {
         if (lockedCellsTimeoutRef.current) {
           clearTimeout(lockedCellsTimeoutRef.current);
@@ -144,12 +145,12 @@ export function GameView({
       if (hardDropTimeoutRef.current) {
         return;
       }
-      
+
       hardDropTimeoutRef.current = setTimeout(() => {
         dispatch(clearHardDropTrail());
         hardDropTimeoutRef.current = null;
       }, 500);
-      
+
       return () => {
         if (hardDropTimeoutRef.current) {
           clearTimeout(hardDropTimeoutRef.current);
@@ -165,12 +166,12 @@ export function GameView({
       if (lineClearTimeoutRef.current) {
         return;
       }
-      
+
       lineClearTimeoutRef.current = setTimeout(() => {
         dispatch(clearClearingRows());
         lineClearTimeoutRef.current = null;
       }, 1100);
-      
+
       return () => {
         if (lineClearTimeoutRef.current) {
           clearTimeout(lineClearTimeoutRef.current);
@@ -194,11 +195,11 @@ export function GameView({
   };
 
   const handleDebugGameOver = () => {
-    dispatch(gameOver({ reason: 'Board Overflow' }));
+    dispatch(gameOver({ reason: EndGameState.BoardOverflow }));
   };
 
   const handleDebugWin = () => {
-    dispatch(gameOver({ reason: 'Victory!' }));
+    dispatch(gameOver({ reason: EndGameState.Victory }));
   };
 
   const handleDebugReset = () => {
@@ -233,7 +234,6 @@ export function GameView({
     <div className={styles.container}>
       <GameOverOverlay
         isVisible={showGameOverOverlay}
-        reason={isVictory ? 'Victory!' : (gameOverReason ?? 'Game Over')}
         isWinner={isVictory}
         stats={{
           score,
@@ -256,7 +256,7 @@ export function GameView({
       </header>
 
       <main className={`${styles.gameArea} ${isSoloGame ? styles.soloLayout : styles.multiplayerLayout}`}>
-        
+
         <div className={styles.playerBoardWrapper}>
           <PlayerBoard
             playerName={playerName}
@@ -337,7 +337,7 @@ interface OpponentBoardProps {
 }
 
 function OpponentBoard({ opponent, boardHeight, maxNextDisplay, size = 'normal' }: OpponentBoardProps) {
-  
+
   if (opponent.board) {
     return (
       <PlayerBoard
@@ -357,7 +357,7 @@ function OpponentBoard({ opponent, boardHeight, maxNextDisplay, size = 'normal' 
   }
 
   const spectrumBoard = createBoardFromSpectrum(opponent.spectrum, boardHeight);
-  
+
   return (
     <PlayerBoard
       playerName={opponent.playerName}
@@ -374,10 +374,10 @@ function OpponentBoard({ opponent, boardHeight, maxNextDisplay, size = 'normal' 
 
 function createBoardFromSpectrum(spectrum: number[], height: number): number[][] {
   const width = spectrum.length || 10;
-  const board: number[][] = Array.from({ length: height }, () => 
+  const board: number[][] = Array.from({ length: height }, () =>
     Array(width).fill(0)
   );
-  
+
   for (let col = 0; col < width; col++) {
     const columnHeight = spectrum[col] || 0;
     for (let row = height - columnHeight; row < height; row++) {
@@ -386,7 +386,7 @@ function createBoardFromSpectrum(spectrum: number[], height: number): number[][]
       }
     }
   }
-  
+
   return board;
 }
 

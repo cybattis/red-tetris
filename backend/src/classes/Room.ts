@@ -2,7 +2,7 @@ import { Player } from './Player';
 import { Game } from './Game';
 import { Logger } from '../utils/helpers';
 import { GameManager } from '../managers/GameManager';
-import { GameSettings, GameMode } from '@shared/types/game';
+import { GameSettings, GameMode, GameOverData } from '@shared/types/game';
 import { RoomState, RoomPlayer, RoomInfo, ROOM_CONFIG, RoomResults } from '@shared/types/room';
 import { Server } from 'socket.io';
 import { wsManager } from '../server';
@@ -245,8 +245,13 @@ export class Room {
         this._games.set(player.id, game);
 
         // Listen for game ended event to update room state
-        game.once('gameOver', (data) => {
-          Logger.info(`Game ${data.gameId} ended in room ${this.id}, calling endGame()`);
+        game.once('gameOver', (data: GameOverData) => {
+          Logger.info(`Game ended in room ${this.id} for player ${player.name}`);
+
+          if (!this.io.to(this?.id!).emit('GAME_ENDED', data)) {
+            Logger.warn(`Failed to broadcast game state for game ${this.id} in room ${this?.id}`);
+          }
+
           // Stop games for all players in the room when one game ends (for multiplayer)
           this.endGame();
         });

@@ -28,18 +28,20 @@ export const GameOverOverlay = memo(function GameOverOverlay({
   const [showStats, setShowStats] = useState(false);
   const [showButtons, setShowButtons] = useState(false);
 
+  console.log('GameOverOverlay visibility changed:', isVisible);
+  console.log('Stats:', stats);
+  console.log('Is Winner:', isWinner);
+  console.log('Reason:', reason);
+
   useEffect(() => {
     if (isVisible) {
       const statsTimer = setTimeout(() => setShowStats(true), 600);
       const buttonsTimer = setTimeout(() => setShowButtons(true), 1200);
-      
+
       return () => {
         clearTimeout(statsTimer);
         clearTimeout(buttonsTimer);
       };
-    } else {
-      setShowStats(false);
-      setShowButtons(false);
     }
   }, [isVisible]);
 

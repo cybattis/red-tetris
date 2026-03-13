@@ -1,5 +1,5 @@
 import { Player } from './Player';
-import { GameAction, GameMode, GameSettings, GameState } from '@shared/types/game';
+import { GameAction, GameMode, GameSettings, GameState, GameStateUpdate } from '@shared/types/game';
 import { randomUUID } from 'node:crypto';
 import { PiecesSequence } from './PiecesSequence';
 import { Piece } from './Piece';
@@ -111,9 +111,9 @@ export class Game extends EventEmitter {
 
   // Game state serialization for frontend
   // ============================================
-  public getGameState() {
-    const gameState = {
-      playerId: this.player.id,
+  public getGameState(): GameStateUpdate {
+    const gameState: GameStateUpdate = {
+      player: this.player,
       gameId: this.id,
       board: this.board,
       currentPiece: this._currentPiece
@@ -131,17 +131,15 @@ export class Game extends EventEmitter {
       totalLinesCleared: this.lines,
       isPaused: this.state !== GameState.Playing,
       isGameOver: !this.isAlive,
-      gameOverReason: this.isAlive ? null : 'Game Over',
       boardWidth: this.settings.boardWidth,
       boardHeight: this.settings.boardHeight,
-      gameMode: this.settings.gameMode,
+      gameMode: this.settings.gameMode
     };
 
     Logger.dump('Backend getGameState() returning:', {
       isAlive: this.isAlive,
       state: this.state,
       isGameOver: gameState.isGameOver,
-      gameOverReason: gameState.gameOverReason,
       isPaused: gameState.isPaused,
       opponentsCount: this.room?.playerCount
     });
@@ -491,7 +489,12 @@ export class Game extends EventEmitter {
     // Broadcast final game state to the client
     this.broadcastGameState();
 
-    this.emit('gameOver', { gameId: this.id, playerId: this.player.id });
+    const gameOverData = {
+      roomId: this.room.id,
+      playerId: this.player.id,
+    };
+
+    this.emit('gameOver', gameOverData);
 
     Logger.info(`Game over for player ${this.player.name} (ID: ${this.player.id}) in game ${this.id}`);
   }
