@@ -3,14 +3,14 @@
  * Shared between frontend components and backend communication
  */
 
-import { Player } from "backend/src/classes/Player";
 import type { PlayerJoinedEvent, PlayerLeftEvent } from "./room";
 
-export interface PlayerRoom {
-  id: string;
+export interface Player {
+  readonly id: string;
+  socketId: string;
   name: string;
   isHost: boolean;
-  isReady: boolean;
+  isSpectator: boolean;
 }
 
 export enum GameMode {
@@ -79,7 +79,7 @@ export interface GameCreationData {
   hostPlayerId: string;
   gameMode: GameMode;
   settings: GameSettings;
-  players: PlayerRoom[];
+  players: Player[];
   maxPlayers: number;
   timestamp: number;
 }
@@ -175,7 +175,7 @@ export function prepareGameCreationData(
   roomId: string,
   gameMode: GameMode,
   settings: GameSettings,
-  players: PlayerRoom[],
+  players: Player[],
 ): GameCreationData {
   const hostPlayer = players.find((p) => p.isHost);
   if (!hostPlayer) {
@@ -193,7 +193,7 @@ export function prepareGameCreationData(
   };
 }
 
-export function canStartGame(players: PlayerRoom[]): boolean {
+export function canStartGame(players: Player[]): boolean {
   const hasMinPlayers = players.length >= ROOM_CONFIG.MIN_PLAYERS;
   return hasMinPlayers;
 }

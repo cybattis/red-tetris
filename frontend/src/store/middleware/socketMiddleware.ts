@@ -44,6 +44,7 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<object, Ro
     const result = next(action);
     const state = store.getState();
     const dispatch = store.dispatch as AppDispatch;
+    const isSpectator = state.gameRoom.isSpectator;
 
     switch (action.type) {
       case 'connection/initSocket': {
@@ -200,8 +201,10 @@ export const createSocketMiddleware = (socketUrl: string): Middleware<object, Ro
 
           const playerId = store.getState().gameRoom.currentPlayerId;
 
-          console.log(`[DEBUG] Current player ID: ${playerId}, Incoming game state player ID: ${data.playerId}`);
-          if (data.player && data.player.id === playerId) {
+          console.log(`[DEBUG] Current player ID: ${playerId}, Incoming game state player ID: ${data.player?.id}`);
+          console.log(`[DEBUG] Is spectator: ${isSpectator}`);
+
+          if (data.player && data.player.id === playerId || isSpectator) {
             console.log("[DEBUG] Updating game state for current player");
             dispatch({ type: 'game/updateGameState', payload: data });
           } else {

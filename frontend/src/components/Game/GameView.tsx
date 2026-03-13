@@ -29,7 +29,7 @@ import {
   gameOver,
   resetGame,
 } from '../../store/slices/gameSlice';
-import { selectGameSettings, selectGameMode } from '../../store/slices/gameRoomSlice';
+import { selectGameSettings, selectGameMode, selectIsSpectator } from '../../store/slices/gameRoomSlice';
 import { EndGameState } from '@shared/types/game';
 
 export interface GameViewProps {

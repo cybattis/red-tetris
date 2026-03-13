@@ -1,19 +1,12 @@
-import type { GameSettings } from './game';
+import type { GameSettings, Player } from './game';
 
 export type RoomState = 'waiting' | 'playing' | 'ended';
-
-export interface RoomPlayer {
-  id: string;
-  name: string;
-  isHost: boolean;
-  isSpectator: boolean;
-}
 
 export interface RoomInfo {
   id: string;
   state: RoomState;
-  players: RoomPlayer[];
-  spectators: RoomPlayer[];
+  players: Player[];
+  spectators: Player[];
   hostId: string;
   maxPlayers: number;
   createdAt: Date;
@@ -46,7 +39,7 @@ export interface HostTransferEvent {
 
 export interface PlayerJoinedEvent {
   roomId: string;
-  player: RoomPlayer;
+  player: Player;
 }
 
 export interface PlayerLeftEvent {
@@ -63,7 +56,7 @@ export interface RoomLeaveEvent {
 
 export interface SpectatorJoinedEvent {
   roomId: string;
-  spectator: RoomPlayer;
+  spectator: Player;
 }
 
 export interface RoomErrorEvent {

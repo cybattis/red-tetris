@@ -1,25 +1,16 @@
 import { createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
-import type {
-  Player,
-  GameMode,
-  GameSettings,
-  GameCreationData
-} from '@types/game.ts';
 import {
-  DEFAULT_SETTINGS,
-  ROOM_CONFIG,
-  canStartGame,
-  prepareGameCreationData
-} from '@types/game.ts';
-import type {
-  RoomInfo,
-  RoomState as BackendRoomState,
-  PlayerJoinedEvent,
-  PlayerLeftEvent,
-  HostTransferEvent,
-  RoomErrorEvent
+  type RoomInfo,
+  type RoomState as BackendRoomState,
+  type PlayerJoinedEvent,
+  type PlayerLeftEvent,
+  type HostTransferEvent,
+  type RoomErrorEvent,
+  ROOM_CONFIG
 } from '../../../../shared/types/room';
+import type { GameSettings } from '@/components';
+import { GameMode, DEFAULT_SETTINGS, canStartGame, type GameCreationData, prepareGameCreationData, type Player } from '@shared/types/game';
 
 export type GameRoomStatus = 'lobby' | 'countdown' | 'playing' | 'finished' | 'error';
 

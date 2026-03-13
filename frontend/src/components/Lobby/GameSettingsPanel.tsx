@@ -12,6 +12,7 @@ export interface GameSettings {
   ghostPiece: boolean;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const DEFAULT_GAME_SETTINGS: GameSettings = {
   boardWidth: 10,
   boardHeight: 20,

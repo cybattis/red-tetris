@@ -4,18 +4,12 @@
  */
 
 // Import shared types
-import type { GameSettings as SharedGameSettings } from '../../../shared/types/game';
+import type { Player, GameSettings as SharedGameSettings } from '../../../shared/types/game';
 import { GameMode } from '../../../shared/types/game';
 
 // Re-export shared types
 export type GameSettings = SharedGameSettings;
 export { GameMode };
-
-export interface Player {
-  id: string;
-  name: string;
-  isHost: boolean;
-}
 
 // Backend communication interface for game creation
 export interface GameCreationData {
