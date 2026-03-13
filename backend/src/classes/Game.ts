@@ -5,11 +5,10 @@ import { PiecesSequence } from './PiecesSequence';
 import { Piece } from './Piece';
 import { Logger } from '../utils/helpers';
 import { TETROMINO_DICTIONARY } from '../pieces/TetrominoFactory';
-import type { Server } from 'socket.io';
+import type { Server, Socket } from 'socket.io';
 import { EventEmitter } from 'node:events';
 import type { Room } from './Room';
 import { wsManager } from '../server';
-import { Socket } from '@socket.io'
 
 export class Game extends EventEmitter {
   // Game state and public properties
@@ -18,7 +17,7 @@ export class Game extends EventEmitter {
   public readonly settings: GameSettings;
   public readonly piecesSequence: PiecesSequence;
   public readonly room: Room;
-  public socketId: Socket;
+  public socket: Socket | undefined;
 
   // Access the WebSocket server instance from GameManager
   private readonly io: Server = wsManager.io;
@@ -55,7 +54,7 @@ export class Game extends EventEmitter {
   private _playerInput: GameAction = GameAction.NO_INPUT;
   private _starting: boolean = true; // Flag to indicate the first tick for proper initial piece spawning
 
-  constructor(player: Player, seed: number, settings: GameSettings, room: Room, playerSocket: Socket) {
+  constructor(player: Player, seed: number, settings: GameSettings, room: Room) {
     super();
     this.id = randomUUID();
     this.player = player;
@@ -63,7 +62,7 @@ export class Game extends EventEmitter {
     this.originalGravity = settings.gravity; // Store original gravity for restoration
     this.room = room;
 
-    this.socketId = playerSocket;
+    this.socket = wsManager.getSocketById(player.socketId)
 
     this.piecesSequence = new PiecesSequence(seed, 7);
     this.board = this.createEmptyBoard();
@@ -167,7 +166,12 @@ export class Game extends EventEmitter {
   }
 
   private broadcastAnimation(animationType: string, data: any): void {
-    if (!this.socketId.emit('GAME_ANIMATION', {
+    if (!this.socket) {
+      Logger.warn(`No socket available for game ${this.id} in room ${this.room?.id}`);
+      return;
+    }
+
+    if (!this.socket.emit('GAME_ANIMATION', {
       type: animationType,
       data: data,
     })) {

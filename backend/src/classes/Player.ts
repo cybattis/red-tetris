@@ -3,12 +3,10 @@ export class Player {
   public socketId: string;
   public name: string = '';
 
-  constructor(socketId: string, name?: string) {
+  constructor(socketId: string, name: string) {
     this.id = socketId;
     this.socketId = socketId;
-    if (name) {
-      this.name = name;
-    }
+    this.name = name;
   }
 
   public toJSON(): {
