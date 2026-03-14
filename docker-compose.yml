@@ -27,7 +27,7 @@ services:
       - red-tetris
     environment:
       - NODE_ENV=development
-      - VITE_SERVER_URL=${VITE_SOCKET_URL}
+      - VITE_SERVER_URL=${VITE_SERVER_URL}
     depends_on:
       - backend
 

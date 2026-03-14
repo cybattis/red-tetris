@@ -1,5 +1,14 @@
 import { Player } from './Player';
-import { GameAction, GameMode, GameSettings, GameState, GameStateUpdate } from '@shared/types/game';
+import {
+  AnimationType,
+  GameAction,
+  GameAnimationData,
+  GameMode,
+  GameSettings,
+  GameStatus,
+  GameStateUpdate,
+  Trail,
+} from '@shared/types/game';
 import { randomUUID } from 'node:crypto';
 import { PiecesSequence } from './PiecesSequence';
 import { Piece } from './Piece';
@@ -9,6 +18,7 @@ import { EventEmitter } from 'node:events';
 import { wsManager } from '../server';
 import type { Server, Socket } from 'socket.io';
 import type { Room } from './Room';
+import { PieceState } from '@shared/types/piece';
 
 export class Game extends EventEmitter {
   // Game state and public properties
@@ -17,12 +27,9 @@ export class Game extends EventEmitter {
   public readonly settings: GameSettings;
   public readonly piecesSequence: PiecesSequence;
   public readonly room: Room;
-  public socket?: Socket;
+  public playerSocket?: Socket;
 
-  // Access the WebSocket server instance from GameManager
-  private readonly io: Server = wsManager.io;
-
-  public state: GameState = GameState.Waiting;
+  public state: GameStatus = GameStatus.Waiting;
   public board: number[][];
   public currentPieceIndex: number = 0;
   public isAlive: boolean = true;
@@ -30,29 +37,28 @@ export class Game extends EventEmitter {
   public linesCleared: number = 0;
   public lines: number = 0;
   public level: number = 1;
+  public dropInterval: number = 1000; // Game timing in milliseconds
 
-  // Game timing
-  public dropInterval: number = 1000; // milliseconds
-
-  // Store original gravity and current effective gravity for Sprint mode
-  private readonly originalGravity: number;
+  // Access the WebSocket server instance from GameManager
+  private readonly io: Server = wsManager.io;
 
   // Sprint mode constants - simplified approach using gravity acceleration
   private static readonly SPRINT_GRAVITY_INCREASE_PER_LINE = 0.05; // Gravity increases by 0.05 per line cleared
   private static readonly SPRINT_MAX_GRAVITY = 20; // Cap gravity at 20x the base value
-
   // Timing constants
   private static readonly TICK_RATE = 60;
   private static readonly TICK_INTERVAL_MS = 1000 / Game.TICK_RATE;
   private static readonly BASE_GRAVITY_INTERVAL_MS = 1000;
 
+  // Internal state for game loop and timing
   private _gameLoop: NodeJS.Timeout | null = null;
-  // Internal state
   private _lastTickAt = 0;
   private _gravityAccumulatorMs = 0;
   private _currentPiece: Piece;
   private _playerInput: GameAction = GameAction.NO_INPUT;
   private _starting: boolean = true; // Flag to indicate the first tick for proper initial piece spawning
+  // Store original gravity and current effective gravity for Sprint mode
+  private readonly originalGravity: number;
 
   constructor(player: Player, seed: number, settings: GameSettings, room: Room) {
     super();
@@ -62,7 +68,7 @@ export class Game extends EventEmitter {
     this.originalGravity = settings.gravity; // Store original gravity for restoration
     this.room = room;
 
-    this.socket = wsManager.getSocketById(player.socketId)
+    this.playerSocket = wsManager.getSocketById(player.socketId);
 
     this.piecesSequence = new PiecesSequence(seed, 7);
     this.board = this.createEmptyBoard();
@@ -73,13 +79,13 @@ export class Game extends EventEmitter {
   // Game actions
   // ============================================
   public start(): void {
-    if (this.state === GameState.Playing) {
+    if (this.state === GameStatus.Playing) {
       Logger.warn(`Game for player ${this.player.name} is already in progress.`);
       return;
     }
 
     Logger.info(`Starting game for player ${this.player.name}...`);
-    this.state = GameState.Playing;
+    this.state = GameStatus.Playing;
     // Don't spawn a new piece here - we already have one from the constructor
     this._lastTickAt = Date.now();
 
@@ -115,33 +121,25 @@ export class Game extends EventEmitter {
     const gameState: GameStateUpdate = {
       player: this.player,
       gameId: this.id,
+      gameSettings: this.settings,
       board: this.board,
-      currentPiece: this._currentPiece
-        ? {
-          type: this._currentPiece.id,
-          position: this._currentPiece.position,
-          shape: this._currentPiece.shape,
-        }
-        : null,
+      currentPiece: this._currentPiece.getState(),
       ghostPiece: this.settings.ghostPiece ? this.calculateGhostPiece() : null,
       nextPieces: this.getNextPiecesPreview(),
       score: this.score,
       level: 1,
       linesCleared: this.linesCleared,
       totalLinesCleared: this.lines,
-      isPaused: this.state !== GameState.Playing,
+      isPaused: this.state !== GameStatus.Playing,
       isGameOver: !this.isAlive,
-      boardWidth: this.settings.boardWidth,
-      boardHeight: this.settings.boardHeight,
-      gameMode: this.settings.gameMode
     };
 
-    Logger.dump('Backend getGameState() returning:', {
+    Logger.dump('Game state: ', {
       isAlive: this.isAlive,
       state: this.state,
       isGameOver: gameState.isGameOver,
       isPaused: gameState.isPaused,
-      opponentsCount: this.room?.playerCount
+      opponentsCount: this.room?.playerCount,
     });
 
     return gameState;
@@ -158,21 +156,23 @@ export class Game extends EventEmitter {
 
   private broadcastGameState(): void {
     const gameState = this.getGameState();
-    if (!this.io.to(this.room?.id!).emit('GAME_STATE_UPDATE', gameState)) {
+    if (!this.io.to(this.room?.id).emit('GAME_STATE_UPDATE', gameState)) {
       Logger.warn(`Failed to broadcast game state for game ${this.id} in room ${this.room?.id}`);
     }
   }
 
-  private broadcastAnimation(animationType: string, data: any): void {
-    if (!this.socket) {
+  private broadcastAnimation(animationType: AnimationType, data: GameAnimationData): void {
+    if (!this.playerSocket) {
       Logger.warn(`No socket available for game ${this.id} in room ${this.room?.id}`);
       return;
     }
 
-    if (!this.socket.emit('GAME_ANIMATION', {
-      type: animationType,
-      data: data,
-    })) {
+    if (
+      !this.playerSocket.emit('GAME_ANIMATION', {
+        type: animationType,
+        data: data,
+      })
+    ) {
       Logger.warn(`Failed to broadcast game animation for game ${this.id} in room ${this.room?.id}`);
     }
   }
@@ -238,7 +238,7 @@ export class Game extends EventEmitter {
   }
 
   /**
-   * Process player input independently from gravity.
+   * Process player input independently of gravity.
    * Horizontal moves are validated on their own so a wall collision
    * cannot be confused with a downward collision.
    */
@@ -263,7 +263,7 @@ export class Game extends EventEmitter {
       this.addHardDropBonus(hardDropBonus);
 
       // Create hard drop trail data for each column of the piece
-      const trailData = [];
+      const trailData: Trail[] = [];
       for (const cell of this._currentPiece.getOccupiedCells()) {
         trailData.push({
           x: this._currentPiece.position.x + cell.x,
@@ -273,8 +273,8 @@ export class Game extends EventEmitter {
         });
       }
 
-      this.broadcastAnimation('HARD_DROP', {
-        trail: trailData,
+      this.broadcastAnimation(AnimationType.HARD_DROP, {
+        trails: trailData,
         timestamp: Date.now(),
       });
 
@@ -398,7 +398,7 @@ export class Game extends EventEmitter {
       }
     }
 
-    this.broadcastAnimation('PIECE_LOCK', {
+    this.broadcastAnimation(AnimationType.LOCK_PIECE, {
       cells: lockedCells,
       timestamp: Date.now(),
     });
@@ -440,7 +440,7 @@ export class Game extends EventEmitter {
     for (let y = 0; y < this.settings.boardHeight; y++) {
       const row = this.board[y];
       const isFull = row.every((cell) => cell !== 0);
-      const isPenaltyRow = row.some((cell) => cell === 8);
+      const isPenaltyRow = row.includes(8);
       if (isFull && !isPenaltyRow) {
         linesToClear.push(y);
       }
@@ -484,7 +484,7 @@ export class Game extends EventEmitter {
   // ============================================
   private GameOver(): void {
     this.isAlive = false;
-    this.state = GameState.Ended;
+    this.state = GameStatus.Ended;
 
     // Broadcast final game state to the client
     this.broadcastGameState();
@@ -534,7 +534,7 @@ export class Game extends EventEmitter {
     }
 
     // Broadcast penalty animation to this player so they see the warning flash
-    this.broadcastAnimation('PENALTY_LINES', {
+    this.broadcastAnimation(AnimationType.PENALTY_LINES, {
       rows: penaltyRowIndices,
       count,
       timestamp: Date.now(),
@@ -551,7 +551,7 @@ export class Game extends EventEmitter {
 
   private clearLines(linesToClear: number[]): void {
     const timestamp = Date.now();
-    this.broadcastAnimation('LINE_CLEAR', {
+    this.broadcastAnimation(AnimationType.LINE_CLEAR, {
       rows: linesToClear,
       timestamp: timestamp,
     });
@@ -577,7 +577,7 @@ export class Game extends EventEmitter {
     // Apply Sprint mode specific effects for line clearing
     if (this.settings.gameMode === GameMode.Sprint && linesToClear.length >= 3) {
       // Add speed boost animation for significant line clears in Sprint mode
-      this.broadcastAnimation('SPEED_BOOST', {
+      this.broadcastAnimation(AnimationType.SPEED_BOOST, {
         multiplier: linesToClear.length,
         timestamp: Date.now(),
       });
@@ -601,8 +601,6 @@ export class Game extends EventEmitter {
 
   private addHardDropBonus(bonus: number): void {
     this.score += bonus;
-    // Reduce logging for performance - only log significant events
-    // Logger.info(`Hard drop bonus: +${bonus} points (total: ${this.score})`);
   }
 
   private updateScore(linesCleared: number): void {
@@ -620,7 +618,7 @@ export class Game extends EventEmitter {
     }
   }
 
-  private calculateHardDropDistance(isGhostCalculation = false): number {
+  private calculateHardDropDistance(): number {
     // Calculate how far down the current piece can fall before hitting something
     const currentX = this._currentPiece.position.x;
     const currentY = this._currentPiece.position.y;
@@ -636,10 +634,10 @@ export class Game extends EventEmitter {
     return this.settings.boardHeight - currentY - 1;
   }
 
-  private calculateGhostPiece() {
+  private calculateGhostPiece(): PieceState | null {
     if (!this._currentPiece) return null;
 
-    const dropDistance = this.calculateHardDropDistance(true); // Pass true to indicate ghost piece calculation
+    const dropDistance = this.calculateHardDropDistance(); // Pass true to indicate ghost piece calculation
     const ghostPosition = {
       x: this._currentPiece.position.x,
       y: this._currentPiece.position.y + dropDistance,
@@ -649,6 +647,7 @@ export class Game extends EventEmitter {
       type: this._currentPiece.id,
       position: ghostPosition,
       shape: this._currentPiece.shape,
+      rotation: this._currentPiece.rotation,
     };
   }
 

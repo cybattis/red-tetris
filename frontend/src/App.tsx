@@ -3,11 +3,11 @@
  * Sets up routing and global providers
  */
 
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { HomePage, GameRoom, NotFoundPage } from './pages';
-import { SocketTest } from './pages/SocketTest';
-import { useSocket } from './hooks/index.js';
-import './App.css';
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { HomePage, GameRoom, NotFoundPage } from "./pages";
+import { SocketTest } from "./pages/SocketTest";
+import { useSocket } from "@/hooks";
+import "./App.css";
 
 function App() {
   // Initialize socket connection (currently disabled until backend is ready)

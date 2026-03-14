@@ -5,35 +5,18 @@
  * This is a DISPLAY-ONLY slice - all game logic runs on the server.
  * We just store what the server sends us and render it.
  */
-
-import { createSlice } from '@reduxjs/toolkit';
-import type { PayloadAction } from '@reduxjs/toolkit';
-import type { EndGameState, PlayerRoom } from '@shared/types/game';
-
-/**
- * Game state update as received from server
- */
-export interface PieceState {
-  type: number;
-  position: { x: number; y: number };
-  shape: number[][];
-  rotation?: number;
-}
-
-/**
- * Player game state (for multiplayer - other players' states)
- */
-export interface PlayerGameState {
-  playerId: string;
-  playerName: string;
-  spectrum: number[]; // Column heights for spectrum display
-  score: number;
-  isEliminated: boolean;
-  // Full game data for 2-player mode (optional, server may not always send these)
-  board?: number[][];
-  nextPieces?: number[];
-  currentPiece?: PieceState | null;
-}
+import { createSlice } from "@reduxjs/toolkit";
+import type { PayloadAction } from "@reduxjs/toolkit";
+import {
+  AnimationType,
+  type EndGameReason,
+  type GameAnimationData,
+  type GameStateUpdate,
+  type LockedCell,
+  type Trail,
+} from "@shared/types/game";
+import type { OpponentsGameState } from "@shared/types/player.ts";
+import type { PieceState } from "@shared/types/piece.ts";
 
 /**
  * Main game state - all data comes from server
@@ -60,93 +43,60 @@ export interface GameState {
   // Game status
   isPaused: boolean;
   isGameOver: boolean;
-  endGameState: EndGameState | null;
-
-  // Multiplayer - other players' states
-  opponents: PlayerGameState[];
+  endGameState: EndGameReason | null;
 
   // Penalty lines pending (from server)
   pendingPenaltyLines: number;
 
   // Animation state (for visual effects)
-  clearingRows: number[];  // Row indices currently being cleared
-  penaltyRows: number[];   // Row indices that are penalty lines (for animation)
+  clearingRows: number[]; // Row indices currently being cleared
+  penaltyRows: number[]; // Row indices that are penalty lines (for animation)
 
   // Animation data from server
-  lockedCells: { x: number; y: number; type: number; id?: string }[];
-  hardDropTrail: { x: number; startY: number; endY: number; type: number; id?: string }[];
+  lockedCells: LockedCell[];
+  hardDropTrail: Trail[];
 
   // Animation deduplication
   lastAnimationTimestamp: { [key: string]: number };
+
+  // Multiplayer - other players' states
+  opponent?: OpponentsGameState;
 }
 
 /**
  * Initial state - empty board until server sends data
  */
 const createEmptyBoard = (width: number, height: number): number[][] => {
-  return Array.from({ length: height }, () => Array(width).fill(0));
+  return Array.from({ length: height }, () => new Array(width).fill(0));
 };
 
 const initialState: GameState = {
   board: createEmptyBoard(10, 20),
   boardWidth: 10,
   boardHeight: 20,
-
-  // No pieces until game starts
-  currentPiece: null,
-  ghostPiece: null,
-
-  // Empty next pieces queue
-  nextPieces: [],
-
-  score: 0,
-  level: 1,
-  linesCleared: 0,
-  totalLinesCleared: 0,
-
   isPaused: false,
   isGameOver: false,
   endGameState: null,
 
-  // No opponents for solo games (will be populated for multiplayer)
-  opponents: [],
+  currentPiece: null, // No pieces until game starts
+  ghostPiece: null,
+  nextPieces: [],
+  score: 0,
+  level: 1,
+  linesCleared: 0,
+  totalLinesCleared: 0,
   pendingPenaltyLines: 0,
 
   // Animation state
   clearingRows: [],
   penaltyRows: [],
-
-  // Animation data from server
   lockedCells: [],
   hardDropTrail: [],
-
-  // Animation deduplication
-  lastAnimationTimestamp: {},
+  lastAnimationTimestamp: {}, // Animation deduplication
 };
 
-/**
- * Game state update payload (from server)
- */
-export interface GameStateUpdate {
-  player: PlayerRoom;
-  board?: number[][];
-  currentPiece?: PieceState | null;
-  ghostPiece?: PieceState | null;
-  nextPieces?: number[];
-  score?: number;
-  level?: number;
-  linesCleared?: number;
-  totalLinesCleared?: number;
-  boardWidth?: number;
-  boardHeight?: number;
-  isPaused?: boolean;
-  isGameOver?: boolean;
-  gameOverReason?: string | null;
-  opponents?: PlayerGameState[]; // Opponent data for multiplayer
-}
-
 const gameSlice = createSlice({
-  name: 'game',
+  name: "game",
   initialState,
   reducers: {
     /**
@@ -158,7 +108,7 @@ const gameSlice = createSlice({
         boardWidth: number;
         boardHeight: number;
         nextPieces?: number[];
-      }>
+      }>,
     ) => {
       const { boardWidth, boardHeight, nextPieces } = action.payload;
       state.boardWidth = boardWidth;
@@ -174,7 +124,6 @@ const gameSlice = createSlice({
       state.isPaused = false;
       state.isGameOver = false;
       state.endGameState = null;
-      state.opponents = [];
       state.pendingPenaltyLines = 0;
     },
 
@@ -184,37 +133,46 @@ const gameSlice = createSlice({
      */
     updateGameState: (state, action: PayloadAction<GameStateUpdate>) => {
       const update = action.payload;
-      console.log(' Redux updateGameState called with:', update);
+      console.log(" Redux updateGameState called with:", update);
 
       if (update.board !== undefined) state.board = update.board;
-      if (update.currentPiece !== undefined) state.currentPiece = update.currentPiece;
+      if (update.currentPiece !== undefined)
+        state.currentPiece = update.currentPiece;
       if (update.ghostPiece !== undefined) state.ghostPiece = update.ghostPiece;
       if (update.nextPieces !== undefined) state.nextPieces = update.nextPieces;
       if (update.score !== undefined) state.score = update.score;
       if (update.level !== undefined) state.level = update.level;
-      if (update.linesCleared !== undefined) state.linesCleared = update.linesCleared;
+      if (update.linesCleared !== undefined)
+        state.linesCleared = update.linesCleared;
       if (update.totalLinesCleared !== undefined)
         state.totalLinesCleared = update.totalLinesCleared;
-      if (update.boardWidth !== undefined) state.boardWidth = update.boardWidth;
-      if (update.boardHeight !== undefined) state.boardHeight = update.boardHeight;
+
+      const gameSettings = update.gameSettings;
+      if (gameSettings) {
+        if (update.gameSettings.boardWidth !== undefined)
+          state.boardWidth = gameSettings.boardWidth;
+        if (update.gameSettings.boardHeight !== undefined)
+          state.boardHeight = gameSettings.boardHeight;
+      }
+
       if (update.isGameOver !== undefined) {
-        console.log(' Setting isGameOver to:', update.isGameOver);
+        console.log(" Setting isGameOver to:", update.isGameOver);
         state.isGameOver = update.isGameOver;
       }
       if (update.isPaused !== undefined) {
-        console.log('⏸ Setting isPaused to:', update.isPaused);
+        console.log("⏸ Setting isPaused to:", update.isPaused);
         state.isPaused = update.isPaused;
       }
-      if (update.opponents !== undefined) {
-        console.log(' Setting opponents to:', update.opponents);
-        state.opponents = update.opponents;
+      if (update.opponent !== undefined) {
+        console.log(" Setting opponent to:", update.opponent);
+        state.opponent = update.opponent;
       }
 
-      console.log(' Final Redux state after updateGameState:', {
+      console.log(" Final Redux state after updateGameState:", {
         isGameOver: state.isGameOver,
         gameOverReason: state.endGameState,
         isPaused: state.isPaused,
-        opponents: state.opponents.length
+        opponent: state.opponent,
       });
     },
 
@@ -223,37 +181,17 @@ const gameSlice = createSlice({
      */
     updateOpponentSpectrum: (
       state,
-      action: PayloadAction<{
-        playerId: string;
-        playerName: string;
-        spectrum: number[];
-        score: number;
-      }>
+      action: PayloadAction<OpponentsGameState>,
     ) => {
-      const { playerId, playerName, spectrum, score } = action.payload;
-      const existingIndex = state.opponents.findIndex((o) => o.playerId === playerId);
-
-      if (existingIndex >= 0) {
-        state.opponents[existingIndex].spectrum = spectrum;
-        state.opponents[existingIndex].score = score;
-      } else {
-        state.opponents.push({
-          playerId,
-          playerName,
-          spectrum,
-          score,
-          isEliminated: false,
-        });
-      }
+      state.opponent = action.payload;
     },
 
     /**
      * Mark opponent as eliminated
      */
     eliminateOpponent: (state, action: PayloadAction<string>) => {
-      const opponent = state.opponents.find((o) => o.playerId === action.payload);
-      if (opponent) {
-        opponent.isEliminated = true;
+      if (state.opponent?.player.id === action.payload) {
+        state.opponent.isEliminated = true;
       }
     },
 
@@ -288,7 +226,7 @@ const gameSlice = createSlice({
     /**
      * Game over (from server)
      */
-    gameOver: (state, action: PayloadAction<{ reason: EndGameState }>) => {
+    gameOver: (state, action: PayloadAction<{ reason: EndGameReason }>) => {
       state.isGameOver = true;
       state.endGameState = action.payload.reason;
     },
@@ -296,7 +234,7 @@ const gameSlice = createSlice({
     /**
      * Handle game ended from server - stops input and cleans up state
      */
-    gameEnded: (state, action: PayloadAction<{ roomId: string; reason: EndGameState }>) => {
+    gameEnded: (state, action: PayloadAction<{ reason: EndGameReason }>) => {
       state.isGameOver = true;
       state.endGameState = action.payload.reason;
       state.isPaused = true; // Stop the game loop
@@ -333,7 +271,10 @@ const gameSlice = createSlice({
     /**
      * Handle game animations from server
      */
-    handleAnimation: (state, action: PayloadAction<{ type: string; data: any }>) => {
+    handleAnimation: (
+      state,
+      action: PayloadAction<{ type: string; data: GameAnimationData }>,
+    ) => {
       const { type, data } = action.payload;
       const timestamp = data.timestamp || Date.now();
 
@@ -345,34 +286,42 @@ const gameSlice = createSlice({
       state.lastAnimationTimestamp[type] = timestamp;
 
       switch (type) {
-        case 'PIECE_LOCK':
+        case AnimationType.LOCK_PIECE:
           // Clear any existing lock animation first
           state.lockedCells = [];
+          if (!data.cells) break;
+
           // Show piece lock animation with unique timestamp-based keys
-          state.lockedCells = data.cells.map((cell: any, index: number) => ({
-            ...cell,
-            id: `lock-${timestamp}-${index}`
-          }));
+          state.lockedCells = data.cells.map(
+            (cell: LockedCell, index: number) => ({
+              ...cell,
+              id: `lock-${timestamp}-${index}`,
+            }),
+          );
           break;
 
-        case 'HARD_DROP':
+        case AnimationType.HARD_DROP:
           // Clear any existing trail animation first
           state.hardDropTrail = [];
+          if (!data.trails) break;
+
           // Show hard drop trail animation with unique timestamp-based keys
-          state.hardDropTrail = data.trail.map((trail: any, index: number) => ({
-            ...trail,
-            id: `trail-${timestamp}-${index}`
-          }));
+          state.hardDropTrail = data.trails.map(
+            (trail: Trail, index: number) => ({
+              ...trail,
+              id: `trail-${timestamp}-${index}`,
+            }),
+          );
           break;
 
-        case 'LINE_CLEAR':
+        case AnimationType.LINE_CLEAR:
           // Show line clear animation (only set once, don't clear first)
-          state.clearingRows = data.rows;
+          state.clearingRows = data.rows!;
           break;
 
-        case 'PENALTY_LINES':
+        case AnimationType.PENALTY_LINES:
           // Show penalty line warning animation at the bottom rows
-          state.penaltyRows = data.rows;
+          state.penaltyRows = data.rows!;
           break;
       }
     },
@@ -425,18 +374,26 @@ export default gameSlice.reducer;
 
 // Selectors
 export const selectBoard = (state: { game: GameState }) => state.game.board;
-export const selectCurrentPiece = (state: { game: GameState }) => state.game.currentPiece;
-export const selectGhostPiece = (state: { game: GameState }) => state.game.ghostPiece;
-export const selectNextPieces = (state: { game: GameState }) => state.game.nextPieces;
+export const selectCurrentPiece = (state: { game: GameState }) =>
+  state.game.currentPiece;
+export const selectGhostPiece = (state: { game: GameState }) =>
+  state.game.ghostPiece;
+export const selectNextPieces = (state: { game: GameState }) =>
+  state.game.nextPieces;
 export const selectScore = (state: { game: GameState }) => state.game.score;
 export const selectLevel = (state: { game: GameState }) => state.game.level;
-export const selectLinesCleared = (state: { game: GameState }) => state.game.linesCleared;
+export const selectLinesCleared = (state: { game: GameState }) =>
+  state.game.linesCleared;
 export const selectTotalLinesCleared = (state: { game: GameState }) =>
   state.game.totalLinesCleared;
-export const selectIsPaused = (state: { game: GameState }) => state.game.isPaused;
-export const selectIsGameOver = (state: { game: GameState }) => state.game.isGameOver;
-export const selectGameOverReason = (state: { game: GameState }) => state.game.endGameState;
-export const selectOpponents = (state: { game: GameState }) => state.game.opponents;
+export const selectIsPaused = (state: { game: GameState }) =>
+  state.game.isPaused;
+export const selectIsGameOver = (state: { game: GameState }) =>
+  state.game.isGameOver;
+export const selectGameOverReason = (state: { game: GameState }) =>
+  state.game.endGameState;
+export const selectOpponent = (state: { game: GameState }) =>
+  state.game.opponent;
 export const selectPendingPenaltyLines = (state: { game: GameState }) =>
   state.game.pendingPenaltyLines;
 
@@ -455,7 +412,11 @@ export const selectBoardDimensions = (state: { game: GameState }) => {
   return _lastBoardDimensions;
 };
 
-export const selectClearingRows = (state: { game: GameState }) => state.game.clearingRows;
-export const selectPenaltyRows = (state: { game: GameState }) => state.game.penaltyRows;
-export const selectLockedCells = (state: { game: GameState }) => state.game.lockedCells;
-export const selectHardDropTrail = (state: { game: GameState }) => state.game.hardDropTrail;
+export const selectClearingRows = (state: { game: GameState }) =>
+  state.game.clearingRows;
+export const selectPenaltyRows = (state: { game: GameState }) =>
+  state.game.penaltyRows;
+export const selectLockedCells = (state: { game: GameState }) =>
+  state.game.lockedCells;
+export const selectHardDropTrail = (state: { game: GameState }) =>
+  state.game.hardDropTrail;

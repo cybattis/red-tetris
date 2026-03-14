@@ -1,48 +1,23 @@
 import { TETROMINO_DICTIONARY } from '../pieces/TetrominoFactory';
-import { IPiece, PieceType, Position } from '../types/IPiece';
+import { IPiece, PieceDefinition, PieceState, PieceType, Position } from '@shared/types/piece';
 
 export class Piece implements IPiece {
   public type: PieceType;
   public id: number;
   public shape: number[][]; // Current 2D shape
   public position: Position = { x: 0, y: 0 };
+  public rotation: number = 0; // Rotation state (0-3)
+
   public width;
   public height;
   public isLocked = false;
 
-  constructor(piece: IPiece) {
+  constructor(piece: PieceDefinition) {
     this.type = piece.type;
     this.id = piece.id;
     this.shape = this.getInitialShape(piece.type);
     this.width = this.getRealWidth();
     this.height = this.getRealHeight();
-  }
-
-  private cloneMatrix(matrix: number[][]): number[][] {
-    return matrix.map((row) => [...row]);
-  }
-
-  getInitialShape(type: PieceType): number[][] {
-    const piece = TETROMINO_DICTIONARY[type];
-    if (!piece) {
-      throw new Error(`Invalid piece type: ${type}`);
-    }
-    return this.cloneMatrix(piece.shape);
-  }
-
-  // Rotate the piece 90 degrees clockwise
-  rotateClockwise(matrix: number[][]): number[][] {
-    const rows = matrix.length;
-    const cols = matrix[0].length;
-    const rotated: number[][] = Array.from({ length: cols }, () => new Array(rows).fill(0));
-
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        rotated[c][rows - 1 - r] = matrix[r][c];
-      }
-    }
-
-    return rotated;
   }
 
   public getNextRotation() {
@@ -53,6 +28,7 @@ export class Piece implements IPiece {
     this.shape = this.rotateClockwise(this.shape);
     this.width = this.getRealWidth();
     this.height = this.getRealHeight();
+    this.rotation = (this.rotation + 1) % 4;
     return this.shape;
   }
 
@@ -85,6 +61,24 @@ export class Piece implements IPiece {
     return width;
   }
 
+  public getTopMostOccupiedRow(): number {
+    for (let r = 0; r < this.shape.length; r++) {
+      if (this.shape[r].includes(1)) {
+        return r;
+      }
+    }
+    return 0; // Fallback if no occupied cells found
+  }
+
+  public getState(): PieceState {
+    return {
+      type: this.id,
+      position: { ...this.position },
+      shape: this.cloneMatrix(this.shape),
+      rotation: 0,
+    };
+  }
+
   public toString(): string {
     const rows = this.shape.map((row) => row.map((cell) => (cell === 0 ? ' ' : cell.toString())).join(' '));
     const width = rows[0]?.length ?? 0;
@@ -92,7 +86,34 @@ export class Piece implements IPiece {
     return [border, ...rows.map((row) => `|${row}|`), border].join('\n');
   }
 
-  getRealHeight() {
+  private cloneMatrix(matrix: number[][]): number[][] {
+    return matrix.map((row) => [...row]);
+  }
+
+  private getInitialShape(type: PieceType): number[][] {
+    const piece = TETROMINO_DICTIONARY[type];
+    if (!piece) {
+      throw new Error(`Invalid piece type: ${type}`);
+    }
+    return this.cloneMatrix(piece.shape);
+  }
+
+  // Rotate the piece 90 degrees clockwise
+  private rotateClockwise(matrix: number[][]): number[][] {
+    const rows = matrix.length;
+    const cols = matrix[0].length;
+    const rotated: number[][] = Array.from({ length: cols }, () => new Array(rows).fill(0));
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        rotated[c][rows - 1 - r] = matrix[r][c];
+      }
+    }
+
+    return rotated;
+  }
+
+  private getRealHeight() {
     // Check if first or last row is empty and adjust height accordingly
     let height = this.shape.length;
     const firstRowEmpty = this.shape[0].every((cell) => cell === 0);
@@ -107,18 +128,5 @@ export class Piece implements IPiece {
     }
 
     return height;
-  }
-
-  public checkPosition(newPos: Position): boolean {
-    return this.position.x === newPos.x && this.position.y === newPos.y;
-  }
-
-  public getTopMostOccupiedRow(): number {
-    for (let r = 0; r < this.shape.length; r++) {
-      if (this.shape[r].some((cell) => cell === 1)) {
-        return r;
-      }
-    }
-    return 0; // Fallback if no occupied cells found
   }
 }

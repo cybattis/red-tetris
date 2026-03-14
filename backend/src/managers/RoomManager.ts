@@ -2,14 +2,9 @@ import { Room } from '../classes/Room';
 import { Player } from '../classes/Player';
 import { Logger } from '../utils/helpers';
 import { GameSettings } from '@shared/types/game';
-import {
-  PlayerJoinedEvent,
-  RoomErrorEvent,
-  RoomLeaveEvent,
-  RoomResults,
-  RoomInfo,
-} from '@shared/types/room';
+import { RoomErrorEvent, RoomResults, RoomInfo } from '@shared/types/room';
 import { Socket } from 'socket.io';
+import { PlayerJoinedEvent, RoomLeaveEvent } from '@shared/types/socket';
 
 export class RoomManager {
   private static instance: RoomManager;
@@ -75,14 +70,18 @@ export class RoomManager {
     if (currentRoom) {
       if (currentRoom.id === roomId) {
         // Player is already in the requested room
-        Logger.info(`Player ${player.name} (${player.id}) attempted to join room ${roomId} but is already in that room`);
+        Logger.info(
+          `Player ${player.name} (${player.id}) attempted to join room ${roomId} but is already in that room`,
+        );
         return {
           success: true,
           data: { roomInfo: currentRoom.toRoomInfo() },
         };
       } else {
         // Player is in a different room, need to leave first
-        Logger.info(`Player ${player.name} (${player.id}) is in room ${currentRoom.id}, leaving to join ${roomId}`);
+        Logger.info(
+          `Player ${player.name} (${player.id}) is in room ${currentRoom.id}, leaving to join ${roomId}`,
+        );
         this.leaveRoom(player.id, socket);
       }
     }
@@ -114,33 +113,29 @@ export class RoomManager {
 
     // Prepare response events
     const playerJoined: PlayerJoinedEvent = {
-      roomId,
       player: {
         id: player.id,
         name: player.name,
         isHost: room.isHost(player.id),
         isSpectator: result.isSpectator || false,
-      }
+      },
     };
 
     return {
       success: true,
       data: {
         roomInfo: room.toRoomInfo(),
-        playerJoined
+        playerJoined,
       },
     };
   }
 
-  public leaveRoom(
-    playerId: string,
-    socket: Socket,
-  ): RoomResults<RoomLeaveEvent> {
+  public leaveRoom(playerId: string, socket: Socket): RoomResults<RoomLeaveEvent> {
     const room = this.getRoomForPlayer(playerId);
     if (!room) {
       return {
         success: true,
-        data: {}
+        data: {},
       };
     }
 
@@ -161,7 +156,8 @@ export class RoomManager {
       return {
         success: true,
         data: {
-          roomDeleted: true
+          roomId: room.id,
+          roomDeleted: true,
         },
       };
     }
@@ -169,7 +165,6 @@ export class RoomManager {
     let result: RoomLeaveEvent = {
       roomInfo: room.toRoomInfo(),
       playerLeft: {
-        roomId,
         playerId,
       },
     };
@@ -177,7 +172,6 @@ export class RoomManager {
     // Handle host transfer
     if (removeResult.wasHost && removeResult.newHost) {
       result.hostTransfer = {
-        roomId,
         newHostId: removeResult.newHost.id,
       };
     }
@@ -191,7 +185,7 @@ export class RoomManager {
   public startGame(
     roomId: string,
     hostId: string,
-    gameSettings?: Partial<GameSettings>
+    gameSettings?: Partial<GameSettings>,
   ): RoomResults<{ roomInfo: RoomInfo; gameIds: string[] }> {
     Logger.debug(`RoomManager.startGame() called for room ${roomId} by host ${hostId}`);
 
@@ -226,17 +220,13 @@ export class RoomManager {
     return {
       success: true,
       data: {
-        gameIds: startResult.data!.gameIds,
-        roomInfo: room.toRoomInfo()
+        gameIds: startResult.data.gameIds,
+        roomInfo: room.toRoomInfo(),
       },
     };
   }
 
-  public endGame(
-    roomId: string,
-    playerId: string,
-    reason: string,
-  ): RoomResults<{ roomInfo: RoomInfo }> {
+  public endGame(roomId: string, playerId: string, reason: string): RoomResults<{ roomInfo: RoomInfo }> {
     const room = this.getRoom(roomId);
     if (!room) {
       return {
@@ -271,10 +261,7 @@ export class RoomManager {
     };
   }
 
-  public resetGame(
-    roomId: string,
-    hostId: string,
-  ): RoomResults<{ roomInfo: RoomInfo }> {
+  public resetGame(roomId: string, hostId: string): RoomResults<{ roomInfo: RoomInfo }> {
     const room = this.getRoom(roomId);
     if (!room) {
       return {

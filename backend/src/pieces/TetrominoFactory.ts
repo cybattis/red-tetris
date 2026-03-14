@@ -1,6 +1,6 @@
-import { IPiece, PieceType } from '../types/IPiece';
+import { PieceDefinition, PieceType } from '@shared/types/piece';
 
-export const T_PIECE: IPiece = {
+export const T_PIECE: PieceDefinition = {
   type: PieceType.T,
   id: 3,
   shape: [
@@ -10,7 +10,7 @@ export const T_PIECE: IPiece = {
   ],
 };
 
-export const I_PIECE: IPiece = {
+export const I_PIECE: PieceDefinition = {
   type: PieceType.I,
   id: 1,
   shape: [
@@ -21,7 +21,7 @@ export const I_PIECE: IPiece = {
   ],
 };
 
-export const J_PIECE: IPiece = {
+export const J_PIECE: PieceDefinition = {
   type: PieceType.J,
   id: 6,
   shape: [
@@ -31,7 +31,7 @@ export const J_PIECE: IPiece = {
   ],
 };
 
-export const L_PIECE: IPiece = {
+export const L_PIECE: PieceDefinition = {
   type: PieceType.L,
   id: 7,
   shape: [
@@ -41,7 +41,7 @@ export const L_PIECE: IPiece = {
   ],
 };
 
-export const O_PIECE: IPiece = {
+export const O_PIECE: PieceDefinition = {
   type: PieceType.O,
   id: 2,
   shape: [
@@ -50,7 +50,7 @@ export const O_PIECE: IPiece = {
   ],
 };
 
-export const S_PIECE: IPiece = {
+export const S_PIECE: PieceDefinition = {
   type: PieceType.S,
   id: 4,
   shape: [
@@ -60,7 +60,7 @@ export const S_PIECE: IPiece = {
   ],
 };
 
-export const Z_PIECE: IPiece = {
+export const Z_PIECE: PieceDefinition = {
   type: PieceType.Z,
   id: 5,
   shape: [
@@ -70,7 +70,7 @@ export const Z_PIECE: IPiece = {
   ],
 };
 
-export const TETROMINO_DICTIONARY: Record<PieceType, IPiece> = {
+export const TETROMINO_DICTIONARY: Record<PieceType, PieceDefinition> = {
   [PieceType.T]: T_PIECE,
   [PieceType.I]: I_PIECE,
   [PieceType.J]: J_PIECE,

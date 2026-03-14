@@ -1,9 +1,9 @@
-import { memo } from 'react';
-import styles from './PlayerBoard.module.css';
-import { Board } from '../Board';
-import { NextPiece } from './NextPiece';
-import { ScoreDisplay } from './ScoreDisplay';
-import type { PieceState } from '../../store/slices/gameSlice';
+import { memo } from "react";
+import styles from "./PlayerBoard.module.css";
+import { Board } from "../Board";
+import { NextPiece } from "./NextPiece";
+import { ScoreDisplay } from "./ScoreDisplay";
+import type { PieceState } from "../../store/slices/gameSlice";
 
 export interface PlayerBoardProps {
   playerName: string;
@@ -21,7 +21,7 @@ export interface PlayerBoardProps {
   isPaused?: boolean;
   isGameOver?: boolean;
   isInvisible?: boolean;
-  size?: 'normal' | 'small';
+  size?: "normal" | "small";
   clearingRows?: number[];
   penaltyRows?: number[];
   lockedCells?: { x: number; y: number; type: number }[];
@@ -32,32 +32,32 @@ export const PlayerBoard = memo(function PlayerBoard({
   playerName,
   isCurrentPlayer = false,
   isHost = false,
-  
+
   board,
   width = 10,
   height = 20,
   currentPiece = null,
   ghostPiece = null,
-  
+
   nextPieces = [],
   maxNextDisplay = 3,
-  
+
   score = 0,
   linesCleared = 0,
-  
+
   isPaused = false,
   isGameOver = false,
   isInvisible = false,
-  
-  size = 'normal',
-  
+
+  size = "normal",
+
   clearingRows = [],
   penaltyRows = [],
   lockedCells = [],
   hardDropTrail = [],
 }: PlayerBoardProps) {
-  const cellSize = size === 'small' ? 20 : 28;
-  
+  const cellSize = size === "small" ? 20 : 28;
+
   return (
     <div className={`${styles.container} ${styles[size]}`}>
       <div className={styles.gameArea}>
@@ -78,7 +78,9 @@ export const PlayerBoard = memo(function PlayerBoard({
             hardDropTrail={hardDropTrail}
           />
 
-          <div className={`${styles.playerCard} ${isCurrentPlayer ? styles.currentPlayer : ''} ${isGameOver ? styles.eliminated : ''}`}>
+          <div
+            className={`${styles.playerCard} ${isCurrentPlayer ? styles.currentPlayer : ""} ${isGameOver ? styles.eliminated : ""}`}
+          >
             <div className={styles.playerInfo}>
               <span className={styles.playerName}>{playerName}</span>
               {isGameOver && (

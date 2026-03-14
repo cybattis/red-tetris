@@ -3,10 +3,10 @@ import { Game } from '../../src/classes/Game';
 import { Player } from '../../src/classes/Player';
 import { Piece } from '../../src/classes/Piece';
 import { Room } from '../../src/classes/Room';
-import { GameAction, GameMode, GameSettings, GameState } from '../../../shared/types/game';
-import { PieceType } from '../../src/types/IPiece';
+import { GameAction, GameMode, GameSettings, GameStatus } from '../../../shared/types/game';
 import { TETROMINO_DICTIONARY } from '../../src/pieces/TetrominoFactory';
 import { Logger } from '../../src/utils/helpers';
+import { PieceType } from '../../../shared/types/piece';
 
 const settings: GameSettings = {
   gravity: 1,
@@ -19,7 +19,7 @@ const settings: GameSettings = {
 
 function createGame(seed = 123): Game {
   const room = { id: 'test-room', playerCount: 1 } as unknown as Room;
-  return new Game(new Player('socket-game'), seed, settings, room);
+  return new Game(new Player('socket-game', 'foo'), seed, settings, room);
 }
 
 describe('Game', () => {
@@ -37,7 +37,7 @@ describe('Game', () => {
     const game = createGame();
     const currentPiece = (game as any)._currentPiece as Piece;
 
-    expect(game.state).toBe(GameState.Waiting);
+    expect(game.state).toBe(GameStatus.Waiting);
     expect(game.board).toHaveLength(settings.boardHeight);
     expect(game.board[0]).toHaveLength(settings.boardWidth);
     expect(currentPiece.position).toEqual({ x: Math.floor(settings.boardWidth / 2) - 1, y: 0 });
@@ -47,7 +47,7 @@ describe('Game', () => {
     const game = createGame();
 
     game.start();
-    expect(game.state).toBe(GameState.Playing);
+    expect(game.state).toBe(GameStatus.Playing);
     expect((game as any)._gameLoop).not.toBeNull();
 
     game.stopGame();
@@ -138,10 +138,7 @@ describe('Game', () => {
 
     game.addPenaltyLines(2);
 
-    expect(animationSpy).toHaveBeenCalledWith(
-      'PENALTY_LINES',
-      expect.objectContaining({ count: 2 }),
-    );
+    expect(animationSpy).toHaveBeenCalledWith('PENALTY_LINES', expect.objectContaining({ count: 2 }));
   });
 
   it('adjusts current piece position upward when penalty lines are added', () => {
@@ -264,7 +261,7 @@ describe('Game', () => {
     (game as any).GameOver();
 
     expect(game.isAlive).toBe(false);
-    expect(game.state).toBe(GameState.Ended);
+    expect(game.state).toBe(GameStatus.Ended);
     expect(eventSpy).toHaveBeenCalledWith({
       gameId: game.id,
       playerId: game.player.id,
@@ -293,10 +290,10 @@ describe('Game', () => {
     const warnSpy = jest.spyOn(Logger, 'warn').mockImplementation(() => undefined);
 
     game.start();
-    expect(game.state).toBe(GameState.Playing);
+    expect(game.state).toBe(GameStatus.Playing);
 
     game.start();
-    expect(game.state).toBe(GameState.Playing);
+    expect(game.state).toBe(GameStatus.Playing);
     expect(warnSpy).toHaveBeenCalled();
 
     game.stopGame();
@@ -339,7 +336,7 @@ describe('Game', () => {
   it('clears lines and emits sprint speed boost when clearing 3+ lines', () => {
     const sprintSettings = { ...settings, gameMode: GameMode.Sprint };
     const room = { id: 'test-room', playerCount: 1 } as unknown as Room;
-    const game = new Game(new Player('socket-sprint'), 123, sprintSettings, room);
+    const game = new Game(new Player('socket-sprint', 'bono'), 123, sprintSettings, room);
     const animationSpy = jest.spyOn(game as any, 'broadcastAnimation');
 
     game.board = Array.from({ length: sprintSettings.boardHeight }, () =>
@@ -351,14 +348,8 @@ describe('Game', () => {
 
     (game as any).checkAndClearLines();
 
-    expect(animationSpy).toHaveBeenCalledWith(
-      'LINE_CLEAR',
-      expect.objectContaining({ rows: [17, 18, 19] }),
-    );
-    expect(animationSpy).toHaveBeenCalledWith(
-      'SPEED_BOOST',
-      expect.objectContaining({ multiplier: 3 }),
-    );
+    expect(animationSpy).toHaveBeenCalledWith('LINE_CLEAR', expect.objectContaining({ rows: [17, 18, 19] }));
+    expect(animationSpy).toHaveBeenCalledWith('SPEED_BOOST', expect.objectContaining({ multiplier: 3 }));
   });
 
   it('throttles broadcast and returns null ghost when piece missing', () => {
@@ -395,7 +386,7 @@ describe('Game', () => {
   it('returns sprint gravity multiplier in sprint mode', () => {
     const sprintSettings = { ...settings, gameMode: GameMode.Sprint };
     const room = { id: 'test-room', playerCount: 1 } as unknown as Room;
-    const game = new Game(new Player('socket-mult'), 123, sprintSettings, room);
+    const game = new Game(new Player('socket-mult', 'joe'), 123, sprintSettings, room);
 
     expect(game.getSprintGravityMultiplier()).toBe(1);
 

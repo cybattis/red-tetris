@@ -1,4 +1,6 @@
-export class Player implements Player {
+import { IPlayer } from '@shared/types/player';
+
+export class Player implements IPlayer {
   public readonly id: string;
   public socketId: string;
   public name: string = '';
@@ -11,12 +13,7 @@ export class Player implements Player {
     this.name = name;
   }
 
-  public toJSON(): {
-    id: string;
-    name: string;
-    isHost: boolean;
-    isSpectator: boolean;
-  } {
+  public toJSON(): IPlayer {
     return {
       id: this.id,
       name: this.name,

@@ -112,11 +112,9 @@ describe('WebSocketManager Class', () => {
       expect(gameId.length).toBeGreaterThan(0);
 
       clientSocket.emit('PLAYER_INPUT', {
-        message: 'PLAYER_INPUT',
-        data: {
-          gameId,
-          input: GameAction.SOFT_DROP,
-        },
+        gameId,
+        playerId: clientSocket.id,
+        input: GameAction.SOFT_DROP,
       });
 
       done();
@@ -356,11 +354,9 @@ describe('WebSocketManager Class', () => {
 
     clientSocket.on('connect', () => {
       clientSocket.emit('PLAYER_INPUT', {
-        message: 'PLAYER_INPUT',
-        data: {
-          gameId: 'missing-game-id',
-          input: GameAction.MOVE_LEFT,
-        },
+        gameId: 'missing-game-id',
+        playerId: clientSocket.id,
+        input: GameAction.MOVE_LEFT,
       });
 
       setTimeout(() => {

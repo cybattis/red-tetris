@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
-import { useAppSelector, useAppDispatch } from '../store/index.js';
-import { selectConnectionStatus } from '../store/slices/connectionSlice.js';
+import { useEffect } from "react";
+import { useAppSelector, useAppDispatch } from "@/store";
+import { selectConnectionStatus } from "../store/slices/connectionSlice.js";
 
 export function useSocket() {
   const dispatch = useAppDispatch();
@@ -8,22 +8,22 @@ export function useSocket() {
 
   // Initialize socket connection on mount
   useEffect(() => {
-    if (connectionStatus === 'disconnected') {
+    if (connectionStatus === "disconnected") {
       // Initialize socket connection
-      dispatch({ type: 'connection/initSocket' });
+      dispatch({ type: "connection/initSocket" });
     }
 
     // Cleanup on unmount
     return () => {
-      dispatch({ type: 'connection/disconnectSocket' });
+      dispatch({ type: "connection/disconnectSocket" });
     };
   }, []); // Only run once on mount
 
   return {
     connectionStatus,
-    isConnected: connectionStatus === 'connected',
-    isConnecting: connectionStatus === 'connecting',
-    isReconnecting: connectionStatus === 'reconnecting',
-    hasError: connectionStatus === 'error',
+    isConnected: connectionStatus === "connected",
+    isConnecting: connectionStatus === "connecting",
+    isReconnecting: connectionStatus === "reconnecting",
+    hasError: connectionStatus === "error",
   };
 }
