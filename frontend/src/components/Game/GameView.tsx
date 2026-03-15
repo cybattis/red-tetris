@@ -203,7 +203,7 @@ export function GameView({
   // Determine if invisible mode is active
   const isInvisible = gameMode === "invisible";
   // Determine game mode based on opponent
-  const isSoloGame = opponent === undefined;
+  const isSoloGame = opponent === null;
 
   if (!isSoloGame && !opponent) {
     console.error("GameView: Multiplayer mode but opponent data is missing");
@@ -296,7 +296,7 @@ export function GameView({
             size="normal"
           />
 
-          {!isSoloGame && opponent && (
+          {!isSoloGame && opponent != null && (
             <div className={styles.opponentBoardWrapper}>
               <OpponentBoard
                 opponent={opponent}
