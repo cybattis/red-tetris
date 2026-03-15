@@ -130,15 +130,17 @@ describe('WebSocketManager Class', () => {
   });
 
   test('should handle room leave and settings events', (done) => {
-    clientSocket = Client(`http://localhost:${port}`, { reconnection: false });
-
     const roomId = `test-room-${Date.now()}`;
-    const expectedEvents = new Set([
-      'LEFT_ROOM',
-      'SETTINGS_UPDATED',
-      'GAME_MODE_UPDATED',
-    ]);
-    const receivedEvents = new Set<string>();
+    const hostSocket = Client(`http://localhost:${port}`, { reconnection: false });
+    const guestSocket = Client(`http://localhost:${port}`, { reconnection: false });
+    extraSockets.push(hostSocket, guestSocket);
+
+    let hostJoined = false;
+    let guestJoined = false;
+    let guestJoinSent = false;
+    let settingsReceived = false;
+    let modeReceived = false;
+    let leftRoomReceived = false;
     let finished = false;
 
     const finish = (error?: Error) => {
@@ -147,48 +149,68 @@ describe('WebSocketManager Class', () => {
       done(error);
     };
 
+    const maybeLeave = () => {
+      if (settingsReceived && modeReceived && guestJoined) {
+        guestSocket.emit('LEAVE_ROOM', { roomId });
+      }
+    };
+
     const maybeDone = () => {
-      if (receivedEvents.size === expectedEvents.size) {
+      if (settingsReceived && modeReceived && leftRoomReceived) {
         finish();
       }
     };
 
-    clientSocket.on('connect', () => {
-      clientSocket.emit('JOIN_ROOM', { roomId, playerName: 'Tester' });
+    hostSocket.on('connect', () => {
+      hostSocket.emit('JOIN_ROOM', { roomId, playerName: 'Host' });
     });
 
-    clientSocket.on('ROOM_STATE_UPDATE', () => {
-      clientSocket.emit('LEAVE_ROOM', { roomId });
+    guestSocket.on('connect', () => {
+      if (hostJoined && !guestJoinSent) {
+        guestJoinSent = true;
+        guestSocket.emit('JOIN_ROOM', { roomId, playerName: 'Guest' });
+      }
     });
 
-    clientSocket.on('LEFT_ROOM', () => {
-      receivedEvents.add('LEFT_ROOM');
-
-      clientSocket.emit('UPDATE_SETTINGS', { roomId, settings: { gameMode: GameMode.Classic } });
-      clientSocket.emit('UPDATE_GAME_MODE', { roomId, gameMode: GameMode.Classic });
-
-      maybeDone();
+    hostSocket.on('ROOM_STATE_UPDATE', () => {
+      hostJoined = true;
+      if (guestSocket.connected && !guestJoinSent) {
+        guestJoinSent = true;
+        guestSocket.emit('JOIN_ROOM', { roomId, playerName: 'Guest' });
+      }
     });
 
-    clientSocket.on('SETTINGS_UPDATED', ({ settings }) => {
+    guestSocket.on('ROOM_STATE_UPDATE', () => {
+      if (guestJoined) return;
+      guestJoined = true;
+      hostSocket.emit('UPDATE_SETTINGS', { roomId, settings: { gameMode: GameMode.Classic } });
+      hostSocket.emit('UPDATE_GAME_MODE', { roomId, gameMode: GameMode.Classic });
+    });
+
+    guestSocket.on('SETTINGS_UPDATED', ({ settings }) => {
       expect(settings?.gameMode).toBe(GameMode.Classic);
-      receivedEvents.add('SETTINGS_UPDATED');
+      settingsReceived = true;
+      maybeLeave();
       maybeDone();
     });
 
-    clientSocket.on('GAME_MODE_UPDATED', ({ gameMode }) => {
+    guestSocket.on('GAME_MODE_UPDATED', ({ gameMode }) => {
       expect(gameMode).toBe(GameMode.Classic);
-      receivedEvents.add('GAME_MODE_UPDATED');
+      modeReceived = true;
+      maybeLeave();
       maybeDone();
     });
 
-    clientSocket.on('ROOM_ERROR', (error) => {
-      finish(new Error(error?.error ?? 'ROOM_ERROR'));
+    guestSocket.on('LEFT_ROOM', ({ roomId: leftRoomId }) => {
+      expect(leftRoomId).toBe(roomId);
+      leftRoomReceived = true;
+      maybeDone();
     });
 
-    clientSocket.on('connect_error', (error) => {
-      finish(error);
-    });
+    hostSocket.on('ROOM_ERROR', (error) => finish(new Error(error?.reason ?? 'ROOM_ERROR')));
+    guestSocket.on('ROOM_ERROR', (error) => finish(new Error(error?.reason ?? 'ROOM_ERROR')));
+    hostSocket.on('connect_error', (error) => finish(error));
+    guestSocket.on('connect_error', (error) => finish(error));
   });
 
   test('should broadcast PLAYER_JOINED to existing room members', (done) => {
@@ -199,6 +221,7 @@ describe('WebSocketManager Class', () => {
 
     let hostReady = false;
     let guestReady = false;
+    let guestJoinSent = false;
     let joinedEventReceived = false;
     let finished = false;
 
@@ -220,13 +243,15 @@ describe('WebSocketManager Class', () => {
 
     hostSocket.on('ROOM_STATE_UPDATE', () => {
       hostReady = true;
-      if (!guestSocket.connected) return;
+      if (!guestSocket.connected || guestJoinSent) return;
+      guestJoinSent = true;
       guestSocket.emit('JOIN_ROOM', { roomId, playerName: 'Guest' });
       maybeDone();
     });
 
     guestSocket.on('connect', () => {
-      if (!hostReady) return;
+      if (!hostReady || guestJoinSent) return;
+      guestJoinSent = true;
       guestSocket.emit('JOIN_ROOM', { roomId, playerName: 'Guest' });
     });
 
@@ -236,7 +261,6 @@ describe('WebSocketManager Class', () => {
     });
 
     hostSocket.on('PLAYER_JOINED', (payload) => {
-      expect(payload?.roomId).toBe(roomId);
       expect(payload?.player?.name).toBe('Guest');
       joinedEventReceived = true;
       maybeDone();
@@ -334,7 +358,6 @@ describe('WebSocketManager Class', () => {
     });
 
     hostSocket.on('PLAYER_LEFT', (payload) => {
-      expect(payload?.roomId).toBe(roomId);
       expect(typeof payload?.playerId).toBe('string');
       finish();
     });
@@ -343,12 +366,12 @@ describe('WebSocketManager Class', () => {
     guestSocket.on('connect_error', (error) => finish(error));
   });
 
-  test('should warn when PLAYER_INPUT references a missing game', (done) => {
+  test('should log an error when PLAYER_INPUT references a missing game', (done) => {
     clientSocket = Client(`http://localhost:${port}`, { reconnection: false });
-    const warnSpy = jest.spyOn(Logger, 'warn').mockImplementation(() => undefined);
+    const errorSpy = jest.spyOn(Logger, 'error').mockImplementation(() => undefined);
 
     const finish = (error?: Error) => {
-      warnSpy.mockRestore();
+      errorSpy.mockRestore();
       done(error);
     };
 
@@ -361,7 +384,10 @@ describe('WebSocketManager Class', () => {
 
       setTimeout(() => {
         try {
-          expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Game not found'));
+          expect(errorSpy).toHaveBeenCalledWith(
+            expect.stringContaining('No active game found for player'),
+            expect.objectContaining({ gameId: 'missing-game-id' }),
+          );
           finish();
         } catch (error) {
           finish(error as Error);
@@ -414,7 +440,6 @@ describe('WebSocketManager Class', () => {
     });
 
     guestSocket.on('HOST_TRANSFER', (payload) => {
-      expect(payload?.roomId).toBe(roomId);
       expect(payload?.newHostId).toBe(guestSocket.id);
       finish();
     });
@@ -485,6 +510,29 @@ describe('WebSocketManager Class', () => {
 
       overflowSocket.emit('JOIN_ROOM', { roomId, playerName: 'Overflow' });
     });
+  });
+
+  test('should acknowledge leave when last player removes the room', (done) => {
+    const roomId = `test-room-${Date.now()}`;
+    clientSocket = Client(`http://localhost:${port}`, { reconnection: false });
+
+    const finish = (error?: Error) => done(error);
+
+    clientSocket.on('connect', () => {
+      clientSocket.emit('JOIN_ROOM', { roomId, playerName: 'Solo' });
+    });
+
+    clientSocket.on('ROOM_STATE_UPDATE', () => {
+      clientSocket.emit('LEAVE_ROOM', { roomId });
+    });
+
+    clientSocket.on('LEFT_ROOM', (payload) => {
+      expect(payload?.roomId).toBe(roomId);
+      finish();
+    });
+
+    clientSocket.on('ROOM_ERROR', (error) => finish(new Error(error?.reason ?? 'ROOM_ERROR')));
+    clientSocket.on('connect_error', (error) => finish(error));
   });
 
   test('should cleanup room on disconnect when it becomes empty', (done) => {

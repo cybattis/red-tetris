@@ -1,10 +1,13 @@
-import { afterEach, describe, expect, it } from '@jest/globals';
+import { afterEach, describe, expect, it, jest } from '@jest/globals';
 import { Room } from '../../src/classes/Room';
 import { Player } from '../../src/classes/Player';
 import { GameManager } from '../../src/managers/GameManager';
+import { ROOM_CONFIG } from '../../../shared/types/room';
+import { Logger } from '../../src/utils/helpers';
+import { GameMode } from '../../../shared/types/game';
 
 function makePlayer(id: string, name: string): Player {
-  const player = new Player(id);
+  const player = new Player(id, `socket-${id}`);
   player.name = name;
   return player;
 }
@@ -31,6 +34,23 @@ describe('Room', () => {
     expect(spectatorResult.success).toBe(true);
     expect(spectatorResult.isSpectator).toBe(true);
     expect(room.spectatorCount).toBe(1);
+
+    room.destroy();
+  });
+
+  it('exposes io instance and handles unknown removal/spectator checks', () => {
+    const room = new Room('room-basics');
+    const host = makePlayer('p1', 'Host');
+    const guest = makePlayer('p2', 'Guest');
+    const spectator = makePlayer('p3', 'Spec');
+
+    room.addPlayer(host);
+    room.addPlayer(guest);
+    room.addPlayer(spectator);
+
+    expect(room.io).toBeDefined();
+    expect(room.isSpectator(spectator.id)).toBe(true);
+    expect(room.removePlayer('missing-id')).toEqual({ wasHost: false });
 
     room.destroy();
   });
@@ -169,5 +189,69 @@ describe('Room', () => {
 
     room.endGame();
     room.destroy();
+  });
+
+  it('broadcasts GAME_ENDED and ends room when a game emits gameOver', () => {
+    const room = new Room('room-game-over');
+    const player = makePlayer('p1', 'Host');
+    room.addPlayer(player);
+
+    const emit = jest.fn(() => true);
+    (room as any)._io = {
+      to: () => ({ emit }),
+    };
+
+    const endGameSpy = jest.spyOn(room, 'endGame');
+    const started = room.startGame();
+    expect(started.success).toBe(true);
+
+    const game = room.getGame(player.id);
+    expect(game).not.toBeNull();
+    game!.emit('gameOver', { roomId: room.id, playerId: player.id });
+
+    expect(emit).toHaveBeenCalledWith('GAME_ENDED', expect.objectContaining({ playerId: player.id }));
+    expect(endGameSpy).toHaveBeenCalled();
+
+    room.destroy();
+  });
+
+  it('cleans up orphaned games still tracked by GameManager', () => {
+    const room = new Room('room-orphan');
+    const player = makePlayer('p1', 'Host');
+    room.addPlayer(player);
+
+    const manager = GameManager.getInstance();
+    const orphanGame = manager.createGame(player, {
+      gameMode: GameMode.Classic,
+      gravity: 1,
+      ghostPiece: true,
+      boardWidth: 10,
+      boardHeight: 20,
+      nextPieceCount: 1,
+    }, 42, room);
+
+    expect(manager.getGame(orphanGame.id)).toBeDefined();
+    room.endGame();
+    expect(manager.getGame(orphanGame.id)).toBeUndefined();
+
+    room.destroy();
+  });
+
+  it('logs when cleanup timer expires for an empty room', () => {
+    jest.useFakeTimers();
+    const room = new Room('room-cleanup');
+    const player = makePlayer('p1', 'Host');
+    const infoSpy = jest.spyOn(Logger, 'info').mockImplementation(() => undefined);
+
+    room.addPlayer(player);
+    room.removePlayer(player.id);
+
+    jest.advanceTimersByTime(ROOM_CONFIG.CLEANUP_TIMEOUT_MS + 1);
+
+    expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining('cleanup timer expired'));
+
+    infoSpy.mockRestore();
+    room.destroy();
+    jest.useRealTimers();
   });
 });

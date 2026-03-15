@@ -1,7 +1,7 @@
 import { describe, expect, test } from '@jest/globals';
 import { Piece } from '../../src/classes/Piece';
-import { PieceType } from '../../src/types/IPiece';
 import { I_PIECE, TETROMINO_DICTIONARY } from '../../src/pieces/TetrominoFactory';
+import { PieceType } from '../../../shared/types/piece';
 
 describe('Piece Class', () => {
   const T_SHAPE = [

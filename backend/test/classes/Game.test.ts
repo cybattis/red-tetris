@@ -54,6 +54,19 @@ describe('Game', () => {
     expect((game as any)._gameLoop).toBeNull();
   });
 
+  it('executes the interval callback after start', () => {
+    jest.useFakeTimers();
+    const game = createGame();
+    const loopSpy = jest.spyOn(game as any, 'gameloop');
+
+    game.start();
+    jest.advanceTimersByTime(20);
+
+    expect(loopSpy).toHaveBeenCalled();
+    game.stopGame();
+    jest.useRealTimers();
+  });
+
   it('handles input buffer actions', () => {
     const game = createGame();
     const gameAny = game as any;
@@ -263,7 +276,7 @@ describe('Game', () => {
     expect(game.isAlive).toBe(false);
     expect(game.state).toBe(GameStatus.Ended);
     expect(eventSpy).toHaveBeenCalledWith({
-      gameId: game.id,
+      roomId: game.room.id,
       playerId: game.player.id,
     });
   });
@@ -283,6 +296,59 @@ describe('Game', () => {
     game.isAlive = false;
     (game as any).gameloop();
     expect(stopSpy).toHaveBeenCalled();
+  });
+
+  it('handles locked-piece and gravity collision branches in gameloop', () => {
+    const game = createGame();
+    const gameAny = game as any;
+
+    gameAny._lastTickAt = 0;
+    gameAny._currentPiece = new Piece(TETROMINO_DICTIONARY[PieceType.T]);
+    gameAny._currentPiece.position = { x: 0, y: 0 };
+    gameAny._currentPiece.isLocked = true;
+
+    const updateSpy = jest.spyOn(gameAny, 'updateBoard');
+    const broadcastSpy = jest.spyOn(gameAny, 'broadcastGameState');
+    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(1000);
+
+    gameAny.gameloop();
+    expect(updateSpy).toHaveBeenCalled();
+    expect(broadcastSpy).toHaveBeenCalled();
+
+    gameAny._currentPiece = new Piece(TETROMINO_DICTIONARY[PieceType.T]);
+    gameAny._currentPiece.position = { x: 0, y: 0 };
+    gameAny._currentPiece.isLocked = false;
+    gameAny._lastTickAt = 0;
+    gameAny.checkCollision = () => true;
+
+    const gameOverSpy = jest.spyOn(gameAny, 'GameOver');
+    gameAny.gameloop();
+    expect(gameOverSpy).toHaveBeenCalled();
+
+    nowSpy.mockRestore();
+  });
+
+  it('locks piece on soft drop collision and triggers game over at top', () => {
+    const game = createGame();
+    const gameAny = game as any;
+
+    gameAny._currentPiece = new Piece(TETROMINO_DICTIONARY[PieceType.T]);
+    gameAny._currentPiece.position = { x: 3, y: 5 };
+    gameAny._currentPiece.isLocked = false;
+    gameAny.checkCollision = () => true;
+
+    game.setPlayerInput(GameAction.SOFT_DROP);
+    gameAny.processPlayerInput();
+    expect(gameAny._currentPiece.isLocked).toBe(true);
+
+    gameAny._currentPiece = new Piece(TETROMINO_DICTIONARY[PieceType.T]);
+    gameAny._currentPiece.position = { x: 3, y: 0 };
+    gameAny._currentPiece.isLocked = false;
+
+    const gameOverSpy = jest.spyOn(gameAny, 'GameOver');
+    game.setPlayerInput(GameAction.SOFT_DROP);
+    gameAny.processPlayerInput();
+    expect(gameOverSpy).toHaveBeenCalled();
   });
 
   it('does not restart when already playing', () => {
@@ -308,7 +374,7 @@ describe('Game', () => {
     (game as any).GameOver();
 
     expect(eventSpy).toHaveBeenCalledWith({
-      gameId: game.id,
+      roomId: game.room.id,
       playerId: game.player.id,
     });
   });
@@ -367,6 +433,58 @@ describe('Game', () => {
     expect((game as any).calculateGhostPiece()).toBeNull();
 
     nowSpy.mockRestore();
+  });
+
+  it('warns when socket broadcasts fail', () => {
+    const game = createGame();
+    const warnSpy = jest.spyOn(Logger, 'warn').mockImplementation(() => undefined);
+
+    (game as any).io = {
+      to: () => ({ emit: () => false }),
+    };
+
+    (game as any).broadcastGameState();
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to broadcast game state'));
+
+    (game as any).playerSocket = {
+      emit: () => false,
+    };
+    (game as any).broadcastAnimation('HARD_DROP', { trails: [], timestamp: Date.now() });
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to broadcast game animation'));
+
+    (game as any).playerSocket = undefined;
+    (game as any).broadcastAnimation('HARD_DROP', { trails: [], timestamp: Date.now() });
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('No socket available'));
+
+    warnSpy.mockRestore();
+  });
+
+  it('uses hard-drop distance fallback and keeps classic sprint multiplier at 1', () => {
+    const game = createGame();
+    const gameAny = game as any;
+    gameAny._currentPiece.position = { x: 0, y: 2 };
+    gameAny.checkCollision = () => false;
+
+    expect(gameAny.calculateHardDropDistance()).toBe(settings.boardHeight - 3);
+    expect(game.getSprintGravityMultiplier()).toBe(1);
+  });
+
+  it('reverts rotation when all wall-kicks collide', () => {
+    const game = createGame();
+    const gameAny = game as any;
+    gameAny._currentPiece = new Piece(TETROMINO_DICTIONARY[PieceType.T]);
+    gameAny._currentPiece.position = { x: 0, y: 0 };
+
+    const shapeBefore = JSON.stringify(gameAny._currentPiece.shape);
+    const widthBefore = gameAny._currentPiece.width;
+    const heightBefore = gameAny._currentPiece.height;
+
+    gameAny.checkCollision = () => true;
+    gameAny.attemptRotation();
+
+    expect(JSON.stringify(gameAny._currentPiece.shape)).toBe(shapeBefore);
+    expect(gameAny._currentPiece.width).toBe(widthBefore);
+    expect(gameAny._currentPiece.height).toBe(heightBefore);
   });
 
   it('updates drop interval only for significant changes', () => {
