@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
-import styles from './GameView.module.css';
-import { PlayerBoard } from './PlayerBoard';
-import { GameOverOverlay } from './GameOverOverlay';
-import { Button } from '../UI';
-import { useAppSelector, useAppDispatch } from '../../store';
+import { useState, useEffect, useRef } from "react";
+import styles from "./GameView.module.css";
+import { PlayerBoard } from "./PlayerBoard";
+import { GameOverOverlay } from "./GameOverOverlay";
+import { Button } from "../UI";
+import { useAppSelector, useAppDispatch } from "@/store";
 import {
   selectBoard,
   selectCurrentPiece,
@@ -13,7 +13,7 @@ import {
   selectTotalLinesCleared,
   selectIsPaused,
   selectIsGameOver,
-  selectOpponents,
+  selectOpponent,
   selectBoardDimensions,
   selectClearingRows,
   selectPenaltyRows,
@@ -28,8 +28,13 @@ import {
   clearHardDropTrail,
   gameOver,
   resetGame,
-} from '../../store/slices/gameSlice';
-import { selectGameSettings, selectGameMode } from '../../store/slices/gameRoomSlice';
+} from "@store/slices/gameSlice.ts";
+import {
+  selectGameSettings,
+  selectGameMode,
+} from "@store/slices/gameRoomSlice.ts";
+import { EndGameReason } from "@shared/types/game";
+import type { OpponentsGameState } from "@shared/types/player.ts";
 
 export interface GameViewProps {
   roomName?: string;
@@ -39,13 +44,13 @@ export interface GameViewProps {
   onReturnHome?: () => void;
 }
 
-export function GameView({ 
-  roomName, 
-  playerName = 'Player',
+export function GameView({
+  roomName,
+  playerName = "Player",
   isHost = false,
   onLeave,
   onReturnHome,
-}: GameViewProps) {
+}: Readonly<GameViewProps>) {
   const dispatch = useAppDispatch();
 
   // Game state from Redux (received from server)
@@ -58,58 +63,24 @@ export function GameView({
   const isPaused = useAppSelector(selectIsPaused);
   const isGameOver = useAppSelector(selectIsGameOver);
   const gameOverReason = useAppSelector(selectGameOverReason);
-  const opponents = useAppSelector(selectOpponents);
+  const opponent = useAppSelector(selectOpponent);
   const { width, height } = useAppSelector(selectBoardDimensions);
   const clearingRows = useAppSelector(selectClearingRows);
   const penaltyRows = useAppSelector(selectPenaltyRows);
   const gameSettings = useAppSelector(selectGameSettings);
   const gameMode = useAppSelector(selectGameMode);
-  
-  // Determine game mode based on opponents
-  const isSoloGame = opponents.length === 0;
-  const opponent = opponents[0]; // For 1v1, we only have one opponent
-  
-  // Debug log game over state
-  console.log(' GameView render - Game Over State:', {
-    isGameOver,
-    gameOverReason,
-    isPaused
-  });
-  
-  console.log(' GameView render - Multiplayer State:', {
-    isSoloGame,
-    opponentsCount: opponents.length,
-    opponent,
-  });
-  
-  // Determine if invisible mode is active
-  const isInvisible = gameMode === 'invisible';
-  
-  // Check if all opponents are eliminated (victory condition for multiplayer)
-  const allOpponentsEliminated = !isSoloGame && opponents.length > 0 && 
-    opponents.every(opp => opp.isEliminated);
-  
-  // Determine if we should show game over overlay and whether it's a victory
-  const showGameOverOverlay = isGameOver || allOpponentsEliminated;
-  const isVictory = allOpponentsEliminated && !isGameOver;
-  
-  console.log(' GameView - Victory Logic:', {
-    allOpponentsEliminated,
-    showGameOverOverlay,
-    isVictory,
-    opponentsStatus: opponents.map(opp => ({
-      name: opp.playerName,
-      isEliminated: opp.isEliminated
-    }))
-  });
-  
+
   // Animation data from server
   const lockedCells = useAppSelector(selectLockedCells);
   const hardDropTrail = useAppSelector(selectHardDropTrail);
 
   // Local state for debug animations (keep for debugging)
-  const [debugLockedCells, setDebugLockedCells] = useState<{ x: number; y: number; type: number }[]>([]);
-  const [debugHardDropTrail, setDebugHardDropTrail] = useState<{ x: number; startY: number; endY: number; type: number }[]>([]);
+  const [debugLockedCells, setDebugLockedCells] = useState<
+    { x: number; y: number; type: number }[]
+  >([]);
+  const [debugHardDropTrail, setDebugHardDropTrail] = useState<
+    { x: number; startY: number; endY: number; type: number }[]
+  >([]);
 
   // Use refs to prevent multiple overlapping animations
   const lockedCellsTimeoutRef = useRef<number | null>(null);
@@ -123,12 +94,12 @@ export function GameView({
       if (lockedCellsTimeoutRef.current) {
         return;
       }
-      
+
       lockedCellsTimeoutRef.current = setTimeout(() => {
         dispatch(clearLockedCells());
         lockedCellsTimeoutRef.current = null;
       }, 400);
-      
+
       return () => {
         if (lockedCellsTimeoutRef.current) {
           clearTimeout(lockedCellsTimeoutRef.current);
@@ -144,12 +115,12 @@ export function GameView({
       if (hardDropTimeoutRef.current) {
         return;
       }
-      
+
       hardDropTimeoutRef.current = setTimeout(() => {
         dispatch(clearHardDropTrail());
         hardDropTimeoutRef.current = null;
       }, 500);
-      
+
       return () => {
         if (hardDropTimeoutRef.current) {
           clearTimeout(hardDropTimeoutRef.current);
@@ -165,12 +136,12 @@ export function GameView({
       if (lineClearTimeoutRef.current) {
         return;
       }
-      
+
       lineClearTimeoutRef.current = setTimeout(() => {
         dispatch(clearClearingRows());
         lineClearTimeoutRef.current = null;
       }, 1100);
-      
+
       return () => {
         if (lineClearTimeoutRef.current) {
           clearTimeout(lineClearTimeoutRef.current);
@@ -194,11 +165,11 @@ export function GameView({
   };
 
   const handleDebugGameOver = () => {
-    dispatch(gameOver({ reason: 'Board Overflow' }));
+    dispatch(gameOver({ reason: EndGameReason.BoardOverflow }));
   };
 
   const handleDebugWin = () => {
-    dispatch(gameOver({ reason: 'Victory!' }));
+    dispatch(gameOver({ reason: EndGameReason.Victory }));
   };
 
   const handleDebugReset = () => {
@@ -229,17 +200,52 @@ export function GameView({
     setTimeout(() => setDebugHardDropTrail([]), 500);
   };
 
+  // Determine if invisible mode is active
+  const isInvisible = gameMode === "invisible";
+  // Determine game mode based on opponent
+  const isSoloGame = opponent === null;
+
+  if (!isSoloGame && !opponent) {
+    console.error("GameView: Multiplayer mode but opponent data is missing");
+    return;
+  }
+
+  // Check if all opponent are eliminated (victory condition for multiplayer)
+  const allOpponentsEliminated = !isSoloGame && opponent?.isEliminated;
+  // Determine if we should show game over overlay and whether it's a victory
+  const showGameOverOverlay = isGameOver || allOpponentsEliminated;
+  const isVictory =
+    allOpponentsEliminated && gameOverReason === EndGameReason.Victory;
+
+  // Debug log game over state
+  console.log(" GameView render - Game Over State:", {
+    isGameOver,
+    gameOverReason,
+    isPaused,
+  });
+
+  console.log(" GameView render - Multiplayer State:", {
+    isSoloGame,
+    opponent,
+  });
+
+  console.log(" GameView - Victory Logic:", {
+    allOpponentsEliminated,
+    showGameOverOverlay,
+    gameOverReason,
+    opponentsStatus: opponent ?? "N/A",
+  });
+
   return (
     <div className={styles.container}>
       <GameOverOverlay
         isVisible={showGameOverOverlay}
-        reason={isVictory ? 'Victory!' : (gameOverReason ?? 'Game Over')}
         isWinner={isVictory}
         stats={{
           score,
           linesCleared: totalLinesCleared,
-          placement: opponents.length > 0 ? (isVictory ? 1 : 2) : undefined,
-          totalPlayers: opponents.length > 0 ? opponents.length + 1 : undefined,
+          placement: opponent ? (isVictory ? 1 : 2) : undefined,
+          totalPlayers: opponent ? 2 : undefined,
         }}
         onReturnToLobby={onLeave}
         onReturnHome={onReturnHome}
@@ -247,7 +253,11 @@ export function GameView({
 
       <header className={styles.header}>
         {onLeave && (
-          <Button variant="ghost" onClick={onLeave} className={styles.leaveButton}>
+          <Button
+            variant="ghost"
+            onClick={onLeave}
+            className={styles.leaveButton}
+          >
             ← Leave Room
           </Button>
         )}
@@ -255,8 +265,9 @@ export function GameView({
         <div className={styles.headerSpacer} />
       </header>
 
-      <main className={`${styles.gameArea} ${isSoloGame ? styles.soloLayout : styles.multiplayerLayout}`}>
-        
+      <main
+        className={`${styles.gameArea} ${isSoloGame ? styles.soloLayout : styles.multiplayerLayout}`}
+      >
         <div className={styles.playerBoardWrapper}>
           <PlayerBoard
             playerName={playerName}
@@ -276,12 +287,16 @@ export function GameView({
             isInvisible={isInvisible}
             clearingRows={clearingRows}
             penaltyRows={penaltyRows}
-            lockedCells={lockedCells.length > 0 ? lockedCells : debugLockedCells}
-            hardDropTrail={hardDropTrail.length > 0 ? hardDropTrail : debugHardDropTrail}
+            lockedCells={
+              lockedCells.length > 0 ? lockedCells : debugLockedCells
+            }
+            hardDropTrail={
+              hardDropTrail.length > 0 ? hardDropTrail : debugHardDropTrail
+            }
             size="normal"
           />
 
-          {!isSoloGame && opponent && (
+          {!isSoloGame && opponent != null && (
             <div className={styles.opponentBoardWrapper}>
               <OpponentBoard
                 opponent={opponent}
@@ -321,27 +336,22 @@ export function GameView({
 }
 
 interface OpponentBoardProps {
-  opponent: {
-    playerId: string;
-    playerName: string;
-    spectrum: number[];
-    score: number;
-    isEliminated: boolean;
-    board?: number[][];
-    nextPieces?: number[];
-    currentPiece?: { type: number; position: { x: number; y: number }; shape: number[][] } | null;
-  };
+  opponent: OpponentsGameState;
   boardHeight: number;
   maxNextDisplay: number;
-  size?: 'normal' | 'small';
+  size?: "normal" | "small";
 }
 
-function OpponentBoard({ opponent, boardHeight, maxNextDisplay, size = 'normal' }: OpponentBoardProps) {
-  
+function OpponentBoard({
+  opponent,
+  boardHeight,
+  maxNextDisplay,
+  size = "normal",
+}: Readonly<OpponentBoardProps>) {
   if (opponent.board) {
     return (
       <PlayerBoard
-        playerName={opponent.playerName}
+        playerName={opponent.player.name}
         isCurrentPlayer={false}
         board={opponent.board}
         width={10}
@@ -357,10 +367,10 @@ function OpponentBoard({ opponent, boardHeight, maxNextDisplay, size = 'normal' 
   }
 
   const spectrumBoard = createBoardFromSpectrum(opponent.spectrum, boardHeight);
-  
+
   return (
     <PlayerBoard
-      playerName={opponent.playerName}
+      playerName={opponent.player.name}
       isCurrentPlayer={false}
       board={spectrumBoard}
       width={10}
@@ -372,12 +382,15 @@ function OpponentBoard({ opponent, boardHeight, maxNextDisplay, size = 'normal' 
   );
 }
 
-function createBoardFromSpectrum(spectrum: number[], height: number): number[][] {
+function createBoardFromSpectrum(
+  spectrum: number[],
+  height: number,
+): number[][] {
   const width = spectrum.length || 10;
-  const board: number[][] = Array.from({ length: height }, () => 
-    Array(width).fill(0)
+  const board: number[][] = Array.from({ length: height }, () =>
+    new Array(width).fill(0),
   );
-  
+
   for (let col = 0; col < width; col++) {
     const columnHeight = spectrum[col] || 0;
     for (let row = height - columnHeight; row < height; row++) {
@@ -386,8 +399,6 @@ function createBoardFromSpectrum(spectrum: number[], height: number): number[][]
       }
     }
   }
-  
+
   return board;
 }
-
-export default GameView;

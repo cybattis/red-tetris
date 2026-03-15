@@ -1,24 +1,9 @@
-import { Panel } from '../UI/Panel';
-import { Slider } from '../UI/Slider';
-import { Toggle } from '../UI/Toggle';
-import { Button } from '../UI/Button';
-import styles from './GameSettingsPanel.module.css';
-
-export interface GameSettings {
-  boardWidth: number;
-  boardHeight: number;
-  gravity: number;
-  nextPieceCount: number;
-  ghostPiece: boolean;
-}
-
-export const DEFAULT_GAME_SETTINGS: GameSettings = {
-  boardWidth: 10,
-  boardHeight: 20,
-  gravity: 1,
-  nextPieceCount: 1,
-  ghostPiece: true,
-};
+import { Panel } from "../UI/Panel";
+import { Slider } from "../UI/Slider";
+import { Toggle } from "../UI/Toggle";
+import { Button } from "../UI/Button";
+import styles from "./GameSettingsPanel.module.css";
+import type { GameSettings } from "@shared/types/game.ts";
 
 export interface GameSettingsConfig {
   boardWidth: { min: number; max: number; step: number };
@@ -50,12 +35,14 @@ export function GameSettingsPanel({
   onResetToDefault,
   disabled = false,
   config = {},
-  title = 'Game Settings',
-  className = '',
+  title = "Game Settings",
+  className = "",
 }: GameSettingsPanelProps) {
   const mergedConfig = { ...DEFAULT_CONFIG, ...config };
 
-  const panelClassName = [styles.settingsPanel, className].filter(Boolean).join(' ');
+  const panelClassName = [styles.settingsPanel, className]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <Panel title={title} className={panelClassName}>
@@ -67,7 +54,7 @@ export function GameSettingsPanel({
             max={mergedConfig.boardWidth.max}
             step={mergedConfig.boardWidth.step}
             value={settings.boardWidth}
-            onChange={(value) => onSettingChange('boardWidth', value)}
+            onChange={(value) => onSettingChange("boardWidth", value)}
             disabled={disabled}
             suffix=" cols"
           />
@@ -80,7 +67,7 @@ export function GameSettingsPanel({
             max={mergedConfig.boardHeight.max}
             step={mergedConfig.boardHeight.step}
             value={settings.boardHeight}
-            onChange={(value) => onSettingChange('boardHeight', value)}
+            onChange={(value) => onSettingChange("boardHeight", value)}
             disabled={disabled}
             suffix=" rows"
           />
@@ -93,7 +80,7 @@ export function GameSettingsPanel({
             max={mergedConfig.gravity.max}
             step={mergedConfig.gravity.step}
             value={settings.gravity}
-            onChange={(value) => onSettingChange('gravity', value)}
+            onChange={(value) => onSettingChange("gravity", value)}
             disabled={disabled}
             suffix="×"
           />
@@ -106,7 +93,7 @@ export function GameSettingsPanel({
             max={mergedConfig.nextPieceCount.max}
             step={mergedConfig.nextPieceCount.step}
             value={settings.nextPieceCount}
-            onChange={(value) => onSettingChange('nextPieceCount', value)}
+            onChange={(value) => onSettingChange("nextPieceCount", value)}
             disabled={disabled}
           />
         </div>
@@ -115,7 +102,7 @@ export function GameSettingsPanel({
           <Toggle
             label="Ghost Piece"
             value={settings.ghostPiece}
-            onChange={(value) => onSettingChange('ghostPiece', value)}
+            onChange={(value) => onSettingChange("ghostPiece", value)}
             disabled={disabled}
           />
         </div>

@@ -1,6 +1,6 @@
-import type { GameMode } from '../../types/game';
-import { GAME_MODES } from '../../types/game';
-import styles from './GameModeSelector.module.css';
+import styles from "./GameModeSelector.module.css";
+import type { GameMode } from "@shared/types/game.ts";
+import { GAME_MODES } from "../../types/game.ts";
 
 export interface GameModeSelectorProps {
   selectedMode: GameMode;
@@ -12,24 +12,24 @@ export function GameModeSelector({
   selectedMode,
   onModeChange,
   disabled = false,
-}: GameModeSelectorProps) {
+}: Readonly<GameModeSelectorProps>) {
   return (
     <div className={styles.container}>
       <div className={styles.gameModeGrid}>
-        {GAME_MODES.map(mode => (
+        {GAME_MODES.map((mode) => (
           <button
             key={mode.id}
             onClick={() => onModeChange(mode.id)}
             disabled={disabled}
-            className={`${styles.gameModeButton} ${selectedMode === mode.id ? styles.gameModeActive : ''}`}
+            className={`${styles.gameModeButton} ${selectedMode === mode.id ? styles.gameModeActive : ""}`}
           >
             <span className={styles.gameModeName}>{mode.name}</span>
-            <span className={styles.gameModeDescription}>{mode.description}</span>
+            <span className={styles.gameModeDescription}>
+              {mode.description}
+            </span>
           </button>
         ))}
       </div>
     </div>
   );
 }
-
-export default GameModeSelector;

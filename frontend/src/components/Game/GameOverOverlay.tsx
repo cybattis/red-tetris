@@ -1,5 +1,7 @@
 import { memo, useEffect, useState } from 'react';
 import styles from './GameOverOverlay.module.css';
+import { useAppSelector } from '@/store';
+import { selectIsSpectator } from '@/store/slices/gameRoomSlice';
 
 export interface GameOverStats {
   score: number;
@@ -28,18 +30,24 @@ export const GameOverOverlay = memo(function GameOverOverlay({
   const [showStats, setShowStats] = useState(false);
   const [showButtons, setShowButtons] = useState(false);
 
+  // Game state from Redux (received from server)
+  const isSpectator = useAppSelector(selectIsSpectator);
+
+  console.log('GameOverOverlay visibility changed:', isVisible);
+  console.log('Stats:', stats);
+  console.log('Is Winner:', isWinner);
+  console.log('Reason:', reason);
+  console.log('Is Spectator:', isSpectator);
+
   useEffect(() => {
     if (isVisible) {
       const statsTimer = setTimeout(() => setShowStats(true), 600);
       const buttonsTimer = setTimeout(() => setShowButtons(true), 1200);
-      
+
       return () => {
         clearTimeout(statsTimer);
         clearTimeout(buttonsTimer);
       };
-    } else {
-      setShowStats(false);
-      setShowButtons(false);
     }
   }, [isVisible]);
 
@@ -55,7 +63,7 @@ export const GameOverOverlay = memo(function GameOverOverlay({
         <div className={`${styles.titleContainer} ${isWinner ? styles.winner : ''}`}>
           {isWinner && <div className={styles.confetti} aria-hidden="true" />}
           <h1 className={styles.title}>
-            {isWinner ? 'Victory!' : reason}
+            {isWinner && !isSpectator ? 'Victory!' : reason}
           </h1>
           {placementText && (
             <p className={styles.placement}>{placementText}</p>

@@ -13,7 +13,7 @@ export class WebSocketManager {
       cors: {
         origin: '*', // Adjust for production
         methods: ['GET', 'POST'],
-      }
+      },
     });
     Logger.info('WebSocket server initialized');
 
@@ -35,7 +35,7 @@ export class WebSocketManager {
         }
 
         const data = result.data;
-        const roomId = data?.roomInfo?.id || data?.playerLeft?.roomId;
+        const roomId = data?.roomInfo?.id || data?.roomId;
         if (!roomId) {
           return;
         }

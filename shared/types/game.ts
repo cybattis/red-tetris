@@ -1,28 +1,29 @@
+import type { IPlayer, OpponentsGameState } from "./player";
+import { ROOM_CONFIG } from "./room";
+import type { PieceState } from "./piece";
+import type { GameCreationData } from "./socket";
+
 /**
  * Game-related type definitions for Red Tetris
  * Shared between frontend components and backend communication
  */
-
-import type { PlayerJoinedEvent, PlayerLeftEvent } from "./room";
-
-export interface Player {
-  id: string;
-  name: string;
-  isHost: boolean;
-  isReady: boolean;
-}
-
 export enum GameMode {
   Classic = "classic",
   Sprint = "sprint",
   Invisible = "invisible",
 }
 
-export enum GameState {
+export enum GameStatus {
   Waiting = "waiting",
   Starting = "starting",
   Playing = "playing",
   Ended = "ended",
+}
+
+export enum EndGameReason {
+  Victory = "victory",
+  Defeat = "defeat",
+  BoardOverflow = "board_overflow",
 }
 
 export const enum GameAction {
@@ -46,19 +47,12 @@ export interface GameSettings {
 
 // Game state interface for real-time updates
 export interface GameStateUpdate {
-  playerId?: string; // Optional player ID for identifying which player's state this is (for multiplayer)
+  player: IPlayer;
   gameId: string;
+  gameSettings: GameSettings;
   board: number[][];
-  currentPiece: {
-    type: number;
-    position: { x: number; y: number };
-    shape: number[][];
-  } | null;
-  ghostPiece: {
-    type: number;
-    position: { x: number; y: number };
-    shape: number[][];
-  } | null;
+  currentPiece: PieceState;
+  ghostPiece: PieceState | null;
   nextPieces: number[];
   score: number;
   level: number;
@@ -66,56 +60,8 @@ export interface GameStateUpdate {
   totalLinesCleared: number;
   isPaused: boolean;
   isGameOver: boolean;
-  gameOverReason: string | null;
-  boardWidth: number;
-  boardHeight: number;
-}
-
-// Backend communication interface for game creation
-export interface GameCreationData {
-  roomId: string;
-  hostPlayerId: string;
-  gameMode: GameMode;
-  settings: GameSettings;
-  players: Player[];
-  maxPlayers: number;
-  timestamp: number;
-}
-
-export interface SocketEvents<
-  T extends keyof SocketEventsType = keyof SocketEventsType,
-> {
-  message: T;
-  data: SocketEventsType[T];
-}
-
-// Socket event types for backend communication
-export interface SocketEventsType {
-  // Outgoing events (client -> server)
-  CREATE_GAME: GameCreationData;
-  UPDATE_SETTINGS: { roomId: string; settings: GameSettings };
-  UPDATE_GAME_MODE: { roomId: string; gameMode: GameMode };
-  START_GAME: { roomId: string };
-  CANCEL_START: { roomId: string };
-  JOIN_ROOM: { roomId: string; playerName: string };
-  LEAVE_ROOM: { roomId: string; playerId: string };
-  PLAYER_INPUT: { gameId: string; playerId: string; input: GameAction };
-
-  // Incoming events (server -> client)
-  GAME_CREATED: { success: boolean; roomId: string; error?: string };
-  SETTINGS_UPDATED: { settings: GameSettings };
-  GAME_MODE_UPDATED: { gameMode: GameMode };
-  PLAYER_JOINED: PlayerJoinedEvent;
-  PLAYER_LEFT: PlayerLeftEvent;
-  GAME_STARTING: { countdown: number };
-  GAME_START_CANCELED: object;
-  GAME_STARTED: { gameId: string };
-  GAME_ENDED: { gameId: string; playerId: string; reason: string };
-  ROOM_NOT_FOUND: { error: string };
-  ROOM_FULL: { error: string };
-
-  // Game state updates
-  GAME_STATE_UPDATE: GameStateUpdate;
+  gameOverReason?: string;
+  opponent?: OpponentsGameState; // Opponent data for multiplayer
 }
 
 // Game constants
@@ -128,41 +74,12 @@ export const DEFAULT_SETTINGS: GameSettings = {
   nextPieceCount: 3,
 };
 
-export const GAME_MODES: Array<{
-  id: GameMode;
-  name: string;
-  description: string;
-}> = [
-    {
-      id: GameMode.Classic,
-      name: "Classic",
-      description: "Traditional Tetris gameplay",
-    },
-    {
-      id: GameMode.Sprint,
-      name: "Sprint",
-      description: "Game speeds up over time",
-    },
-    {
-      id: GameMode.Invisible,
-      name: "Invisible",
-      description: "Locked pieces disappear from view",
-    },
-  ];
-
-// Room configuration
-export const ROOM_CONFIG = {
-  MAX_PLAYERS: 2,
-  MIN_PLAYERS: 1,
-  COUNTDOWN_DURATION: 3,
-} as const;
-
 // Helper functions for game data preparation and validation
 export function prepareGameCreationData(
   roomId: string,
   gameMode: GameMode,
   settings: GameSettings,
-  players: Player[],
+  players: IPlayer[],
 ): GameCreationData {
   const hostPlayer = players.find((p) => p.isHost);
   if (!hostPlayer) {
@@ -180,16 +97,36 @@ export function prepareGameCreationData(
   };
 }
 
-export function canStartGame(players: Player[]): boolean {
-  const hasMinPlayers = players.length >= ROOM_CONFIG.MIN_PLAYERS;
-  return hasMinPlayers;
+export function canStartGame(players: IPlayer[]): boolean {
+  return players.length >= ROOM_CONFIG.MIN_PLAYERS;
 }
 
-export function validateGameSettings(settings: GameSettings): boolean {
-  return (
-    settings.gravity > 0 &&
-    settings.boardWidth >= 4 && settings.boardWidth <= 40 && // Min 4 for I-piece, max 40 for sanity
-    settings.boardHeight >= 4 && settings.boardHeight <= 50 && // Min 4 for pieces, max 50 for performance
-    settings.nextPieceCount >= 0 && settings.nextPieceCount <= 10 // Max 10 next pieces for UI sanity
-  );
+export enum AnimationType {
+  HARD_DROP = "HARD_DROP",
+  LOCK_PIECE = "LOCK_PIECE",
+  LINE_CLEAR = "LINE_CLEAR",
+  PENALTY_LINES = "PENALTY_LINES",
+  SPEED_BOOST = "SPEED_BOOST",
 }
+
+export type Trail = {
+  x: number;
+  startY: number;
+  endY: number; // Piece type for color
+  type: number; // For fading effect
+};
+
+export type LockedCell = {
+  x: number;
+  y: number;
+  type: number; // Piece type for color
+};
+
+export type GameAnimationData = {
+  timestamp: number;
+  trails?: Trail[]; // Hard drop trails for visual effect
+  multiplier?: number; // Speed boost
+  cells?: LockedCell[]; // Piece lock
+  rows?: number[]; // Lines cleared and penalty rows for multiplayer
+  count?: number; // Number of penalty rows for multiplayer
+};

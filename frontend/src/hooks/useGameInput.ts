@@ -44,11 +44,13 @@ export function useGameInput({
   const heldKeysRef = useRef<Map<string, HeldKeyState>>(new Map());
 
   // Actions that support key repeat (holding) - stable reference to avoid re-renders
-  const repeatableActionsRef = useRef(new Set<GameAction>([
-    GameAction.MOVE_LEFT,
-    GameAction.MOVE_RIGHT,
-    GameAction.SOFT_DROP,
-  ]));
+  const repeatableActionsRef = useRef(
+    new Set<GameAction>([
+      GameAction.MOVE_LEFT,
+      GameAction.MOVE_RIGHT,
+      GameAction.SOFT_DROP,
+    ]),
+  );
 
   const clearKeyRepeat = useCallback((key: string) => {
     const state = heldKeysRef.current.get(key);
@@ -107,13 +109,7 @@ export function useGameInput({
         });
       }
     },
-    [
-      enabled,
-      onAction,
-      onActionStart,
-      repeatDelay,
-      repeatInterval,
-    ],
+    [enabled, onAction, onActionStart, repeatDelay, repeatInterval],
   );
 
   const handleKeyUp = useCallback(
@@ -142,16 +138,16 @@ export function useGameInput({
       return;
     }
 
-    window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("keyup", handleKeyUp);
-    window.addEventListener("blur", handleBlur);
+    globalThis.addEventListener("keydown", handleKeyDown);
+    globalThis.addEventListener("keyup", handleKeyUp);
+    globalThis.addEventListener("blur", handleBlur);
 
     return () => {
       // Cleanup: clear all intervals and remove listeners
       heldKeysRef.current.forEach((_, key) => clearKeyRepeat(key));
-      window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("keyup", handleKeyUp);
-      window.removeEventListener("blur", handleBlur);
+      globalThis.removeEventListener("keydown", handleKeyDown);
+      globalThis.removeEventListener("keyup", handleKeyUp);
+      globalThis.removeEventListener("blur", handleBlur);
     };
   }, [enabled, handleKeyDown, handleKeyUp, handleBlur, clearKeyRepeat]);
 }

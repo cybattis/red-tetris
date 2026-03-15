@@ -8,7 +8,7 @@ export class GameManager {
   private static _instance: GameManager | null = null;
   private readonly _games = new Map<string, Game>();
 
-  private constructor() { }
+  private constructor() {}
 
   public static getInstance(): GameManager {
     if (!GameManager._instance) {
@@ -18,12 +18,7 @@ export class GameManager {
     return GameManager._instance;
   }
 
-  public createGame(
-    player: Player,
-    settings: GameSettings,
-    seed: number,
-    room: Room,
-  ): Game {
+  public createGame(player: Player, settings: GameSettings, seed: number, room: Room): Game {
     const game = new Game(player, seed, settings, room);
     this._games.set(game.id, game);
     Logger.info(
@@ -48,20 +43,23 @@ export class GameManager {
     return Array.from(this._games.values());
   }
 
-  public getGamesByPlayerId(playerId: string): Game[] {
-    return this.getAllGames().filter((game) => game.player.id === playerId);
+  public getGameByPlayerId(playerId: string): Game | undefined {
+    return this.getAllGames().find((game) => game.player.id === playerId);
   }
 
-  public stopGamesByPlayerId(playerId: string): number {
-    const playerGames = this.getGamesByPlayerId(playerId);
+  public stopGameByPlayerId(playerId: string): number {
+    const game = this.getGameByPlayerId(playerId);
     let stoppedCount = 0;
 
-    for (const game of playerGames) {
-      game.stopGame();
-      this._games.delete(game.id);
-      stoppedCount++;
-      Logger.info(`Stopped and removed game ${game.id} for player ${playerId}`);
+    if (!game) {
+      Logger.warn(`No active game found for player ${playerId}`);
+      return stoppedCount;
     }
+
+    game.stopGame();
+    this._games.delete(game.id);
+    stoppedCount++;
+    Logger.info(`Stopped and removed game ${game.id} for player ${playerId}`);
 
     return stoppedCount;
   }

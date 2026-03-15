@@ -1,10 +1,8 @@
 import { useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import styles from "./GameRoom.module.css";
-import type { GameMode, GameSettings } from "../types/game";
-
 // Redux imports
-import { useAppDispatch, useAppSelector } from "../store/index.js";
+import { useAppDispatch, useAppSelector } from "@/store";
 import {
   joinRoom,
   leaveRoom,
@@ -23,11 +21,13 @@ import {
   selectGameId,
   selectError,
   selectGameCreationData,
-  cancelCountdown,
 } from "../store/slices/gameRoomSlice.js";
-import { selectSocket, selectConnectionStatus } from "../store/slices/connectionSlice.js";
+import {
+  selectSocket,
+  selectConnectionStatus,
+} from "../store/slices/connectionSlice.js";
 import { resetGame } from "../store/slices/gameSlice.js";
-import { GameAction } from "@shared/types/game";
+import { GameAction, GameMode, type GameSettings } from "@shared/types/game";
 
 import { Button, Panel } from "../components/UI";
 import {
@@ -69,7 +69,12 @@ export function GameRoom() {
   const hasJoinedRoom = useRef(false);
 
   useEffect(() => {
-    if (room && playerName && connectionStatus === 'connected' && !hasJoinedRoom.current) {
+    if (
+      room &&
+      playerName &&
+      connectionStatus === "connected" &&
+      !hasJoinedRoom.current
+    ) {
       // Join room using the new room management system
       hasJoinedRoom.current = true;
       dispatch(joinRoom({ roomId: room, playerName }));
@@ -84,7 +89,7 @@ export function GameRoom() {
   // Navigate back to home if no room or player name
   useEffect(() => {
     if (!room || !playerName) {
-      navigate('/');
+      navigate("/");
     }
   }, [room, playerName, navigate]);
 
@@ -93,14 +98,14 @@ export function GameRoom() {
     let interval: number | null = null;
 
     if (countdown !== null && countdown > 0) {
-      interval = window.setInterval(() => {
+      interval = globalThis.setInterval(() => {
         dispatch(updateCountdown(countdown - 1));
       }, 1000);
     }
 
     return () => {
       if (interval) {
-        window.clearInterval(interval);
+        globalThis.clearInterval(interval);
       }
     };
   }, [countdown, dispatch]);
@@ -135,10 +140,6 @@ export function GameRoom() {
     }
   };
 
-  const handleCancelCountdown = () => {
-    dispatch(cancelCountdown());
-  };
-
   const handleLeaveRoom = () => {
     dispatch(leaveRoom());
     navigate("/");
@@ -146,13 +147,13 @@ export function GameRoom() {
 
   const handleReturnToLobby = useCallback(() => {
     // End the current game state and return to lobby
-    dispatch({ type: 'gameRoom/endGame' });
+    dispatch({ type: "gameRoom/endGame" });
     dispatch(resetGame());
   }, [dispatch]);
 
   const handleReturnHome = useCallback(() => {
     // End the game and navigate to home page
-    dispatch({ type: 'gameRoom/endGame' });
+    dispatch({ type: "gameRoom/endGame" });
     dispatch(resetGame());
     dispatch(leaveRoom());
     navigate("/");
@@ -160,19 +161,22 @@ export function GameRoom() {
 
   // Handle game input actions - send to server
   // MUST be memoized to prevent useGameInput from re-registering event listeners on every render
-  const handleGameAction = useCallback((action: GameAction) => {
-    console.log("Handling game action:", socket?.id, action, { gameStarted, gameId });
-    if (socket && socket.connected && gameStarted && gameId) {
-      socket.emit('PLAYER_INPUT', {
-        message: 'PLAYER_INPUT',
-        data: {
+  const handleGameAction = useCallback(
+    (action: GameAction) => {
+      console.log("Handling game action:", socket?.id, action, {
+        gameStarted,
+        gameId,
+      });
+      if (socket && socket.connected && gameStarted && gameId) {
+        socket.emit("PLAYER_INPUT", {
           gameId: gameId,
           playerId: socket.id,
           input: action,
-        }
-      });
-    }
-  }, [socket, gameStarted, gameId]);
+        });
+      }
+    },
+    [socket, gameStarted, gameId],
+  );
 
   // Game input hook - only active when game has started
   useGameInput({
@@ -199,15 +203,13 @@ export function GameRoom() {
   // If game has started, show game view
   if (gameStarted) {
     return (
-      <>
-        <GameView
-          roomName={room}
-          playerName={playerName}
-          isHost={isHost}
-          onLeave={handleReturnToLobby}
-          onReturnHome={handleReturnHome}
-        />
-      </>
+      <GameView
+        roomName={room}
+        playerName={playerName}
+        isHost={isHost}
+        onLeave={handleReturnToLobby}
+        onReturnHome={handleReturnHome}
+      />
     );
   }
 
@@ -215,11 +217,7 @@ export function GameRoom() {
     <div className={styles.container}>
       <TetrisBackground pieceCount={50} />
 
-      {countdown !== null && (
-        <CountdownOverlay
-          count={countdown}
-        />
-      )}
+      {countdown !== null && <CountdownOverlay count={countdown} />}
 
       <header className={styles.header}>
         <Button
@@ -272,17 +270,17 @@ export function GameRoom() {
               fullWidth
               disabled={countdown !== null || !canStartGameNow}
             >
-              {countdown !== null
-                ? `Starting in ${countdown}...`
-                : "Start Game"}
+              {countdown === null
+                ? "Start Game"
+                : `Starting in ${countdown}...`}
             </Button>
           ) : (
-            <span className={styles.waitingText}>Waiting for host to start the game...</span>
+            <span className={styles.waitingText}>
+              Waiting for host to start the game...
+            </span>
           )}
         </div>
       </main>
     </div>
   );
 }
-
-export default GameRoom;

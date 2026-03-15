@@ -3,9 +3,11 @@ import { Game } from './Game';
 import { Logger } from '../utils/helpers';
 import { GameManager } from '../managers/GameManager';
 import { GameSettings, GameMode } from '@shared/types/game';
-import { RoomState, RoomPlayer, RoomInfo, ROOM_CONFIG, RoomResults } from '@shared/types/room';
+import { RoomState, RoomInfo, ROOM_CONFIG, RoomResults } from '@shared/types/room';
 import { Server } from 'socket.io';
 import { wsManager } from '../server';
+import { IPlayer } from '@shared/types/player';
+import { GameOverEvent } from '@shared/types/socket';
 
 // Default game settings for rooms
 const DEFAULT_GAME_SETTINGS: GameSettings = {
@@ -128,7 +130,7 @@ export class Room {
     }
 
     // Clean up any associated games through GameManager
-    const stoppedGames = this._gameManager.stopGamesByPlayerId(playerId);
+    const stoppedGames = this._gameManager.stopGameByPlayerId(playerId);
     if (stoppedGames > 0) {
       Logger.info(`Stopped ${stoppedGames} game(s) for player ${playerId} leaving room ${this.id}`);
     }
@@ -172,10 +174,6 @@ export class Room {
     return { wasHost, newHost };
   }
 
-  public getPlayer(playerId: string): Player | null {
-    return this._players.get(playerId) || this._spectators.get(playerId) || null;
-  }
-
   public isHost(playerId: string): boolean {
     return this._hostId === playerId;
   }
@@ -190,7 +188,9 @@ export class Room {
 
   // Game management
   // --------------------------------------------------------------
-  public startGame(customSettings?: Partial<GameSettings>,): RoomResults<{ gameIds: string[]; roomInfo: RoomInfo }> {
+  public startGame(
+    customSettings?: Partial<GameSettings>,
+  ): RoomResults<{ gameIds: string[]; roomInfo: RoomInfo }> {
     if (this._state === 'playing') {
       Logger.info(`Cannot start game - already playing`);
       return {
@@ -210,8 +210,8 @@ export class Room {
         error: {
           reason: 'No players in room',
           roomId: this.id,
-          code: 'ROOM_NOT_FOUND'
-        }
+          code: 'ROOM_NOT_FOUND',
+        },
       };
     }
 
@@ -238,15 +238,20 @@ export class Room {
           player,
           gameSettings,
           seed,
-          this // Room reference for multiplayer interactions
+          this, // Room reference for multiplayer interactions
         );
 
         // Store game in Room's map for tracking
         this._games.set(player.id, game);
 
         // Listen for game ended event to update room state
-        game.once('gameOver', (data) => {
-          Logger.info(`Game ${data.gameId} ended in room ${this.id}, calling endGame()`);
+        game.once('gameOver', (data: GameOverEvent) => {
+          Logger.info(`Game ended in room ${this.id} for player ${player.name}`);
+
+          if (!this.io.to(this?.id).emit('GAME_ENDED', data)) {
+            Logger.warn(`Failed to broadcast game state for game ${this.id} in room ${this?.id}`);
+          }
+
           // Stop games for all players in the room when one game ends (for multiplayer)
           this.endGame();
         });
@@ -326,9 +331,7 @@ export class Room {
       }
 
       game.addPenaltyLines(count);
-      Logger.info(
-        `Applied ${count} penalty lines to player ${playerId} in room ${this.id}`,
-      );
+      Logger.info(`Applied ${count} penalty lines to player ${playerId} in room ${this.id}`);
     }
   }
 
@@ -347,25 +350,25 @@ export class Room {
 
     // Also clean up any games in GameManager that belong to players in this room
     for (const player of this._players.values()) {
-      const playerGames = this._gameManager.getGamesByPlayerId(player.id);
-      for (const game of playerGames) {
-        Logger.info(`Cleaning up orphaned game ${game.id} for player ${player.name}`);
-        game.stopGame();
-        this._gameManager.removeGame(game.id);
+      const playerGames = this._gameManager.getGameByPlayerId(player.id);
+      if (playerGames) {
+        Logger.info(`Cleaning up orphaned game ${playerGames.id} for player ${player.name}`);
+        playerGames.stopGame();
+        this._gameManager.removeGame(playerGames.id);
       }
     }
   }
 
   // Room info serialization
   public toRoomInfo(): RoomInfo {
-    const playerList: RoomPlayer[] = this.players.map((player) => ({
+    const playerList: IPlayer[] = this.players.map((player) => ({
       id: player.id,
       name: player.name,
       isHost: this.isHost(player.id),
       isSpectator: false,
     }));
 
-    const spectatorList: RoomPlayer[] = this.spectators.map((player) => ({
+    const spectatorList: IPlayer[] = this.spectators.map((player) => ({
       id: player.id,
       name: player.name,
       isHost: false,
@@ -404,7 +407,7 @@ export class Room {
   private endAllGames(): void {
     // End all games associated with this room's players
     for (const playerId of this._players.keys()) {
-      this._gameManager.stopGamesByPlayerId(playerId);
+      this._gameManager.stopGameByPlayerId(playerId);
     }
   }
 

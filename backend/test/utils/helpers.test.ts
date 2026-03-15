@@ -1,4 +1,5 @@
 import { describe, expect, it, jest, beforeEach, afterEach } from '@jest/globals';
+// @ts-ignore
 import fs from 'node:fs';
 import { printBoard, toStringFormat, Logger, LogLevel } from '../../src/utils/helpers';
 
@@ -87,9 +88,32 @@ describe('helpers', () => {
     expect(consoleLogSpy).toHaveBeenCalled();
   });
 
+  it('falls back to String(value) when stringify throws unexpectedly', () => {
+    const stringifySpy = jest.spyOn(JSON, 'stringify').mockImplementation(() => {
+      throw new Error('boom');
+    });
+
+    expect(() => Logger.debug({ any: 'value' })).not.toThrow();
+    expect(consoleLogSpy).toHaveBeenCalled();
+    stringifySpy.mockRestore();
+  });
+
   it('write falls back to console when no stream exists', () => {
     Logger.write(LogLevel.INFO, 'fallback');
     expect(consoleLogSpy).toHaveBeenCalledWith('fallback');
+  });
+
+  it('write uses stream when available', () => {
+    const write = jest.fn();
+    const on = jest.fn();
+
+    process.env.LOG_TTY_INFO = '/tmp/fake-tty-info-direct';
+    jest.spyOn(fs, 'createWriteStream').mockReturnValue({ write, on } as any);
+
+    Logger.write(LogLevel.INFO, 'streamed-message');
+
+    expect(write).toHaveBeenCalledWith('streamed-message\n');
+    expect(consoleLogSpy).not.toHaveBeenCalled();
   });
 
   it('dump handles value-only and labeled modes', () => {
@@ -111,6 +135,25 @@ describe('helpers', () => {
 
     expect(write).toHaveBeenCalledTimes(1);
     expect(consoleLogSpy).not.toHaveBeenCalled();
+  });
+
+  it('reuses cached stream for subsequent logs on same level', () => {
+    const write = jest.fn();
+    const on = jest.fn();
+    const createSpy = jest.spyOn(fs, 'createWriteStream').mockReturnValue({ write, on } as any);
+
+    process.env.LOG_TTY_INFO = '/tmp/fake-tty-info-cache';
+
+    Logger.info('first');
+    Logger.info('second');
+
+    expect(createSpy).toHaveBeenCalledTimes(1);
+    expect(write).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns reset color for unknown log level in internal formatter', () => {
+    const getColor = (Logger as unknown as { getColor: (level: number) => string }).getColor;
+    expect(getColor(999)).toBe('\x1b[0m');
   });
 
   it('falls back to global LOG_TTY when level-specific variable is missing', () => {

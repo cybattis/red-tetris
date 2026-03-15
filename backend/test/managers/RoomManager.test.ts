@@ -5,7 +5,7 @@ import { GameManager } from '../../src/managers/GameManager';
 import { ROOM_CONFIG } from '../../../shared/types/room';
 
 function makePlayer(id: string, name: string): Player {
-  const player = new Player(id);
+  const player = new Player(id, `socket-${id}`);
   player.name = name;
   return player;
 }
@@ -21,7 +21,7 @@ describe('RoomManager', () => {
   const manager = RoomManager.getInstance();
 
   const clearRooms = () => {
-    const rooms = Array.from(((manager as unknown as { _rooms: Map<string, unknown> })._rooms.values()));
+    const rooms = Array.from((manager as unknown as { _rooms: Map<string, unknown> })._rooms.values());
     for (const room of rooms) {
       manager.deleteRoom(room as any);
     }
@@ -53,6 +53,12 @@ describe('RoomManager', () => {
     const stats = manager.getRoomStats();
     expect(stats.totalRooms).toBe(1);
     expect(stats.activePlayers).toBe(1);
+  });
+
+  it('returns the same room when createRoom is called twice with same id', () => {
+    const first = manager.createRoom('room-same');
+    const second = manager.createRoom('room-same');
+    expect(first).toBe(second);
   });
 
   it('returns room state for same room and moves player to a new room', () => {
@@ -160,12 +166,68 @@ describe('RoomManager', () => {
     expect(missingEnd.error.code).toBe('ROOM_NOT_FOUND');
   });
 
+  it('propagates room-level start/end/reset failures with mapped error codes', () => {
+    const roomId = 'room-errors';
+    const socket = makeSocket();
+    const host = makePlayer('host-err', 'Host');
+
+    manager.joinRoom(roomId, host, socket);
+    const room = manager.getRoom(roomId);
+    if (!room) {
+      throw new Error('expected room to exist');
+    }
+
+    const startSpy = jest.spyOn(room, 'startGame').mockReturnValue({
+      success: false,
+      error: {
+        roomId,
+        reason: 'Game already in progress',
+        code: 'ALREADY_PLAYING',
+      },
+    });
+
+    const startResult = manager.startGame(roomId, host.id, undefined);
+    expect(startResult.success).toBe(false);
+    if (startResult.success) {
+      throw new Error('expected startResult failure');
+    }
+    expect(startResult.error.code).toBe('ALREADY_PLAYING');
+    startSpy.mockRestore();
+
+    const endSpy = jest.spyOn(room, 'handlePlayerGameEnd').mockReturnValue({
+      success: false,
+      reason: 'Player not found',
+    });
+
+    const endResult = manager.endGame(roomId, host.id, 'lost');
+    expect(endResult.success).toBe(false);
+    if (endResult.success) {
+      throw new Error('expected endResult failure');
+    }
+    expect(endResult.error.code).toBe('ROOM_NOT_FOUND');
+    endSpy.mockRestore();
+
+    const resetSpy = jest.spyOn(room, 'resetGame').mockReturnValue({
+      success: false,
+      reason: 'Only host can reset the game',
+    });
+
+    const resetResult = manager.resetGame(roomId, host.id);
+    expect(resetResult.success).toBe(false);
+    if (resetResult.success) {
+      throw new Error('expected resetResult failure');
+    }
+    expect(resetResult.error.code).toBe('NOT_HOST');
+    resetSpy.mockRestore();
+  });
+
   it('parses room urls and finds rooms by player id', () => {
     expect(RoomManager.parseRoomUrl('/room123/player1')).toEqual({
       roomId: 'room123',
       playerName: 'player1',
     });
     expect(RoomManager.parseRoomUrl('/bad$/player')).toBeNull();
+    expect(RoomManager.parseRoomUrl('/room123/p$')).toBeNull();
     expect(RoomManager.parseRoomUrl('/room/too/many')).toBeNull();
 
     const socket = makeSocket();
@@ -184,15 +246,24 @@ describe('RoomManager', () => {
     expect(gameEnd.data.roomInfo.id).toBe('room-find');
   });
 
+  it('maps all known room error reasons to expected codes', () => {
+    const managerAny = manager as unknown as { getErrorCode: (reason: string) => string };
+
+    expect(managerAny.getErrorCode('room is full')).toBe('ROOM_FULL');
+    expect(managerAny.getErrorCode('not found')).toBe('ROOM_NOT_FOUND');
+    expect(managerAny.getErrorCode('already joined')).toBe('PLAYER_EXISTS');
+    expect(managerAny.getErrorCode('in progress')).toBe('GAME_IN_PROGRESS');
+    expect(managerAny.getErrorCode('only host')).toBe('NOT_HOST');
+    expect(managerAny.getErrorCode('unknown reason')).toBe('ROOM_NOT_FOUND');
+  });
+
   it('cleans up empty rooms', () => {
     manager.createRoom('empty-room');
     manager.createRoom('empty-room-2');
 
     const cleaned = manager.cleanupEmptyRooms();
     expect(cleaned).toBe(2);
-    const remaining = Array.from(
-      ((manager as unknown as { _rooms: Map<string, unknown> })._rooms.values()),
-    );
+    const remaining = Array.from((manager as unknown as { _rooms: Map<string, unknown> })._rooms.values());
     expect(remaining.length).toBe(0);
   });
 });
