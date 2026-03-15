@@ -8,6 +8,8 @@ import {
   GameStatus,
   GameStateUpdate,
   Trail,
+  GameHistoryEntry,
+  EndGameReason,
 } from '@shared/types/game';
 import { randomUUID } from 'node:crypto';
 import { PiecesSequence } from './PiecesSequence';
@@ -143,6 +145,18 @@ export class Game extends EventEmitter {
     });
 
     return gameState;
+  }
+
+  public toGameHistoryEntry(): GameHistoryEntry {
+    return {
+      endGameReason: this.isAlive ? EndGameReason.Victory : EndGameReason.Defeat,
+      gameId: this.id,
+      level: this.level,
+      linesCleared: this.linesCleared,
+      player: this.player,
+      score: this.score,
+      totalLinesCleared: this.lines,
+    };
   }
 
   private getNextPiecesPreview(): number[] {

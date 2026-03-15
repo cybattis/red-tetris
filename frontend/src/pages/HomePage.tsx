@@ -1,13 +1,44 @@
-import { useState, useCallback, type FormEvent } from 'react';
+import { useState, useEffect, useCallback, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAppDispatch, useAppSelector } from '@/store';
 import { TetrisBackground } from '@/components/UI';
+import {
+  requestHistory,
+  selectHistoryError,
+  selectHistoryLoading,
+  selectRecentGames,
+  selectTopScores,
+} from '@/store/slices/historySlice';
 import styles from './HomePage.module.css';
 
+const formatScore = (score: number): string => score.toLocaleString('en-US');
+
+const getMatchPlayersLabel = (playerNames: string[]): string => {
+  if (playerNames.length === 0) {
+    return 'Unknown players';
+  }
+
+  if (playerNames.length === 1) {
+    return playerNames[0];
+  }
+
+  return `${playerNames[0]} vs ${playerNames[1]}`;
+};
+
 export function HomePage() {
+  const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const [playerName, setPlayerName] = useState('');
   const [roomName, setRoomName] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const recentGames = useAppSelector(selectRecentGames);
+  const topScores = useAppSelector(selectTopScores);
+  const historyLoading = useAppSelector(selectHistoryLoading);
+  const historyError = useAppSelector(selectHistoryError);
+
+  useEffect(() => {
+    dispatch(requestHistory());
+  }, [dispatch]);
 
   const validateInputs = useCallback((): boolean => {
     if (!playerName.trim()) {
@@ -74,45 +105,38 @@ export function HomePage() {
           <div className={styles.card}>
             <h2 className={styles.cardTitle}>Match History</h2>
             <ul className={styles.matchList}>
-              <li className={styles.matchItem}>
-                <div className={styles.matchPlayers}>
-                  <span className={styles.playerNameHighlight}>Player1</span>
-                  <span className={styles.matchVs}>vs</span>
-                  <span className={styles.playerNameHighlight}>Player2</span>
-                </div>
-                <span className={styles.matchMode}>Classic</span>
-              </li>
-              <li className={styles.matchItem}>
-                <div className={styles.matchPlayers}>
-                  <span className={styles.playerNameHighlight}>ProGamer</span>
-                </div>
-                <span className={styles.matchMode}>Solo</span>
-              </li>
-              <li className={styles.matchItem}>
-                <div className={styles.matchPlayers}>
-                  <span className={styles.playerNameHighlight}>TetrisMaster</span>
-                  <span className={styles.matchVs}>vs</span>
-                  <span className={styles.playerNameHighlight}>Newbie42</span>
-                </div>
-                <span className={styles.matchMode}>Sprint</span>
-              </li>
-              <li className={styles.matchItem}>
-                <div className={styles.matchPlayers}>
-                  <span className={styles.playerNameHighlight}>BlockKing</span>
-                </div>
-                <span className={styles.matchMode}>Solo</span>
-              </li>
-              <li className={styles.matchItem}>
-                <div className={styles.matchPlayers}>
-                  <span className={styles.playerNameHighlight}>SpeedRunner</span>
-                  <span className={styles.matchVs}>vs</span>
-                  <span className={styles.playerNameHighlight}>CasualFan</span>
-                </div>
-                <span className={styles.matchMode}>Classic</span>
-              </li>
-              <li className={styles.matchItemEmpty}>
-                <span>No more matches to display</span>
-              </li>
+              {historyLoading && recentGames.length === 0 ? (
+                <li className={styles.matchItemEmpty}>
+                  <span>Loading history...</span>
+                </li>
+              ) : null}
+
+              {!historyLoading && recentGames.length === 0 ? (
+                <li className={styles.matchItemEmpty}>
+                  <span>No matches yet</span>
+                </li>
+              ) : null}
+
+              {recentGames.map((history) => {
+                const playerNames = history.games.map((entry) => entry.player.name);
+
+                return (
+                  <li key={history.roomId + history.startedAt.toString()} className={styles.matchItem}>
+                    <div className={styles.matchPlayers}>
+                      <span className={styles.playerNameHighlight}>
+                        {getMatchPlayersLabel(playerNames)}
+                      </span>
+                    </div>
+                    <span className={styles.matchMode}>{history.gameMode}</span>
+                  </li>
+                );
+              })}
+
+              {historyError ? (
+                <li className={styles.matchItemEmpty}>
+                  <span>{historyError}</span>
+                </li>
+              ) : null}
             </ul>
           </div>
         </aside>
@@ -179,41 +203,19 @@ export function HomePage() {
           <div className={styles.card}>
             <h2 className={styles.cardTitle}>Leaderboards</h2>
             <ol className={styles.leaderboardList}>
-              <li className={styles.leaderboardItem}>
-                <span className={styles.leaderboardRank}>1</span>
-                <span className={styles.leaderboardName}>TetrisMaster</span>
-                <span className={styles.leaderboardScore}>125,400</span>
-              </li>
-              <li className={styles.leaderboardItem}>
-                <span className={styles.leaderboardRank}>2</span>
-                <span className={styles.leaderboardName}>ProGamer</span>
-                <span className={styles.leaderboardScore}>98,750</span>
-              </li>
-              <li className={styles.leaderboardItem}>
-                <span className={styles.leaderboardRank}>3</span>
-                <span className={styles.leaderboardName}>BlockKing</span>
-                <span className={styles.leaderboardScore}>87,200</span>
-              </li>
-              <li className={styles.leaderboardItem}>
-                <span className={styles.leaderboardRank}>4</span>
-                <span className={styles.leaderboardName}>SpeedRunner</span>
-                <span className={styles.leaderboardScore}>72,100</span>
-              </li>
-              <li className={styles.leaderboardItem}>
-                <span className={styles.leaderboardRank}>5</span>
-                <span className={styles.leaderboardName}>Player1</span>
-                <span className={styles.leaderboardScore}>65,800</span>
-              </li>
-              <li className={styles.leaderboardItem}>
-                <span className={styles.leaderboardRank}>6</span>
-                <span className={styles.leaderboardName}>CasualFan</span>
-                <span className={styles.leaderboardScore}>54,300</span>
-              </li>
-              <li className={styles.leaderboardItem}>
-                <span className={styles.leaderboardRank}>7</span>
-                <span className={styles.leaderboardName}>Newbie42</span>
-                <span className={styles.leaderboardScore}>32,150</span>
-              </li>
+              {topScores.length === 0 ? (
+                <li className={styles.matchItemEmpty}>
+                  <span>No scores yet</span>
+                </li>
+              ) : null}
+
+              {topScores.map((entry, index) => (
+                <li key={entry.gameId + entry.player.id} className={styles.leaderboardItem}>
+                  <span className={styles.leaderboardRank}>{index + 1}</span>
+                  <span className={styles.leaderboardName}>{entry.player.name}</span>
+                  <span className={styles.leaderboardScore}>{formatScore(entry.score)}</span>
+                </li>
+              ))}
             </ol>
           </div>
         </aside>

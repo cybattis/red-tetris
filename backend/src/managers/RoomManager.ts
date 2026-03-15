@@ -226,41 +226,6 @@ export class RoomManager {
     };
   }
 
-  public endGame(roomId: string, playerId: string, reason: string): RoomResults<{ roomInfo: RoomInfo }> {
-    const room = this.getRoom(roomId);
-    if (!room) {
-      return {
-        success: false,
-        error: {
-          roomId,
-          reason: 'Room not found',
-          code: 'ROOM_NOT_FOUND',
-        },
-      };
-    }
-
-    // Handle the game ending for this player
-    const result = room.handlePlayerGameEnd(playerId, reason);
-    if (!result.success) {
-      const errorCode = this.getErrorCode(result.reason!);
-      return {
-        success: false,
-        error: {
-          roomId,
-          reason: result.reason!,
-          code: errorCode,
-        },
-      };
-    }
-
-    return {
-      success: true,
-      data: {
-        roomInfo: room.toRoomInfo(),
-      },
-    };
-  }
-
   public resetGame(roomId: string, hostId: string): RoomResults<{ roomInfo: RoomInfo }> {
     const room = this.getRoom(roomId);
     if (!room) {

@@ -31,10 +31,12 @@ import type {
   GameModeUpdateEvent,
   GameOverEvent,
   HostTransferEvent,
+  HistoryResponseEvent,
   PlayerJoinedEvent,
   PlayerLeftEvent,
 } from "@shared/types/socket.ts";
 import { resetGame } from "@store/slices/gameSlice.ts";
+import { historyFailed, historyReceived } from "../slices/historySlice.js";
 
 export const createSocketMiddleware = (
   socketUrl: string,
@@ -92,6 +94,11 @@ export const createSocketMiddleware = (
         socket.on("connect", () => {
           console.log("Connected to server");
           dispatch(setConnected());
+
+          if (store.getState().history.isLoading) {
+            socket.emit("HISTORY");
+          }
+
           dispatch(
             showToast({ message: "Connected to server", type: "success" }),
           );
@@ -195,6 +202,15 @@ export const createSocketMiddleware = (
               type: "info",
             }),
           );
+        });
+
+        socket.on("HISTORY_RESPONSE", (payload: HistoryResponseEvent) => {
+          if (!payload?.history) {
+            dispatch(historyFailed("Failed to load history"));
+            return;
+          }
+
+          dispatch(historyReceived(payload.history));
         });
 
         socket.on("SETTINGS_UPDATED", (data) => {
@@ -472,6 +488,14 @@ export const createSocketMiddleware = (
           socket.emit("RESTART_GAME", {
             roomId: state.gameRoom.roomId,
           });
+        }
+        break;
+      }
+
+      case "history/requestHistory": {
+        const socket = state.connection.socket;
+        if (socket?.connected) {
+          socket.emit("HISTORY");
         }
         break;
       }

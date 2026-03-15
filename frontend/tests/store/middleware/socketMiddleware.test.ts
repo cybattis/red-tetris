@@ -4,6 +4,7 @@ import connectionSlice from '@/store/slices/connectionSlice';
 import gameRoomSlice from '@/store/slices/gameRoomSlice';
 import gameSlice from '@/store/slices/gameSlice';
 import uiSlice from '@/store/slices/uiSlice';
+import historySlice from '@/store/slices/historySlice';
 import type { RootState } from '@/store';
 import type { Socket } from 'socket.io-client';
 
@@ -85,6 +86,7 @@ describe('socketMiddleware', () => {
         gameRoom: gameRoomSlice,
         game: gameSlice,
         ui: uiSlice,
+        history: historySlice,
       },
       middleware: (getDefaultMiddleware) =>
         getDefaultMiddleware({
@@ -158,6 +160,7 @@ describe('socketMiddleware', () => {
         'HOST_TRANSFER',
         'ROOM_ERROR',
         'LEFT_ROOM',
+        'HISTORY_RESPONSE',
         'GAME_CREATED',
         'PLAYER_READY_STATUS',
         'SETTINGS_UPDATED',
@@ -446,6 +449,55 @@ describe('socketMiddleware', () => {
       expect(state.gameRoom.error).toBe('Room is full');
     });
 
+    it('should handle HISTORY_RESPONSE event', () => {
+      const payload = {
+        history: {
+          recentGames: [
+            {
+              roomId: 'room-1',
+              type: 'multiplayer',
+              gameMode: 'classic',
+              games: [],
+              startedAt: new Date(),
+              endedAt: new Date(),
+            },
+          ],
+          topScores: [
+            {
+              gameId: 'game-1',
+              player: {
+                id: 'player-1',
+                name: 'Player 1',
+                isHost: true,
+                isSpectator: false,
+              },
+              score: 1200,
+              level: 2,
+              linesCleared: 8,
+              totalLinesCleared: 8,
+              endGameReason: 'victory',
+            },
+          ],
+        },
+      };
+
+      eventHandlers.HISTORY_RESPONSE(payload);
+
+      const state = store.getState();
+      expect(state.history.recentGames).toHaveLength(1);
+      expect(state.history.topScores).toHaveLength(1);
+      expect(state.history.error).toBeNull();
+      expect(state.history.isLoading).toBe(false);
+    });
+
+    it('should handle HISTORY_RESPONSE event with invalid payload', () => {
+      eventHandlers.HISTORY_RESPONSE({});
+
+      const state = store.getState();
+      expect(state.history.error).toBe('Failed to load history');
+      expect(state.history.isLoading).toBe(false);
+    });
+
     it('should handle pong event and update latency', () => {
       const timestamp = Date.now() - 50; // 50ms latency
       eventHandlers.pong(timestamp);
@@ -620,6 +672,20 @@ describe('socketMiddleware', () => {
       // Should also reset game state
       const state = store.getState();
       expect(state.game.isGameOver).toBe(false);
+    });
+
+    it('should emit HISTORY when requestHistory action is dispatched', () => {
+      store.dispatch({ type: 'history/requestHistory' });
+
+      expect(emittedEvents.HISTORY).toEqual([undefined]);
+    });
+
+    it('should not emit HISTORY when socket is not connected', () => {
+      (mockSocket as any).__setConnected(false);
+
+      store.dispatch({ type: 'history/requestHistory' });
+
+      expect(emittedEvents.HISTORY).toBeUndefined();
     });
   });
 
