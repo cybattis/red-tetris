@@ -234,35 +234,36 @@ export const createSocketMiddleware = (
         });
 
         socket.on("GAME_STATE_UPDATE", (data: GameStateUpdate) => {
-          console.log(" Frontend received GAME_STATE_UPDATE:", data);
+          console.log(
+            "[GAME_STATE_UPDATE] Frontend received GAME_STATE_UPDATE:",
+            data,
+          );
 
           const playerId = store.getState().gameRoom.currentPlayerId;
 
           console.log(
-            `[DEBUG] Current player ID: ${playerId}, Incoming game state player ID: ${data.player?.id}`,
+            `[GAME_STATE_UPDATE] Current player ID: ${playerId}, Incoming game state player ID: ${data.player?.id}`,
           );
-          console.log(`[DEBUG] Is spectator: ${isSpectator}`);
 
           if (data.player?.id === playerId || isSpectator) {
-            console.log("[DEBUG] Updating game state for current player");
+            console.log(
+              "[GAME_STATE_UPDATE] Updating game state for current player",
+            );
             dispatch({ type: "game/updateGameState", payload: data });
           } else {
-            console.log("[DEBUG] Updating game state for opponent");
+            console.log("[GAME_STATE_UPDATE] Updating game state for opponent");
             dispatch({
               type: "game/updateGameState",
               payload: {
-                opponents: [
-                  {
-                    playerId: data.player.id,
-                    playerName: data.player.name,
-                    board: data.board,
-                    currentPiece: data.currentPiece,
-                    nextPieces: data.nextPieces,
-                    score: data.score,
-                    linesCleared: data.linesCleared,
-                    isEliminated: data.isGameOver,
-                  },
-                ],
+                opponent: {
+                  player: data.player,
+                  board: data.board,
+                  currentPiece: data.currentPiece,
+                  nextPieces: data.nextPieces,
+                  score: data.score,
+                  linesCleared: data.linesCleared,
+                  isEliminated: data.isGameOver,
+                },
               },
             });
           }

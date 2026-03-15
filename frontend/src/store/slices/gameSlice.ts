@@ -60,7 +60,7 @@ export interface GameState {
   lastAnimationTimestamp: { [key: string]: number };
 
   // Multiplayer - other players' states
-  opponent?: OpponentsGameState;
+  opponent: OpponentsGameState | null;
 }
 
 /**
@@ -93,6 +93,8 @@ const initialState: GameState = {
   lockedCells: [],
   hardDropTrail: [],
   lastAnimationTimestamp: {}, // Animation deduplication
+
+  opponent: null,
 };
 
 const gameSlice = createSlice({
