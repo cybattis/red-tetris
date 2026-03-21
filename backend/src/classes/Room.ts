@@ -2,12 +2,13 @@ import { Player } from './Player';
 import { Game } from './Game';
 import { Logger } from '../utils/helpers';
 import { GameManager } from '../managers/GameManager';
-import { GameSettings, GameMode } from '@shared/types/game';
-import { RoomState, RoomInfo, ROOM_CONFIG, RoomResults } from '@shared/types/room';
+import { GameHistory, GameMode, GameSettings, GameType } from '@shared/types/game';
+import { ROOM_CONFIG, RoomInfo, RoomResults, RoomState } from '@shared/types/room';
 import { Server } from 'socket.io';
 import { wsManager } from '../server';
 import { IPlayer } from '@shared/types/player';
 import { GameOverEvent } from '@shared/types/socket';
+import { GameHistoryManager } from '../managers/GameHistoryManager';
 
 // Default game settings for rooms
 const DEFAULT_GAME_SETTINGS: GameSettings = {
@@ -285,7 +286,21 @@ export class Room {
     );
     this._state = 'ended';
 
+    const games = Array.from(this._games.values());
+    const gamesHistoryEntries = games.map((game) => game.toGameHistoryEntry());
+
     // Save results, update stats, etc. (not implemented here)
+    const results: GameHistory = {
+      roomId: this.id,
+      type: games.length > 1 ? GameType.Multiplayer : GameType.Singleplayer,
+      gameMode: games[0]?.settings.gameMode || GameMode.Classic,
+      games: gamesHistoryEntries,
+      startedAt: this._createdAt,
+      endedAt: new Date(),
+    };
+
+    const historyManager = GameHistoryManager.getInstance();
+    historyManager.addGameHistory(results);
 
     // Clean up all games properly
     this.cleanupGames();
@@ -409,33 +424,6 @@ export class Room {
     for (const playerId of this._players.keys()) {
       this._gameManager.stopGameByPlayerId(playerId);
     }
-  }
-
-  public handlePlayerGameEnd(playerId: string, reason: string): { success: boolean; reason?: string } {
-    if (!this.isPlayer(playerId)) {
-      return { success: false, reason: 'Player not in room' };
-    }
-
-    Logger.info(`Player ${playerId} game ended in room ${this.id} - reason: ${reason}`);
-
-    // Check if all players have finished their games
-    const allPlayersFinished = this.checkAllPlayersFinished();
-
-    if (allPlayersFinished) {
-      // All players have finished, transition room back to waiting state
-      this._state = 'waiting';
-      this._gameStartedAt = undefined;
-      Logger.info(`All players finished games in room ${this.id}, returning to lobby`);
-    }
-
-    return { success: true };
-  }
-
-  private checkAllPlayersFinished(): boolean {
-    // In single player mode, if the only player finishes, all are finished
-    // In multiplayer mode, we'd need to track individual player game states
-    // For now, assume single player means game is finished when the one game ends
-    return true;
   }
 
   public destroy(): void {

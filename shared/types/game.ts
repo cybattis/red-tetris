@@ -7,6 +7,11 @@ import type { GameCreationData } from "./socket";
  * Game-related type definitions for Red Tetris
  * Shared between frontend components and backend communication
  */
+export enum GameType {
+  Singleplayer = "singleplayer",
+  Multiplayer = "multiplayer",
+}
+
 export enum GameMode {
   Classic = "classic",
   Sprint = "sprint",
@@ -129,4 +134,28 @@ export type GameAnimationData = {
   cells?: LockedCell[]; // Piece lock
   rows?: number[]; // Lines cleared and penalty rows for multiplayer
   count?: number; // Number of penalty rows for multiplayer
+};
+
+export type GameHistory = {
+  roomId: string;
+  type: GameType;
+  gameMode: GameMode;
+  games: readonly GameHistoryEntry[];
+  startedAt: Date;
+  endedAt: Date;
+};
+
+export type GameHistoryEntry = {
+  gameId: string;
+  player: IPlayer;
+  score: number;
+  level: number;
+  linesCleared: number;
+  totalLinesCleared: number;
+  endGameReason: EndGameReason;
+};
+
+export type HistoryPayload = {
+  recentGames: readonly GameHistory[];
+  topScores: readonly GameHistoryEntry[];
 };

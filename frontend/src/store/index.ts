@@ -6,6 +6,7 @@ import gameRoomSlice from './slices/gameRoomSlice.js';
 import gameSlice from './slices/gameSlice.js';
 import connectionSlice from './slices/connectionSlice.js';
 import uiSlice from './slices/uiSlice.js';
+import historySlice from './slices/historySlice.js';
 
 import { socketMiddleware } from './middleware/socketMiddleware.js';
 
@@ -15,6 +16,7 @@ export const store = configureStore({
     game: gameSlice,
     connection: connectionSlice,
     ui: uiSlice,
+    history: historySlice,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -35,6 +37,7 @@ export type RootState = {
   game: ReturnType<typeof gameSlice>;
   connection: ReturnType<typeof connectionSlice>;
   ui: ReturnType<typeof uiSlice>;
+  history: ReturnType<typeof historySlice>;
 };
 export type AppDispatch = typeof store.dispatch;
 

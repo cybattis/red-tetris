@@ -4,6 +4,8 @@ import { RoomManager } from '../managers/RoomManager.js';
 import { Logger } from '../utils/helpers.js';
 import { wsRoomHandler } from './RoomSocketHandler.js';
 import { wsGameHandler } from './GameSocketHandler.js';
+import { GameHistoryManager } from '../managers/GameHistoryManager';
+import { HistoryPayload } from '@shared/types/game';
 
 export class WebSocketManager {
   public io: Server;
@@ -66,6 +68,20 @@ export class WebSocketManager {
       // Handle ping/pong for latency measurement
       socket.on('ping', (timestamp: number) => {
         socket.emit('pong', timestamp);
+      });
+
+      socket.on('HISTORY', () => {
+        Logger.debug(`Received HISTORY request from ${socket.id}`);
+        // For now, just echo back the payload as a placeholder
+        const gameHistories = GameHistoryManager.getInstance().gameHistories;
+        const gamesPerScore = GameHistoryManager.getInstance().gameHistoriesPerScore;
+
+        const payload: HistoryPayload = {
+          recentGames: gameHistories,
+          topScores: gamesPerScore,
+        };
+
+        socket.emit('HISTORY_RESPONSE', { history: payload });
       });
     });
   }

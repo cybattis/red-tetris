@@ -1,4 +1,9 @@
-import { GameAction, GameMode, type GameSettings } from "./game";
+import {
+  GameAction,
+  GameMode,
+  type GameSettings,
+  type HistoryPayload,
+} from "./game";
 import type { IPlayer } from "./player";
 import type { RoomInfo } from "./room";
 
@@ -71,3 +76,8 @@ export interface GameCreationData {
 export type GameOverEvent = {
   looserId: string;
 };
+
+export interface HistoryResponseEvent {
+  history: HistoryPayload;
+}
+
