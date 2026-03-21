@@ -136,16 +136,16 @@ export type GameAnimationData = {
   count?: number; // Number of penalty rows for multiplayer
 };
 
-export interface GameHistory {
+export type GameHistory = {
   roomId: string;
   type: GameType;
   gameMode: GameMode;
-  games: GameHistoryEntry[];
+  games: readonly GameHistoryEntry[];
   startedAt: Date;
   endedAt: Date;
-}
+};
 
-export interface GameHistoryEntry {
+export type GameHistoryEntry = {
   gameId: string;
   player: IPlayer;
   score: number;
@@ -153,9 +153,9 @@ export interface GameHistoryEntry {
   linesCleared: number;
   totalLinesCleared: number;
   endGameReason: EndGameReason;
-}
+};
 
 export type HistoryPayload = {
-  recentGames: GameHistory[];
-  topScores: GameHistoryEntry[];
+  recentGames: readonly GameHistory[];
+  topScores: readonly GameHistoryEntry[];
 };
