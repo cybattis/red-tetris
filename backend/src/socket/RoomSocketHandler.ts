@@ -68,7 +68,7 @@ export function wsRoomHandler(playerSocket: Socket) {
     playerSocket.emit('LEFT_ROOM', { roomId });
   });
 
-  playerSocket.on('START_GAME', (payload: StartGameEvent) => {
+  playerSocket.on('START_GAME', async (payload: StartGameEvent) => {
     const { roomId, gameSettings } = payload;
 
     Logger.debug(
@@ -76,32 +76,42 @@ export function wsRoomHandler(playerSocket: Socket) {
       gameSettings,
     );
 
-    const result = roomManager.startGame(roomId, playerSocket.id, gameSettings);
-    if (!result.success) {
-      Logger.warn(`[START_GAME] Failed for room ${roomId}: ${result.error?.reason}`);
-      playerSocket.emit('ROOM_ERROR', result.error);
-      return;
-    }
+    try {
+      const result = await roomManager.startGame(roomId, playerSocket.id, gameSettings);
 
-    const data = result.data;
-    Logger.info(`[START_GAME] Success for room ${roomId}`);
-
-    const playerSocketIds = wsManager.io.sockets.adapter.rooms.get(roomId);
-    if (!playerSocketIds) {
-      Logger.error(`[START_GAME] No players found in room ${roomId} after starting game`);
-      return;
-    }
-
-    const gameIds = result.data.gameIds;
-
-    for (let i = 0; i < playerSocketIds.size; i++) {
-      const gameId = gameIds[i];
-      const socketId = Array.from(playerSocketIds)[i];
-      Logger.debug(`[START_GAME] Emitting GAME_STARTED to socket ${socketId} for game ${gameId}`);
-      const socket = wsManager.io.sockets.sockets.get(socketId);
-      if (socket) {
-        socket.emit('GAME_STARTED', { roomInfo: data.roomInfo, gameId });
+      if (!result.success) {
+        Logger.warn(`[START_GAME] Failed for room ${roomId}: ${result.error?.reason}`);
+        playerSocket.emit('ROOM_ERROR', result.error);
+        return;
       }
+
+      const data = result.data;
+      Logger.info(`[START_GAME] Success for room ${roomId}`);
+
+      const playerSocketIds = wsManager.io.sockets.adapter.rooms.get(roomId);
+      if (!playerSocketIds) {
+        Logger.error(`[START_GAME] No players found in room ${roomId} after starting game`);
+        return;
+      }
+
+      const gameIds = result.data.gameIds;
+
+      for (let i = 0; i < playerSocketIds.size; i++) {
+        const gameId = gameIds[i];
+        const socketId = Array.from(playerSocketIds)[i];
+        Logger.debug(`[START_GAME] Emitting GAME_STARTED to socket ${socketId} for game ${gameId}`);
+        const socket = wsManager.io.sockets.sockets.get(socketId);
+        if (socket) {
+          socket.emit('GAME_STARTED', { roomInfo: data.roomInfo, gameId });
+        }
+      }
+    } catch (error) {
+      Logger.error(`[START_GAME] Unhandled error for room ${roomId}:`, error);
+      playerSocket.emit('ROOM_ERROR', {
+        roomId,
+        reason: 'Failed to start game',
+        code: 'UNKNOWN_ERROR',
+      });
     }
   });
 }

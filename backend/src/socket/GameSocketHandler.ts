@@ -1,20 +1,21 @@
 import { Socket } from 'socket.io';
-import { GameManager } from '../managers/GameManager';
 import { Logger } from '../utils/helpers';
 import { GameModeUpdateEvent, GameSettingsUpdateEvent, PlayerInputEvent } from '@shared/types/socket';
+import { RoomManager } from '../managers/RoomManager';
 
 export function wsGameHandler(socket: Socket) {
-  const gameManager = GameManager.getInstance();
+  const roomManager = RoomManager.getInstance();
 
-  socket.on('PLAYER_INPUT', (payload: PlayerInputEvent) => {
+  socket.on('PLAYER_INPUT', async (payload: PlayerInputEvent) => {
     const { playerId, input } = payload;
     Logger.debug(`Received PLAYER_INPUT from ${playerId}:`, payload);
-    const game = gameManager.getGameByPlayerId(playerId);
-    if (!game) {
-      Logger.error(`No active game found for player ${playerId} when processing input:`, payload);
-      return;
+    try {
+      if (!(await roomManager.handlePlayerInput(playerId, input))) {
+        Logger.error(`No active game found for player ${playerId} when processing input:`, payload);
+      }
+    } catch (error) {
+      Logger.error(`Failed to process PLAYER_INPUT for player ${playerId}:`, error);
     }
-    game.setPlayerInput(input);
   });
 
   // Additional socket event handlers for room management

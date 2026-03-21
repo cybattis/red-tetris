@@ -1,8 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { RoomManager } from '../../src/managers/RoomManager';
 import { Player } from '../../src/classes/Player';
-import { GameManager } from '../../src/managers/GameManager';
 import { ROOM_CONFIG } from '../../../shared/types/room';
+import { GameAction } from '../../../shared/types/game';
 
 function makePlayer(id: string, name: string): Player {
   const player = new Player(id, `socket-${id}`);
@@ -31,11 +31,6 @@ describe('RoomManager', () => {
     clearRooms();
   });
 
-  afterEach(() => {
-    clearRooms();
-    GameManager.getInstance().stopAllGames();
-  });
-
   it('joins a room, creates it if needed, and maps players', () => {
     const socket = makeSocket();
     const player = makePlayer('player-1', 'Alpha');
@@ -50,9 +45,7 @@ describe('RoomManager', () => {
     expect(result.data.playerJoined?.player.id).toBe(player.id);
     expect(socket.join).toHaveBeenCalledWith('room-1');
 
-    const stats = manager.getRoomStats();
-    expect(stats.totalRooms).toBe(1);
-    expect(stats.activePlayers).toBe(1);
+    expect(manager.getRoomForPlayer(player.id)?.id).toBe('room-1');
   });
 
   it('returns the same room when createRoom is called twice with same id', () => {
@@ -106,7 +99,7 @@ describe('RoomManager', () => {
     expect(overflow.error.code).toBe('ROOM_FULL');
   });
 
-  it('enforces host rules for start and reset', () => {
+  it('enforces host rules for start', async () => {
     const roomId = 'room-host';
     const socket = makeSocket();
     const host = makePlayer('host-1', 'Host');
@@ -115,58 +108,32 @@ describe('RoomManager', () => {
     manager.joinRoom(roomId, host, socket);
     manager.joinRoom(roomId, guest, socket);
 
-    const notHostStart = manager.startGame(roomId, guest.id, undefined);
+    const notHostStart = await manager.startGame(roomId, guest.id, undefined);
     expect(notHostStart.success).toBe(false);
     if (notHostStart.success) {
       throw new Error('expected notHostStart error');
     }
     expect(notHostStart.error.code).toBe('NOT_HOST');
 
-    const startResult = manager.startGame(roomId, host.id, undefined);
+    const startResult = await manager.startGame(roomId, host.id, undefined);
     expect(startResult.success).toBe(true);
     if (!startResult.success) {
       throw new Error('expected startResult success');
     }
     expect(startResult.data.roomInfo.id).toBe(roomId);
 
-    const notHostReset = manager.resetGame(roomId, guest.id);
-    expect(notHostReset.success).toBe(false);
-    if (notHostReset.success) {
-      throw new Error('expected notHostReset error');
-    }
-    expect(notHostReset.error.code).toBe('NOT_HOST');
-
-    const room = manager.getRoom(roomId);
-    room?.endGame();
-
-    const resetResult = manager.resetGame(roomId, host.id);
-    expect(resetResult.success).toBe(true);
   });
 
-  it('returns errors for missing room and handles game end', () => {
-    const missingStart = manager.startGame('missing-room', 'host', undefined);
+  it('returns error for missing room on start', async () => {
+    const missingStart = await manager.startGame('missing-room', 'host', undefined);
     expect(missingStart.success).toBe(false);
     if (missingStart.success) {
       throw new Error('expected missingStart error');
     }
     expect(missingStart.error.code).toBe('ROOM_NOT_FOUND');
-
-    const missingReset = manager.resetGame('missing-room', 'host');
-    expect(missingReset.success).toBe(false);
-    if (missingReset.success) {
-      throw new Error('expected missingReset error');
-    }
-    expect(missingReset.error.code).toBe('ROOM_NOT_FOUND');
-
-    const missingEnd = manager.endGame('missing-room', 'player', 'lost');
-    expect(missingEnd.success).toBe(false);
-    if (missingEnd.success) {
-      throw new Error('expected missingEnd error');
-    }
-    expect(missingEnd.error.code).toBe('ROOM_NOT_FOUND');
   });
 
-  it('propagates room-level start/end/reset failures with mapped error codes', () => {
+  it('propagates room-level start failures with mapped error codes', async () => {
     const roomId = 'room-errors';
     const socket = makeSocket();
     const host = makePlayer('host-err', 'Host');
@@ -186,50 +153,16 @@ describe('RoomManager', () => {
       },
     });
 
-    const startResult = manager.startGame(roomId, host.id, undefined);
+    const startResult = await manager.startGame(roomId, host.id, undefined);
     expect(startResult.success).toBe(false);
     if (startResult.success) {
       throw new Error('expected startResult failure');
     }
     expect(startResult.error.code).toBe('ALREADY_PLAYING');
     startSpy.mockRestore();
-
-    const endSpy = jest.spyOn(room, 'handlePlayerGameEnd').mockReturnValue({
-      success: false,
-      reason: 'Player not found',
-    });
-
-    const endResult = manager.endGame(roomId, host.id, 'lost');
-    expect(endResult.success).toBe(false);
-    if (endResult.success) {
-      throw new Error('expected endResult failure');
-    }
-    expect(endResult.error.code).toBe('ROOM_NOT_FOUND');
-    endSpy.mockRestore();
-
-    const resetSpy = jest.spyOn(room, 'resetGame').mockReturnValue({
-      success: false,
-      reason: 'Only host can reset the game',
-    });
-
-    const resetResult = manager.resetGame(roomId, host.id);
-    expect(resetResult.success).toBe(false);
-    if (resetResult.success) {
-      throw new Error('expected resetResult failure');
-    }
-    expect(resetResult.error.code).toBe('NOT_HOST');
-    resetSpy.mockRestore();
   });
 
-  it('parses room urls and finds rooms by player id', () => {
-    expect(RoomManager.parseRoomUrl('/room123/player1')).toEqual({
-      roomId: 'room123',
-      playerName: 'player1',
-    });
-    expect(RoomManager.parseRoomUrl('/bad$/player')).toBeNull();
-    expect(RoomManager.parseRoomUrl('/room123/p$')).toBeNull();
-    expect(RoomManager.parseRoomUrl('/room/too/many')).toBeNull();
-
+  it('finds rooms by player id and returns false for missing input route', async () => {
     const socket = makeSocket();
     const player = makePlayer('player-9', 'Gamma');
     manager.joinRoom('room-find', player, socket);
@@ -238,12 +171,8 @@ describe('RoomManager', () => {
     expect(found?.id).toBe('room-find');
     expect(manager.findRoomByPlayerId('missing')).toBeNull();
 
-    const gameEnd = manager.endGame('room-find', player.id, 'lost');
-    expect(gameEnd.success).toBe(true);
-    if (!gameEnd.success) {
-      throw new Error('expected gameEnd success');
-    }
-    expect(gameEnd.data.roomInfo.id).toBe('room-find');
+    const routed = await manager.handlePlayerInput('missing', GameAction.NO_INPUT);
+    expect(routed).toBe(false);
   });
 
   it('maps all known room error reasons to expected codes', () => {

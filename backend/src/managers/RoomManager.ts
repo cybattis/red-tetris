@@ -1,15 +1,18 @@
 import { Room } from '../classes/Room';
 import { Player } from '../classes/Player';
 import { Logger } from '../utils/helpers';
-import { GameSettings } from '@shared/types/game';
+import { DEFAULT_SETTINGS, GameAction, GameSettings } from '@shared/types/game';
 import { RoomErrorEvent, RoomResults, RoomInfo } from '@shared/types/room';
 import { Socket } from 'socket.io';
 import { PlayerJoinedEvent, RoomLeaveEvent } from '@shared/types/socket';
+import { RoomWorkerManager } from './RoomWorkerManager';
+import { randomUUID } from 'node:crypto';
 
 export class RoomManager {
   private static instance: RoomManager;
   private readonly _rooms: Map<string, Room> = new Map();
   private readonly _playerRooms: Map<string, string> = new Map(); // playerId -> roomId mapping
+  private readonly _roomWorkers = RoomWorkerManager.getInstance();
 
   private constructor() {
     Logger.info('RoomManager initialized');
@@ -44,22 +47,6 @@ export class RoomManager {
     return roomId ? this.getRoom(roomId) : null;
   }
 
-  public deleteRoom(room: Room): boolean {
-    // Clean up player mappings
-    for (const player of [...room.players, ...room.spectators]) {
-      this._playerRooms.delete(player.id);
-    }
-
-    // Destroy the room
-    room.destroy();
-    this._rooms.delete(room.id);
-
-    Logger.info(`Room deleted: ${room.id}`);
-    return true;
-  }
-
-  // Player room operations
-  // --------------------------------------------------------------
   public joinRoom(
     roomId: string,
     player: Player,
@@ -152,6 +139,9 @@ export class RoomManager {
 
     // Check if room should be deleted
     if (room.isEmpty) {
+      if (process.env.USE_ROOM_WORKERS === '1') {
+        void this._roomWorkers.stopRoom(roomId);
+      }
       this.deleteRoom(room);
       return {
         success: true,
@@ -182,11 +172,27 @@ export class RoomManager {
     };
   }
 
-  public startGame(
+  public deleteRoom(room: Room): boolean {
+    // Clean up player mappings
+    for (const player of [...room.players, ...room.spectators]) {
+      this._playerRooms.delete(player.id);
+    }
+
+    // Destroy the room
+    room.destroy();
+    this._rooms.delete(room.id);
+
+    Logger.info(`Room deleted: ${room.id}`);
+    return true;
+  }
+
+  // Game operations
+  // --------------------------------------------------------------
+  public async startGame(
     roomId: string,
     hostId: string,
     gameSettings?: Partial<GameSettings>,
-  ): RoomResults<{ roomInfo: RoomInfo; gameIds: string[] }> {
+  ): Promise<RoomResults<{ roomInfo: RoomInfo; gameIds: string[] }>> {
     Logger.debug(`RoomManager.startGame() called for room ${roomId} by host ${hostId}`);
 
     const room = this.getRoom(roomId);
@@ -212,66 +218,95 @@ export class RoomManager {
       };
     }
 
-    const startResult = room.startGame(gameSettings);
-    if (!startResult.success) {
-      return startResult;
+    if (process.env.USE_ROOM_WORKERS !== '1') {
+      const startResult = room.startGame(gameSettings);
+      if (!startResult.success) {
+        return startResult;
+      }
+
+      return {
+        success: true,
+        data: {
+          gameIds: startResult.data.gameIds,
+          roomInfo: room.toRoomInfo(),
+        },
+      };
     }
+
+    const settings: GameSettings = {
+      ...DEFAULT_SETTINGS,
+      ...gameSettings,
+    };
+
+    const players = room.players.map((player) => ({
+      id: player.id,
+      name: player.name,
+      isHost: room.isHost(player.id),
+      isSpectator: false,
+      socketId: player.socketId,
+    }));
+
+    const assignments = players.map((player) => ({
+      playerId: player.id,
+      gameId: randomUUID(),
+    }));
+
+    try {
+      await this._roomWorkers.initRoom(roomId, players, settings, assignments);
+    } catch (error) {
+      Logger.error(`Failed to initialize worker room ${roomId}:`, error);
+      return {
+        success: false,
+        error: {
+          roomId,
+          reason: 'Failed to initialize game worker',
+          code: 'UNKNOWN_ERROR',
+        },
+      };
+    }
+
+    room.markGameStarted();
 
     return {
       success: true,
       data: {
-        gameIds: startResult.data.gameIds,
+        gameIds: assignments.map((assignment) => assignment.gameId),
         roomInfo: room.toRoomInfo(),
       },
     };
   }
 
-  public resetGame(roomId: string, hostId: string): RoomResults<{ roomInfo: RoomInfo }> {
-    const room = this.getRoom(roomId);
-    if (!room) {
-      return {
-        success: false,
-        error: {
-          roomId,
-          reason: 'Room not found',
-          code: 'ROOM_NOT_FOUND',
-        },
-      };
+  public findRoomByPlayerId(playerId: string): Room | null {
+    for (const room of this._rooms.values()) {
+      if (room.isPlayer(playerId)) {
+        return room;
+      }
     }
-
-    if (!room.isHost(hostId)) {
-      return {
-        success: false,
-        error: {
-          roomId,
-          reason: 'Only host can reset the game',
-          code: 'NOT_HOST',
-        },
-      };
-    }
-
-    const resetResult = room.resetGame();
-    if (!resetResult.success) {
-      const errorCode = this.getErrorCode(resetResult.reason!);
-      return {
-        success: false,
-        error: {
-          roomId,
-          reason: resetResult.reason!,
-          code: errorCode,
-        },
-      };
-    }
-
-    return {
-      success: true,
-      data: {
-        roomInfo: room.toRoomInfo(),
-      },
-    };
+    return null;
   }
 
-  // Utility methods
+  public async handlePlayerInput(playerId: string, input: GameAction): Promise<boolean> {
+    const room = this.findRoomByPlayerId(playerId);
+    if (room) {
+      if (process.env.USE_ROOM_WORKERS === '1') {
+        await this._roomWorkers.forwardPlayerInput(room.id, playerId, input);
+        return true;
+      }
+
+      room.handlePlayerInput(playerId, input);
+      return true;
+    }
+    return false;
+  }
+
+  // Utility method
+  // --------------------------------------------------------------
+
+  /**
+   * Maps error reason strings to standardized error codes for client-side handling.
+   * @param reason
+   * @private
+   */
   private getErrorCode(reason: string): RoomErrorEvent['code'] {
     if (reason.includes('full') || reason.includes('spectators')) return 'ROOM_FULL';
     if (reason.includes('not found')) return 'ROOM_NOT_FOUND';
@@ -279,21 +314,6 @@ export class RoomManager {
     if (reason.includes('progress')) return 'GAME_IN_PROGRESS';
     if (reason.includes('host')) return 'NOT_HOST';
     return 'ROOM_NOT_FOUND'; // Default
-  }
-
-  public getRoomStats(): {
-    totalRooms: number;
-    activePlayers: number;
-    waitingRooms: number;
-    playingRooms: number;
-  } {
-    const rooms = Array.from(this._rooms.values());
-    return {
-      totalRooms: rooms.length,
-      activePlayers: rooms.reduce((sum, room) => sum + room.playerCount + room.spectatorCount, 0),
-      waitingRooms: rooms.filter((room) => room.state === 'waiting').length,
-      playingRooms: rooms.filter((room) => room.state === 'playing').length,
-    };
   }
 
   // Cleanup methods
@@ -318,38 +338,5 @@ export class RoomManager {
     }
 
     return cleanedCount;
-  }
-
-  // Parse room and player from URL path like "/room123/player1"
-  public static parseRoomUrl(path: string): { roomId: string; playerName: string } | null {
-    // Remove leading slash and split by slash
-    const parts = path.replace(/^\/+/, '').split('/');
-
-    if (parts.length !== 2) {
-      return null;
-    }
-
-    const [roomId, playerName] = parts;
-
-    // Validate room ID (alphanumeric, 3-20 chars)
-    if (!/^[a-zA-Z0-9_-]{3,20}$/.test(roomId)) {
-      return null;
-    }
-
-    // Validate player name (alphanumeric, 2-15 chars)
-    if (!/^[a-zA-Z0-9_-]{2,15}$/.test(playerName)) {
-      return null;
-    }
-
-    return { roomId, playerName };
-  }
-
-  public findRoomByPlayerId(playerId: string): Room | null {
-    for (const room of this._rooms.values()) {
-      if (room.isPlayer(playerId)) {
-        return room;
-      }
-    }
-    return null;
   }
 }
