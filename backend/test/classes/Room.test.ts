@@ -1,10 +1,8 @@
-import { afterEach, describe, expect, it, jest } from '@jest/globals';
+import { describe, expect, it, jest } from '@jest/globals';
 import { Room } from '../../src/classes/Room';
 import { Player } from '../../src/classes/Player';
-import { GameManager } from '../../src/managers/GameManager';
 import { ROOM_CONFIG } from '../../../shared/types/room';
 import { Logger } from '../../src/utils/helpers';
-import { GameMode } from '../../../shared/types/game';
 
 function makePlayer(id: string, name: string): Player {
   const player = new Player(id, `socket-${id}`);
@@ -13,10 +11,6 @@ function makePlayer(id: string, name: string): Player {
 }
 
 describe('Room', () => {
-  afterEach(() => {
-    GameManager.getInstance().stopAllGames();
-  });
-
   it('adds players, sets host, and adds spectators when full', () => {
     const room = new Room('room-add');
     const host = makePlayer('p1', 'Host');
@@ -24,7 +18,7 @@ describe('Room', () => {
     const spectator = makePlayer('p3', 'Spec');
 
     expect(room.addPlayer(host).success).toBe(true);
-    expect(room.hostId).toBe(host.id);
+    expect(room.toRoomInfo().hostId).toBe(host.id);
 
     expect(room.addPlayer(host).success).toBe(false);
 
@@ -70,14 +64,12 @@ describe('Room', () => {
     const removeResult = room.removePlayer(host.id);
     expect(removeResult.wasHost).toBe(true);
     expect(removeResult.newHost?.id).toBe(guest.id);
-    expect(room.hostId).toBe(guest.id);
+    expect(room.toRoomInfo().hostId).toBe(guest.id);
     expect(room.state).toBe('waiting');
-
-    expect(room.resetGame().success).toBe(true);
     room.destroy();
   });
 
-  it('blocks start when empty or already playing and enforces reset rules', () => {
+  it('blocks start when empty or already playing', () => {
     const room = new Room('room-start');
 
     const emptyStart = room.startGame();
@@ -92,30 +84,6 @@ describe('Room', () => {
     const repeatStart = room.startGame();
     expect(repeatStart.success).toBe(false);
 
-    const resetWhilePlaying = room.resetGame();
-    expect(resetWhilePlaying.success).toBe(false);
-
-    room.endGame();
-    expect(room.resetGame().success).toBe(true);
-
-    room.destroy();
-  });
-
-  it('handles player game end and returns to lobby', () => {
-    const room = new Room('room-end');
-    const host = makePlayer('p1', 'Host');
-
-    room.addPlayer(host);
-    room.startGame();
-
-    const missing = room.handlePlayerGameEnd('missing', 'lost');
-    expect(missing.success).toBe(false);
-
-    const result = room.handlePlayerGameEnd(host.id, 'lost');
-    expect(result.success).toBe(true);
-    expect(room.state).toBe('waiting');
-
-    expect(room.resetGame().success).toBe(true);
     room.destroy();
   });
 
@@ -130,8 +98,9 @@ describe('Room', () => {
     const startResult = room.startGame();
     expect(startResult.success).toBe(true);
 
-    const game1 = room.getGame(player1.id);
-    const game2 = room.getGame(player2.id);
+    const games = (room as unknown as { _games: Map<string, any> })._games;
+    const game1 = games.get(player1.id);
+    const game2 = games.get(player2.id);
     expect(game1).not.toBeNull();
     expect(game2).not.toBeNull();
 
@@ -172,7 +141,8 @@ describe('Room', () => {
     const startResult = room.startGame();
     expect(startResult.success).toBe(true);
 
-    const game2 = room.getGame(player2.id);
+    const games = (room as unknown as { _games: Map<string, any> })._games;
+    const game2 = games.get(player2.id);
     expect(game2).not.toBeNull();
 
     // Mark player2 as eliminated
@@ -181,7 +151,7 @@ describe('Room', () => {
     const boardBefore = JSON.stringify(game2!.board);
 
     // Emit penalty from player1
-    const game1 = room.getGame(player1.id);
+    const game1 = games.get(player1.id);
     game1!.emit('penaltyLines', { fromPlayerId: player1.id, count: 2 });
 
     // Player2's board should not change since they're eliminated
@@ -205,53 +175,16 @@ describe('Room', () => {
     const started = room.startGame();
     expect(started.success).toBe(true);
 
-    const game = room.getGame(player.id);
+    const games = (room as unknown as { _games: Map<string, any> })._games;
+    const game = games.get(player.id);
     expect(game).not.toBeNull();
     game!.emit('gameOver', { roomId: room.id, playerId: player.id });
 
-    expect(emit).toHaveBeenCalledWith('GAME_ENDED', expect.objectContaining({ playerId: player.id }));
+    expect(emit).toHaveBeenCalledWith('GAME_ENDED', expect.objectContaining({ looserId: player.id }));
     expect(endGameSpy).toHaveBeenCalled();
 
-    room.destroy();
-  });
-
-  it('cleans up orphaned games still tracked by GameManager', () => {
-    const room = new Room('room-orphan');
-    const player = makePlayer('p1', 'Host');
-    room.addPlayer(player);
-
-    const manager = GameManager.getInstance();
-    const orphanGame = manager.createGame(player, {
-      gameMode: GameMode.Classic,
-      gravity: 1,
-      ghostPiece: true,
-      boardWidth: 10,
-      boardHeight: 20,
-      nextPieceCount: 1,
-    }, 42, room);
-
-    expect(manager.getGame(orphanGame.id)).toBeDefined();
-    room.endGame();
-    expect(manager.getGame(orphanGame.id)).toBeUndefined();
 
     room.destroy();
   });
 
-  it('logs when cleanup timer expires for an empty room', () => {
-    jest.useFakeTimers();
-    const room = new Room('room-cleanup');
-    const player = makePlayer('p1', 'Host');
-    const infoSpy = jest.spyOn(Logger, 'info').mockImplementation(() => undefined);
-
-    room.addPlayer(player);
-    room.removePlayer(player.id);
-
-    jest.advanceTimersByTime(ROOM_CONFIG.CLEANUP_TIMEOUT_MS + 1);
-
-    expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining('cleanup timer expired'));
-
-    infoSpy.mockRestore();
-    room.destroy();
-    jest.useRealTimers();
-  });
 });

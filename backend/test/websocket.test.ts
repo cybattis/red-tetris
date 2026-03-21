@@ -4,7 +4,6 @@ import { io as Client, Socket as ClientSocket } from 'socket.io-client';
 import { server, wsManager } from '../src/server.js';
 import { GameAction, GameMode, GameSettings } from '../../shared/types/game.js';
 import { ROOM_CONFIG } from '../../shared/types/room.js';
-import { GameManager } from '../src/managers/GameManager.js';
 import { RoomManager } from '../src/managers/RoomManager.js';
 import { Logger } from '../src/utils/helpers.js';
 
@@ -36,7 +35,6 @@ describe('WebSocketManager Class', () => {
       if (socket.connected) socket.disconnect();
       socket.close();
     }
-    GameManager.getInstance().stopAllGames();
   });
 
   afterAll(async () => {

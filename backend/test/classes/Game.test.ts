@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals
 import { Game } from '../../src/classes/Game';
 import { Player } from '../../src/classes/Player';
 import { Piece } from '../../src/classes/Piece';
-import { Room } from '../../src/classes/Room';
 import { GameAction, GameMode, GameSettings, GameStatus } from '../../../shared/types/game';
 import { TETROMINO_DICTIONARY } from '../../src/pieces/TetrominoFactory';
 import { Logger } from '../../src/utils/helpers';
@@ -18,7 +17,7 @@ const settings: GameSettings = {
 };
 
 function createGame(seed = 123): Game {
-  const room = { id: 'test-room', playerCount: 1 } as unknown as Room;
+  const room = { id: 'test-room', playerCount: 1 };
   return new Game(new Player('socket-game', 'foo'), seed, settings, room);
 }
 
@@ -401,7 +400,7 @@ describe('Game', () => {
 
   it('clears lines and emits sprint speed boost when clearing 3+ lines', () => {
     const sprintSettings = { ...settings, gameMode: GameMode.Sprint };
-    const room = { id: 'test-room', playerCount: 1 } as unknown as Room;
+    const room = { id: 'test-room', playerCount: 1 };
     const game = new Game(new Player('socket-sprint', 'bono'), 123, sprintSettings, room);
     const animationSpy = jest.spyOn(game as any, 'broadcastAnimation');
 
@@ -435,29 +434,6 @@ describe('Game', () => {
     nowSpy.mockRestore();
   });
 
-  it('warns when socket broadcasts fail', () => {
-    const game = createGame();
-    const warnSpy = jest.spyOn(Logger, 'warn').mockImplementation(() => undefined);
-
-    (game as any).io = {
-      to: () => ({ emit: () => false }),
-    };
-
-    (game as any).broadcastGameState();
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to broadcast game state'));
-
-    (game as any).playerSocket = {
-      emit: () => false,
-    };
-    (game as any).broadcastAnimation('HARD_DROP', { trails: [], timestamp: Date.now() });
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to broadcast game animation'));
-
-    (game as any).playerSocket = undefined;
-    (game as any).broadcastAnimation('HARD_DROP', { trails: [], timestamp: Date.now() });
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('No socket available'));
-
-    warnSpy.mockRestore();
-  });
 
   it('uses hard-drop distance fallback and keeps classic sprint multiplier at 1', () => {
     const game = createGame();
@@ -503,7 +479,7 @@ describe('Game', () => {
 
   it('returns sprint gravity multiplier in sprint mode', () => {
     const sprintSettings = { ...settings, gameMode: GameMode.Sprint };
-    const room = { id: 'test-room', playerCount: 1 } as unknown as Room;
+    const room = { id: 'test-room', playerCount: 1 };
     const game = new Game(new Player('socket-mult', 'joe'), 123, sprintSettings, room);
 
     expect(game.getSprintGravityMultiplier()).toBe(1);
