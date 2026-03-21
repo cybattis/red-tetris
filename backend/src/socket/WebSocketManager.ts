@@ -6,6 +6,7 @@ import { wsRoomHandler } from './RoomSocketHandler.js';
 import { wsGameHandler } from './GameSocketHandler.js';
 import { GameHistoryManager } from '../managers/GameHistoryManager';
 import { HistoryPayload } from '@shared/types/game';
+import { RoomWorkerManager } from '../managers/RoomWorkerManager.js';
 
 export class WebSocketManager {
   public io: Server;
@@ -18,6 +19,7 @@ export class WebSocketManager {
       },
     });
     Logger.info('WebSocket server initialized');
+    RoomWorkerManager.getInstance().bindIo(this.io);
 
     this.io.on('connection', (socket: Socket) => {
       Logger.info(`Client connected: ${socket.id}`);
@@ -70,11 +72,13 @@ export class WebSocketManager {
         socket.emit('pong', timestamp);
       });
 
-      socket.on('HISTORY', () => {
+      socket.on('HISTORY', async () => {
         Logger.debug(`Received HISTORY request from ${socket.id}`);
+        const GameHistory = GameHistoryManager.getInstance();
+
         // For now, just echo back the payload as a placeholder
-        const gameHistories = GameHistoryManager.getInstance().gameHistories;
-        const gamesPerScore = GameHistoryManager.getInstance().gameHistoriesPerScore;
+        const gameHistories = await GameHistory.gameHistories();
+        const gamesPerScore = await GameHistory.gameHistoriesPerScore();
 
         const payload: HistoryPayload = {
           recentGames: gameHistories,

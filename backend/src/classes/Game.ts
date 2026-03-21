@@ -17,10 +17,16 @@ import { Piece } from './Piece';
 import { Logger } from '../utils/helpers';
 import { TETROMINO_DICTIONARY } from '../pieces/TetrominoFactory';
 import { EventEmitter } from 'node:events';
-import { wsManager } from '../server';
-import type { Server, Socket } from 'socket.io';
-import type { Room } from './Room';
 import { PieceState } from '@shared/types/piece';
+
+export type GameRoomContext = {
+  id: string;
+  playerCount: number;
+};
+
+type GameCtorOptions = {
+  forcedGameId?: string;
+};
 
 export class Game extends EventEmitter {
   // Game state and public properties
@@ -28,8 +34,7 @@ export class Game extends EventEmitter {
   public readonly player: Player;
   public readonly settings: GameSettings;
   public readonly piecesSequence: PiecesSequence;
-  public readonly room: Room;
-  public playerSocket?: Socket;
+  public readonly room: GameRoomContext;
 
   public state: GameStatus = GameStatus.Waiting;
   public board: number[][];
@@ -40,9 +45,6 @@ export class Game extends EventEmitter {
   public lines: number = 0;
   public level: number = 1;
   public dropInterval: number = 1000; // Game timing in milliseconds
-
-  // Access the WebSocket server instance from GameManager
-  private readonly io: Server = wsManager.io;
 
   // Sprint mode constants - simplified approach using gravity acceleration
   private static readonly SPRINT_GRAVITY_INCREASE_PER_LINE = 0.05; // Gravity increases by 0.05 per line cleared
@@ -62,15 +64,19 @@ export class Game extends EventEmitter {
   // Store original gravity and current effective gravity for Sprint mode
   private readonly originalGravity: number;
 
-  constructor(player: Player, seed: number, settings: GameSettings, room: Room) {
+  constructor(
+    player: Player,
+    seed: number,
+    settings: GameSettings,
+    room: GameRoomContext,
+    options?: GameCtorOptions,
+  ) {
     super();
-    this.id = randomUUID();
+    this.id = options?.forcedGameId ?? randomUUID();
     this.player = player;
     this.settings = { ...settings }; // Create a copy to avoid modifying the original settings
     this.originalGravity = settings.gravity; // Store original gravity for restoration
     this.room = room;
-
-    this.playerSocket = wsManager.getSocketById(player.socketId);
 
     this.piecesSequence = new PiecesSequence(seed, 7);
     this.board = this.createEmptyBoard();
@@ -97,7 +103,7 @@ export class Game extends EventEmitter {
     }, Game.TICK_INTERVAL_MS);
   }
 
-  public stopGame(): void {
+  public stopGame(): boolean {
     if (this._gameLoop) {
       clearInterval(this._gameLoop);
       this._gameLoop = null;
@@ -110,6 +116,8 @@ export class Game extends EventEmitter {
     this.removeAllListeners();
 
     Logger.info(`Game ${this.id} stopped and cleaned up`);
+
+    return true;
   }
 
   public setPlayerInput(input: GameAction): void {
@@ -170,25 +178,15 @@ export class Game extends EventEmitter {
 
   private broadcastGameState(): void {
     const gameState = this.getGameState();
-    if (!this.io.to(this.room?.id).emit('GAME_STATE_UPDATE', gameState)) {
-      Logger.warn(`Failed to broadcast game state for game ${this.id} in room ${this.room?.id}`);
-    }
+    this.emit('stateUpdate', gameState);
   }
 
   private broadcastAnimation(animationType: AnimationType, data: GameAnimationData): void {
-    if (!this.playerSocket) {
-      Logger.warn(`No socket available for game ${this.id} in room ${this.room?.id}`);
-      return;
-    }
-
-    if (
-      !this.playerSocket.emit('GAME_ANIMATION', {
-        type: animationType,
-        data: data,
-      })
-    ) {
-      Logger.warn(`Failed to broadcast game animation for game ${this.id} in room ${this.room?.id}`);
-    }
+    this.emit('animation', {
+      playerId: this.player.id,
+      animationType,
+      data,
+    });
   }
 
   // Game logic methods

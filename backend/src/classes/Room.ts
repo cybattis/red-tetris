@@ -1,8 +1,16 @@
 import { Player } from './Player';
 import { Game } from './Game';
 import { Logger } from '../utils/helpers';
-import { GameManager } from '../managers/GameManager';
-import { GameHistory, GameMode, GameSettings, GameType } from '@shared/types/game';
+import {
+  AnimationType,
+  GameAction,
+  GameAnimationData,
+  GameHistory,
+  GameMode,
+  GameSettings,
+  GameStateUpdate,
+  GameType,
+} from '@shared/types/game';
 import { ROOM_CONFIG, RoomInfo, RoomResults, RoomState } from '@shared/types/room';
 import { Server } from 'socket.io';
 import { wsManager } from '../server';
@@ -30,14 +38,13 @@ export class Room {
   private _hostId: string | null = null;
   private _state: RoomState = 'waiting';
   private _gameStartedAt?: Date;
-  private _cleanupTimer?: NodeJS.Timeout;
 
   private readonly _io: Server = wsManager.io;
-  private readonly _gameManager: GameManager = GameManager.getInstance();
 
   constructor(id: string) {
     this.id = id;
     this._createdAt = new Date();
+    Logger.info(`Room ${this.id} created at ${this._createdAt.toISOString()}`);
   }
 
   // Getters
@@ -51,10 +58,6 @@ export class Room {
 
   get spectators(): Player[] {
     return Array.from(this._spectators.values());
-  }
-
-  get hostId(): string | null {
-    return this._hostId;
   }
 
   get playerCount(): number {
@@ -75,6 +78,37 @@ export class Room {
 
   get io(): Server {
     return this._io;
+  }
+
+  /**
+   * Convert the Room instance to a RoomInfo object for client consumption
+   * This includes player/spectator lists, room state, host info, and timestamps
+   */
+  public toRoomInfo(): RoomInfo {
+    const playerList: IPlayer[] = this.players.map((player) => ({
+      id: player.id,
+      name: player.name,
+      isHost: this.isHost(player.id),
+      isSpectator: false,
+    }));
+
+    const spectatorList: IPlayer[] = this.spectators.map((player) => ({
+      id: player.id,
+      name: player.name,
+      isHost: false,
+      isSpectator: true,
+    }));
+
+    return {
+      id: this.id,
+      state: this._state,
+      players: playerList,
+      spectators: spectatorList,
+      hostId: this._hostId || '',
+      maxPlayers: ROOM_CONFIG.MAX_PLAYERS,
+      createdAt: this._createdAt,
+      gameStartedAt: this._gameStartedAt,
+    };
   }
 
   // Player management
@@ -99,7 +133,6 @@ export class Room {
       Logger.info(`Player ${player.name} became host of room ${this.id}`);
     }
 
-    this.clearCleanupTimer();
     Logger.info(
       `Player ${player.name} joined room ${this.id} as player (${this._players.size}/${ROOM_CONFIG.MAX_PLAYERS})`,
     );
@@ -131,8 +164,8 @@ export class Room {
     }
 
     // Clean up any associated games through GameManager
-    const stoppedGames = this._gameManager.stopGameByPlayerId(playerId);
-    if (stoppedGames > 0) {
+    const stoppedGames = this._games.get(playerId)?.stopGame();
+    if (stoppedGames) {
       Logger.info(`Stopped ${stoppedGames} game(s) for player ${playerId} leaving room ${this.id}`);
     }
 
@@ -153,19 +186,14 @@ export class Room {
     if (this._state === 'playing' && this._players.size === 0) {
       // No players left during a game - end the game and stop all associated games
       this._state = 'ended';
-      this.endAllGames();
+      this.cleanupGames();
       Logger.info(`Room ${this.id} ended - no players remaining during game`);
     } else if (this._state === 'playing' && this._players.size === 1) {
       // Only one player left during a game - transition back to waiting and stop games
       this._state = 'waiting';
       this._gameStartedAt = undefined;
-      this.endAllGames();
+      this.cleanupGames();
       Logger.info(`Room ${this.id} returned to waiting - only one player remaining during game`);
-    }
-
-    // Start cleanup timer if room is empty
-    if (this.isEmpty) {
-      this.startCleanupTimer();
     }
 
     Logger.info(
@@ -189,6 +217,25 @@ export class Room {
 
   // Game management
   // --------------------------------------------------------------
+
+  public markGameStarted(): void {
+    this._state = 'playing';
+    this._gameStartedAt = new Date();
+  }
+
+  /**
+   * Create a new game instance for a player.
+   */
+  private createGame(player: Player, settings: GameSettings, seed: number, room: Room): Game {
+    const game = new Game(player, seed, settings, room);
+    Logger.info(`GameManager: Created game ${game.id} for player ${player.name}.`);
+    return game;
+  }
+
+  /**
+   * Start the game for all players in the room. This will create individual game instances for each player
+   * @param customSettings
+   */
   public startGame(
     customSettings?: Partial<GameSettings>,
   ): RoomResults<{ gameIds: string[]; roomInfo: RoomInfo }> {
@@ -235,7 +282,7 @@ export class Room {
     for (const player of this._players.values()) {
       try {
         // Create game using GameManager
-        const game = this._gameManager.createGame(
+        const game = this.createGame(
           player,
           gameSettings,
           seed,
@@ -245,16 +292,30 @@ export class Room {
         // Store game in Room's map for tracking
         this._games.set(player.id, game);
 
+        game.on('stateUpdate', (payload: GameStateUpdate) => {
+          this.io.to(this.id).emit('GAME_STATE_UPDATE', payload);
+        });
+
+        game.on('animation', (evt: { playerId: string; animationType: AnimationType; data: GameAnimationData }) => {
+          this.io.to(evt.playerId).emit('GAME_ANIMATION', {
+            type: evt.animationType,
+            data: evt.data,
+          });
+        });
+
         // Listen for game ended event to update room state
-        game.once('gameOver', (data: GameOverEvent) => {
+        game.once('gameOver', (data: { roomId: string; playerId: string }) => {
           Logger.info(`Game ended in room ${this.id} for player ${player.name}`);
 
-          if (!this.io.to(this?.id).emit('GAME_ENDED', data)) {
+          const payload: GameOverEvent = { looserId: data.playerId };
+          if (!this.io.to(this?.id).emit('GAME_ENDED', payload)) {
             Logger.warn(`Failed to broadcast game state for game ${this.id} in room ${this?.id}`);
           }
 
           // Stop games for all players in the room when one game ends (for multiplayer)
-          this.endGame();
+          this.endGame().then(() => {
+            Logger.info(`All games ended in room ${this.id} after game over event`);
+          });
         });
 
         // Listen for penalty lines event (multiplayer: n-1 lines sent to opponents)
@@ -280,51 +341,18 @@ export class Room {
     return { success: true, data: { gameIds, roomInfo: this.toRoomInfo() } };
   }
 
-  public endGame(): void {
-    Logger.info(
-      `🏁 Room.endGame() called for room ${this.id}, changing state from '${this._state}' to 'ended'`,
-    );
-    this._state = 'ended';
-
-    const games = Array.from(this._games.values());
-    const gamesHistoryEntries = games.map((game) => game.toGameHistoryEntry());
-
-    // Save results, update stats, etc. (not implemented here)
-    const results: GameHistory = {
-      roomId: this.id,
-      type: games.length > 1 ? GameType.Multiplayer : GameType.Singleplayer,
-      gameMode: games[0]?.settings.gameMode || GameMode.Classic,
-      games: gamesHistoryEntries,
-      startedAt: this._createdAt,
-      endedAt: new Date(),
-    };
-
-    const historyManager = GameHistoryManager.getInstance();
-    historyManager.addGameHistory(results);
-
-    // Clean up all games properly
-    this.cleanupGames();
-
-    Logger.info(`Game ended in room ${this.id}`);
-  }
-
-  public resetGame(): { success: boolean; reason?: string } {
-    if (this._state === 'playing') {
-      return { success: false, reason: 'Cannot reset game while in progress' };
+  public handlePlayerInput(playerId: string, input: GameAction) {
+    const game = this._games.get(playerId);
+    if (!game) {
+      Logger.error(`No active game found for player ${playerId} in room ${this.id} when processing input:`, {
+        playerId,
+        input,
+      });
+      return false;
     }
 
-    this._state = 'waiting';
-    this._gameStartedAt = undefined;
-
-    // Clean up any remaining games properly
-    this.cleanupGames();
-
-    Logger.info(`Game reset in room ${this.id}`);
-    return { success: true };
-  }
-
-  public getGame(playerId: string): Game | null {
-    return this._games.get(playerId) || null;
+    game.setPlayerInput(input);
+    return true;
   }
 
   /**
@@ -350,6 +378,34 @@ export class Room {
     }
   }
 
+  public async endGame(): Promise<void> {
+    Logger.info(
+      `🏁 Room.endGame() called for room ${this.id}, changing state from '${this._state}' to 'ended'`,
+    );
+    this._state = 'ended';
+
+    const games = Array.from(this._games.values());
+    const gamesHistoryEntries = games.map((game) => game.toGameHistoryEntry());
+
+    // Save results, update stats, etc. (not implemented here)
+    const results: GameHistory = {
+      roomId: this.id,
+      type: games.length > 1 ? GameType.Multiplayer : GameType.Singleplayer,
+      gameMode: games[0]?.settings.gameMode || GameMode.Classic,
+      games: gamesHistoryEntries,
+      startedAt: this._createdAt,
+      endedAt: new Date(),
+    };
+
+    const historyManager = GameHistoryManager.getInstance();
+    await historyManager.addGameHistory(results);
+
+    // Clean up all games properly
+    this.cleanupGames();
+
+    Logger.info(`Game ended in room ${this.id}`);
+  }
+
   /**
    * Clean up all games for players in this room
    * This ensures no orphaned game loops or memory leaks
@@ -359,81 +415,16 @@ export class Room {
     for (const game of this._games.values()) {
       Logger.info(`Cleaning up game ${game.id} for room ${this.id}`);
       game.stopGame();
-      this._gameManager.removeGame(game.id);
     }
     this._games.clear();
-
-    // Also clean up any games in GameManager that belong to players in this room
-    for (const player of this._players.values()) {
-      const playerGames = this._gameManager.getGameByPlayerId(player.id);
-      if (playerGames) {
-        Logger.info(`Cleaning up orphaned game ${playerGames.id} for player ${player.name}`);
-        playerGames.stopGame();
-        this._gameManager.removeGame(playerGames.id);
-      }
-    }
   }
 
-  // Room info serialization
-  public toRoomInfo(): RoomInfo {
-    const playerList: IPlayer[] = this.players.map((player) => ({
-      id: player.id,
-      name: player.name,
-      isHost: this.isHost(player.id),
-      isSpectator: false,
-    }));
-
-    const spectatorList: IPlayer[] = this.spectators.map((player) => ({
-      id: player.id,
-      name: player.name,
-      isHost: false,
-      isSpectator: true,
-    }));
-
-    return {
-      id: this.id,
-      state: this._state,
-      players: playerList,
-      spectators: spectatorList,
-      hostId: this._hostId || '',
-      maxPlayers: ROOM_CONFIG.MAX_PLAYERS,
-      createdAt: this._createdAt,
-      gameStartedAt: this._gameStartedAt,
-    };
-  }
-
-  // Cleanup management
-  private startCleanupTimer(): void {
-    this.clearCleanupTimer();
-    this._cleanupTimer = setTimeout(() => {
-      Logger.info(`Room ${this.id} cleanup timer expired`);
-      // The RoomManager will handle the actual cleanup
-    }, ROOM_CONFIG.CLEANUP_TIMEOUT_MS);
-    this._cleanupTimer.unref?.();
-  }
-
-  private clearCleanupTimer(): void {
-    if (this._cleanupTimer) {
-      clearTimeout(this._cleanupTimer);
-      this._cleanupTimer = undefined;
-    }
-  }
-
-  private endAllGames(): void {
-    // End all games associated with this room's players
-    for (const playerId of this._players.keys()) {
-      this._gameManager.stopGameByPlayerId(playerId);
-    }
-  }
-
+  /**
+   * Destroy the room and clean up all resources.
+   */
   public destroy(): void {
-    this.clearCleanupTimer();
-
     // Stop all games
-    for (const game of this._games.values()) {
-      game.stopGame();
-    }
-    this._games.clear();
+    this.cleanupGames();
     this._players.clear();
     this._spectators.clear();
 
