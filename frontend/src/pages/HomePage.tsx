@@ -1,21 +1,21 @@
-import { useState, useEffect, useCallback, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAppDispatch, useAppSelector } from '@/store';
-import { TetrisBackground } from '@/components/UI';
+import { useState, useEffect, useCallback, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAppDispatch, useAppSelector } from "@/store";
+import { TetrisBackground } from "@/components/UI";
 import {
   requestHistory,
   selectHistoryError,
   selectHistoryLoading,
   selectRecentGames,
   selectTopScores,
-} from '@/store/slices/historySlice';
-import styles from './HomePage.module.css';
+} from "@/store/slices/historySlice";
+import styles from "./HomePage.module.css";
 
-const formatScore = (score: number): string => score.toLocaleString('en-US');
+const formatScore = (score: number): string => score.toLocaleString("en-US");
 
 const getMatchPlayersLabel = (playerNames: string[]): string => {
   if (playerNames.length === 0) {
-    return 'Unknown players';
+    return "Unknown players";
   }
 
   if (playerNames.length === 1) {
@@ -28,8 +28,8 @@ const getMatchPlayersLabel = (playerNames: string[]): string => {
 export function HomePage() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const [playerName, setPlayerName] = useState('');
-  const [roomName, setRoomName] = useState('');
+  const [playerName, setPlayerName] = useState("");
+  const [roomName, setRoomName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const recentGames = useAppSelector(selectRecentGames);
   const topScores = useAppSelector(selectTopScores);
@@ -42,35 +42,39 @@ export function HomePage() {
 
   const validateInputs = useCallback((): boolean => {
     if (!playerName.trim()) {
-      setError('Please enter your name');
+      setError("Please enter your name");
       return false;
     }
     if (playerName.trim().length < 2) {
-      setError('Name must be at least 2 characters');
+      setError("Name must be at least 2 characters");
       return false;
     }
     if (playerName.trim().length > 20) {
-      setError('Name must be 20 characters or less');
+      setError("Name must be 20 characters or less");
       return false;
     }
     if (!/^[a-zA-Z0-9_-]+$/.test(playerName.trim())) {
-      setError('Name can only contain letters, numbers, underscores, and hyphens');
+      setError(
+        "Name can only contain letters, numbers, underscores, and hyphens",
+      );
       return false;
     }
     if (!roomName.trim()) {
-      setError('Please enter a room name');
+      setError("Please enter a room name");
       return false;
     }
     if (roomName.trim().length < 2) {
-      setError('Room name must be at least 2 characters');
+      setError("Room name must be at least 2 characters");
       return false;
     }
     if (roomName.trim().length > 30) {
-      setError('Room name must be 30 characters or less');
+      setError("Room name must be 30 characters or less");
       return false;
     }
     if (!/^[a-zA-Z0-9_-]+$/.test(roomName.trim())) {
-      setError('Room name can only contain letters, numbers, underscores, and hyphens');
+      setError(
+        "Room name can only contain letters, numbers, underscores, and hyphens",
+      );
       return false;
     }
 
@@ -84,7 +88,7 @@ export function HomePage() {
       if (!validateInputs()) return;
       navigate(`/${roomName.trim()}/${playerName.trim()}`);
     },
-    [playerName, roomName, validateInputs, navigate]
+    [playerName, roomName, validateInputs, navigate],
   );
 
   return (
@@ -118,10 +122,15 @@ export function HomePage() {
               ) : null}
 
               {recentGames.map((history) => {
-                const playerNames = history.games.map((entry) => entry.player.name);
+                const playerNames = history.games.map(
+                  (entry) => entry.player.name,
+                );
 
                 return (
-                  <li key={history.roomId + history.startedAt.toString()} className={styles.matchItem}>
+                  <li
+                    key={history.roomId + history.startedAt.toString()}
+                    className={styles.matchItem}
+                  >
                     <div className={styles.matchPlayers}>
                       <span className={styles.playerNameHighlight}>
                         {getMatchPlayersLabel(playerNames)}
@@ -210,10 +219,17 @@ export function HomePage() {
               ) : null}
 
               {topScores.map((entry, index) => (
-                <li key={entry.gameId + entry.player.id} className={styles.leaderboardItem}>
+                <li
+                  key={entry.gameId + entry.player.id}
+                  className={styles.leaderboardItem}
+                >
                   <span className={styles.leaderboardRank}>{index + 1}</span>
-                  <span className={styles.leaderboardName}>{entry.player.name}</span>
-                  <span className={styles.leaderboardScore}>{formatScore(entry.score)}</span>
+                  <span className={styles.leaderboardName}>
+                    {entry.player.name}
+                  </span>
+                  <span className={styles.leaderboardScore}>
+                    {formatScore(entry.score)}
+                  </span>
                 </li>
               ))}
             </ol>
@@ -223,5 +239,3 @@ export function HomePage() {
     </div>
   );
 }
-
-export default HomePage;
