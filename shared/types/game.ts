@@ -119,12 +119,14 @@ export type Trail = {
   startY: number;
   endY: number; // Piece type for color
   type: number; // For fading effect
+  id?: string; // Optional ID for tracking
 };
 
 export type LockedCell = {
   x: number;
   y: number;
   type: number; // Piece type for color
+  id?: string; // Optional ID for tracking
 };
 
 export type GameAnimationData = {
