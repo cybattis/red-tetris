@@ -1,22 +1,20 @@
-import { Player } from './Player';
-import { Game } from './Game';
-import { Logger } from '../utils/helpers';
-import {
-  AnimationType,
-  GameAction,
+import { Player } from './Player.js';
+import { Game } from './Game.js';
+import { Logger } from '../utils/helpers.js';
+import { AnimationType, GameAction, GameMode, GameType } from '../../../shared/types/game.js';
+import type {
   GameAnimationData,
   GameHistory,
-  GameMode,
   GameSettings,
   GameStateUpdate,
-  GameType,
-} from '@shared/types/game';
-import { ROOM_CONFIG, RoomInfo, RoomResults, RoomState } from '@shared/types/room';
+} from '../../../shared/types/game.js';
+import { ROOM_CONFIG } from '../../../shared/types/room.js';
+import type { RoomInfo, RoomResults, RoomState } from '../../../shared/types/room.js';
 import { Server } from 'socket.io';
-import { wsManager } from '../server';
-import { IPlayer } from '@shared/types/player';
-import { GameOverEvent } from '@shared/types/socket';
-import { GameHistoryManager } from '../managers/GameHistoryManager';
+import { wsManager } from '../server.js';
+import type { IPlayer } from '../../../shared/types/player.js';
+import type { GameOverEvent } from '../../../shared/types/socket.js';
+import { GameHistoryManager } from '../managers/GameHistoryManager.js';
 
 // Default game settings for rooms
 const DEFAULT_GAME_SETTINGS: GameSettings = {
@@ -296,12 +294,15 @@ export class Room {
           this.io.to(this.id).emit('GAME_STATE_UPDATE', payload);
         });
 
-        game.on('animation', (evt: { playerId: string; animationType: AnimationType; data: GameAnimationData }) => {
-          this.io.to(evt.playerId).emit('GAME_ANIMATION', {
-            type: evt.animationType,
-            data: evt.data,
-          });
-        });
+        game.on(
+          'animation',
+          (evt: { playerId: string; animationType: AnimationType; data: GameAnimationData }) => {
+            this.io.to(evt.playerId).emit('GAME_ANIMATION', {
+              type: evt.animationType,
+              data: evt.data,
+            });
+          },
+        );
 
         // Listen for game ended event to update room state
         game.once('gameOver', (data: { roomId: string; playerId: string }) => {

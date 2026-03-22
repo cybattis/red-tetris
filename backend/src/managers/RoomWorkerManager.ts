@@ -1,7 +1,7 @@
 import { Worker } from 'node:worker_threads';
 import { randomUUID } from 'node:crypto';
 import type { Server } from 'socket.io';
-import type { GameAction, GameSettings } from '@shared/types/game';
+import type { GameAction, GameSettings } from '../../../shared/types/game.js';
 import type {
   MainToWorkerMessage,
   MainToWorkerRequest,
@@ -79,10 +79,7 @@ export class RoomWorkerManager {
     this.workers.delete(roomId);
   }
 
-  private async sendRequest(
-    roomId: string,
-    message: MainToWorkerRequest,
-  ): Promise<void> {
+  private async sendRequest(roomId: string, message: MainToWorkerRequest): Promise<void> {
     const requestId = randomUUID();
     const payload = { ...message, requestId } as MainToWorkerMessage;
     const worker = this.ensureWorker(roomId);
@@ -160,4 +157,3 @@ export class RoomWorkerManager {
     }
   }
 }
-

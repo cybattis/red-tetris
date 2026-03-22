@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import { server } from './server.js';
-import { Logger } from './utils/helpers';
+import { Logger } from './utils/helpers.js';
 
 const PORT = process.env.PORT || 8000;
 

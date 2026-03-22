@@ -1,7 +1,11 @@
 import { Socket } from 'socket.io';
-import { Logger } from '../utils/helpers';
-import { GameModeUpdateEvent, GameSettingsUpdateEvent, PlayerInputEvent } from '@shared/types/socket';
-import { RoomManager } from '../managers/RoomManager';
+import { Logger } from '../utils/helpers.js';
+import type {
+  GameModeUpdateEvent,
+  GameSettingsUpdateEvent,
+  PlayerInputEvent,
+} from '../../../shared/types/socket.js';
+import { RoomManager } from '../managers/RoomManager.js';
 
 export function wsGameHandler(socket: Socket) {
   const roomManager = RoomManager.getInstance();

@@ -1,5 +1,5 @@
-import { GameHistory, GameHistoryEntry } from '@shared/types/game';
-import { Logger } from '../utils/helpers';
+import type { GameHistory, GameHistoryEntry } from '../../../shared/types/game.js';
+import { Logger } from '../utils/helpers.js';
 import { Mutex } from 'async-mutex';
 
 export class GameHistoryManager {
@@ -7,8 +7,8 @@ export class GameHistoryManager {
   private readonly _mutex = new Mutex();
 
   private readonly _gameHistories: GameHistory[] = [];
-  private _historyPerScoreCache: ReadonlyArray<GameHistoryEntry> | null = null;
-  private _historyPerDateCache: ReadonlyArray<GameHistory> | null = null;
+  private _historyPerScoreCache: GameHistoryEntry[] | null = null;
+  private _historyPerDateCache: GameHistory[] | null = null;
 
   private static readonly MAX_LAST_GAME: number = 20;
 
@@ -21,11 +21,11 @@ export class GameHistoryManager {
     return GameHistoryManager._instance;
   }
 
-  public gameHistories(): Promise<ReadonlyArray<GameHistory>> {
+  public gameHistories(): Promise<GameHistory[]> {
     return this._mutex.runExclusive(() => [...(this._historyPerDateCache ?? [])]);
   }
 
-  public gameHistoriesPerScore(): Promise<ReadonlyArray<GameHistoryEntry>> {
+  public gameHistoriesPerScore(): Promise<GameHistoryEntry[]> {
     return this._mutex.runExclusive(() => [...(this._historyPerScoreCache ?? [])]);
   }
 
@@ -50,12 +50,12 @@ export class GameHistoryManager {
     });
   }
 
-  private getLastGames(): ReadonlyArray<GameHistory> {
+  private getLastGames(): GameHistory[] {
     const count = this._gameHistories.length;
     return this._gameHistories.slice(count - GameHistoryManager.MAX_LAST_GAME, count);
   }
 
-  private sortGameByScore(): ReadonlyArray<GameHistoryEntry> {
+  private sortGameByScore(): GameHistoryEntry[] {
     const allGamesEntries = this._gameHistories.flatMap((history) => history.games);
     const filteredEntries = allGamesEntries.filter((entry) => entry.score > 0);
 

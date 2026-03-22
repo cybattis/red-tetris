@@ -4,8 +4,8 @@ import type {
   GameAnimationData,
   GameSettings,
   GameStateUpdate,
-} from '@shared/types/game';
-import type { IPlayer } from '@shared/types/player';
+} from '../../../shared/types/game.js';
+import type { IPlayer } from '../../../shared/types/player.js';
 
 export type WorkerPlayer = IPlayer & {
   socketId: string;
@@ -97,4 +97,3 @@ export type WorkerToMainMessage =
       roomId: string;
       loserId: string;
     };
-
