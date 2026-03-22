@@ -5,7 +5,7 @@
   "author": "cybattis and alakhdar",
   "scripts": {
     "build": "tsc",
-    "prod": "node dist/backend/src/index.js",
+    "prod": "node /app/prod/backend/src/index.js",
     "dev": "tsx watch src/index.ts",
     "format": "prettier --write .",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.ts --silent",
