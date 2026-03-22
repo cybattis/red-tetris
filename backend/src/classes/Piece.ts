@@ -1,5 +1,6 @@
-import { TETROMINO_DICTIONARY } from '../pieces/TetrominoFactory';
-import { IPiece, PieceDefinition, PieceState, PieceType, Position } from '@shared/types/piece';
+import { TETROMINO_DICTIONARY } from '../pieces/TetrominoFactory.js';
+import { PieceType } from '../../../shared/types/piece.js';
+import type { IPiece, PieceDefinition, PieceState, Position } from '../../../shared/types/piece.js';
 
 export class Piece implements IPiece {
   public type: PieceType;

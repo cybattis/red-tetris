@@ -1,4 +1,4 @@
-import { IPlayer } from '@shared/types/player';
+import type { IPlayer } from '../../../shared/types/player.js';
 
 export class Player implements IPlayer {
   public readonly id: string;

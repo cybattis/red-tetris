@@ -1,9 +1,9 @@
-import { Player } from '../classes/Player';
-import { RoomManager } from '../managers/RoomManager';
-import { Logger } from '../utils/helpers';
+import { Player } from '../classes/Player.js';
+import { RoomManager } from '../managers/RoomManager.js';
+import { Logger } from '../utils/helpers.js';
 import { Socket } from 'socket.io';
-import { wsManager } from '../server';
-import { JoinRoomEvent, LeaveRoomEvent, StartGameEvent } from '@shared/types/socket';
+import { wsManager } from '../server.js';
+import type { JoinRoomEvent, LeaveRoomEvent, StartGameEvent } from '../../../shared/types/socket.js';
 
 export function wsRoomHandler(playerSocket: Socket) {
   const roomManager = RoomManager.getInstance();

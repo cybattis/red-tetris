@@ -1,6 +1,11 @@
-import { memo } from 'react';
-import styles from './Cell.module.css';
-import { getCellColor, getCellBorderColor, getCellGlowColor, PieceType } from '../../utils/colors';
+import { type CSSProperties, memo } from "react";
+import styles from "./Cell.module.css";
+import {
+  getCellColor,
+  getCellBorderColor,
+  getCellGlowColor,
+  PieceType,
+} from "@/utils";
 
 export interface CellProps {
   /** Cell value (0 = empty, 1-7 = piece types, 8 = penalty) */
@@ -22,29 +27,28 @@ export const Cell = memo(function Cell({
 }: CellProps) {
   const isEmpty = value === PieceType.EMPTY && !isGhost;
   const backgroundColor = getCellColor(value, isGhost);
-  const borderColor = isGhost ? getCellBorderColor(value) : 'transparent';
-  const glowColor = (!isEmpty && !isGhost) ? getCellGlowColor(value) : 'transparent';
+  const borderColor = isGhost ? getCellBorderColor(value) : "transparent";
+  const glowColor =
+    !isEmpty && !isGhost ? getCellGlowColor(value) : "transparent";
 
-  const style: React.CSSProperties = {
+  const style: CSSProperties = {
     backgroundColor,
     borderColor,
-    '--cell-color': backgroundColor,
-    '--cell-glow': glowColor,
+    "--cell-color": backgroundColor,
+    "--cell-glow": glowColor,
     ...(size && { width: size, height: size }),
-  } as React.CSSProperties;
+  } as CSSProperties;
 
   const classNames = [
     styles.cell,
     isEmpty ? styles.empty : styles.filled,
-    isGhost ? styles.ghost : '',
-    isClearing ? styles.clearing : '',
-    isPenalty ? styles.penalty : '',
-    isLocked ? styles.locked : '',
+    isGhost ? styles.ghost : "",
+    isClearing ? styles.clearing : "",
+    isPenalty ? styles.penalty : "",
+    isLocked ? styles.locked : "",
   ]
     .filter(Boolean)
-    .join(' ');
+    .join(" ");
 
   return <div className={classNames} style={style} />;
 });
-
-export default Cell;

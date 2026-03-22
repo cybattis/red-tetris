@@ -3,9 +3,9 @@ import {
   GameMode,
   type GameSettings,
   type HistoryPayload,
-} from "./game";
-import type { IPlayer } from "./player";
-import type { RoomInfo } from "./room";
+} from "./game.js";
+import type { IPlayer } from "./player.js";
+import type { RoomInfo } from "./room.js";
 
 export type PlayerInputEvent = {
   playerId: string;
@@ -80,4 +80,3 @@ export type GameOverEvent = {
 export interface HistoryResponseEvent {
   history: HistoryPayload;
 }
-

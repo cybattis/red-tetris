@@ -1,4 +1,4 @@
-import { PieceType } from '@shared/types/piece';
+import { PieceType } from '../../../shared/types/piece.js';
 
 export class PiecesSequence {
   private readonly _pieces: PieceType[] = [];

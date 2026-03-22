@@ -28,15 +28,14 @@ import {
 } from "../store/slices/connectionSlice.js";
 import { resetGame } from "../store/slices/gameSlice.js";
 import { GameAction, GameMode, type GameSettings } from "@shared/types/game";
-
 import { Button, Panel } from "../components/UI";
 import {
   PlayerList,
   GameModeSelector,
   GameSettingsPanel,
   CountdownOverlay,
-} from "../components/Lobby";
-import { GameView } from "../components/Game";
+  GameView,
+} from "@/components";
 import { TetrisBackground } from "../components/UI/TetrisBackground";
 import { useGameInput } from "../hooks";
 

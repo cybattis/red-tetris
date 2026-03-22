@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useRef } from "react";
 import { DEFAULT_KEY_BINDINGS } from "@/utils";
-import { GameAction } from "@shared/types/game";
+import { GameAction } from "@shared/types/game.ts";
 
 interface UseGameInputOptions {
   /** Whether input capture is enabled */

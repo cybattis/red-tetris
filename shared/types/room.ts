@@ -1,4 +1,4 @@
-import { IPlayer } from "./player";
+import type { IPlayer } from "./player.js";
 
 export type RoomState = "waiting" | "playing" | "ended";
 

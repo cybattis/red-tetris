@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     define: {
       __SOCKET_URL__: JSON.stringify(
-        env.VITE_SOCKET_URL || "http://localhost:8000",
+        env.VITE_SERVER_URL || "http://localhost:8000",
       ),
     },
     resolve: {

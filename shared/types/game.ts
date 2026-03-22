@@ -1,7 +1,7 @@
-import type { IPlayer, OpponentsGameState } from "./player";
-import { ROOM_CONFIG } from "./room";
-import type { PieceState } from "./piece";
-import type { GameCreationData } from "./socket";
+import type { IPlayer, OpponentsGameState } from "./player.js";
+import { ROOM_CONFIG } from "./room.js";
+import type { PieceState } from "./piece.js";
+import type { GameCreationData } from "./socket.js";
 
 /**
  * Game-related type definitions for Red Tetris
@@ -31,7 +31,7 @@ export enum EndGameReason {
   BoardOverflow = "board_overflow",
 }
 
-export const enum GameAction {
+export enum GameAction {
   NO_INPUT = "NO_INPUT",
   MOVE_LEFT = "MOVE_LEFT",
   MOVE_RIGHT = "MOVE_RIGHT",
@@ -119,12 +119,14 @@ export type Trail = {
   startY: number;
   endY: number; // Piece type for color
   type: number; // For fading effect
+  id?: string; // Optional ID for tracking
 };
 
 export type LockedCell = {
   x: number;
   y: number;
   type: number; // Piece type for color
+  id?: string; // Optional ID for tracking
 };
 
 export type GameAnimationData = {
@@ -140,7 +142,7 @@ export type GameHistory = {
   roomId: string;
   type: GameType;
   gameMode: GameMode;
-  games: readonly GameHistoryEntry[];
+  games: GameHistoryEntry[];
   startedAt: Date;
   endedAt: Date;
 };
@@ -156,6 +158,6 @@ export type GameHistoryEntry = {
 };
 
 export type HistoryPayload = {
-  recentGames: readonly GameHistory[];
-  topScores: readonly GameHistoryEntry[];
+  recentGames: GameHistory[];
+  topScores: GameHistoryEntry[];
 };

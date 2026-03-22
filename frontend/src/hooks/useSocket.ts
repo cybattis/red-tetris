@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useAppSelector, useAppDispatch } from "@/store";
-import { selectConnectionStatus } from "../store/slices/connectionSlice.js";
+import { selectConnectionStatus } from "../store/slices/connectionSlice";
 
 export function useSocket() {
   const dispatch = useAppDispatch();

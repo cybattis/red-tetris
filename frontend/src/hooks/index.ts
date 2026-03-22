@@ -1,2 +1,2 @@
-export { useSocket } from './useSocket.js';
-export { useGameInput } from './useGameInput';
+export { useSocket } from "./useSocket";
+export { useGameInput } from "./useGameInput";

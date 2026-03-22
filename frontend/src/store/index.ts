@@ -1,14 +1,14 @@
-import { configureStore } from '@reduxjs/toolkit';
-import { useDispatch, useSelector } from 'react-redux';
-import type { TypedUseSelectorHook } from 'react-redux';
+import { configureStore } from "@reduxjs/toolkit";
+import { useDispatch, useSelector } from "react-redux";
+import type { TypedUseSelectorHook } from "react-redux";
 
-import gameRoomSlice from './slices/gameRoomSlice.js';
-import gameSlice from './slices/gameSlice.js';
-import connectionSlice from './slices/connectionSlice.js';
-import uiSlice from './slices/uiSlice.js';
-import historySlice from './slices/historySlice.js';
+import gameRoomSlice from "./slices/gameRoomSlice";
+import gameSlice from "./slices/gameSlice";
+import connectionSlice from "./slices/connectionSlice";
+import uiSlice from "./slices/uiSlice";
+import historySlice from "./slices/historySlice";
 
-import { socketMiddleware } from './middleware/socketMiddleware.js';
+import { socketMiddleware } from "./middleware/socketMiddleware";
 
 export const store = configureStore({
   reducer: {
@@ -22,11 +22,11 @@ export const store = configureStore({
     getDefaultMiddleware({
       serializableCheck: {
         // Ignore these action types for socket connections
-        ignoredActions: ['connection/setSocket'],
+        ignoredActions: ["connection/setSocket"],
         // Ignore these field paths in all actions
-        ignoredActionsPaths: ['meta.arg', 'payload.socket'],
+        ignoredActionsPaths: ["meta.arg", "payload.socket"],
         // Ignore these paths in the state
-        ignoredPaths: ['connection.socket'],
+        ignoredPaths: ["connection.socket"],
       },
     }).concat(socketMiddleware),
   devTools: import.meta.env.DEV,

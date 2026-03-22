@@ -2,9 +2,9 @@ import {
   canStartGame,
   DEFAULT_SETTINGS,
   GameMode,
+  type GameSettings,
   prepareGameCreationData,
 } from "@shared/types/game.ts";
-import type { GameSettings } from "@/components";
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import {
   ROOM_CONFIG,

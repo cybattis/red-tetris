@@ -3,7 +3,7 @@ import styles from "./PlayerBoard.module.css";
 import { Board } from "../Board";
 import { NextPiece } from "./NextPiece";
 import { ScoreDisplay } from "./ScoreDisplay";
-import type { PieceState } from "../../store/slices/gameSlice";
+import type { PieceState } from "@shared/types/piece.ts";
 
 export interface PlayerBoardProps {
   playerName: string;

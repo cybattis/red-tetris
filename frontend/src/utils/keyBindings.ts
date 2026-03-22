@@ -1,11 +1,11 @@
-import { GameAction } from "@shared/types/game";
-
 /**
  * Keyboard Input Bindings
  *
  * Maps keyboard keys to game actions.
  * These actions are sent to the server - no game logic runs locally.
  */
+
+import { GameAction } from "@shared/types/game.ts";
 
 /**
  * Default key bindings

@@ -1,4 +1,4 @@
-import type { PieceState } from "./piece";
+import type { PieceState } from "./piece.js";
 
 export interface IPlayer {
   readonly id: string;

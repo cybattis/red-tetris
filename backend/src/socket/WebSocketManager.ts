@@ -4,8 +4,8 @@ import { RoomManager } from '../managers/RoomManager.js';
 import { Logger } from '../utils/helpers.js';
 import { wsRoomHandler } from './RoomSocketHandler.js';
 import { wsGameHandler } from './GameSocketHandler.js';
-import { GameHistoryManager } from '../managers/GameHistoryManager';
-import { HistoryPayload } from '@shared/types/game';
+import { GameHistoryManager } from '../managers/GameHistoryManager.js';
+import type { HistoryPayload } from '../../../shared/types/game.js';
 import { RoomWorkerManager } from '../managers/RoomWorkerManager.js';
 
 export class WebSocketManager {

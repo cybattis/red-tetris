@@ -1,23 +1,19 @@
-import { Player } from './Player';
-import {
-  AnimationType,
-  GameAction,
+import { Player } from './Player.js';
+import { AnimationType, GameAction, GameMode, GameStatus, EndGameReason } from '../../../shared/types/game.js';
+import type {
   GameAnimationData,
-  GameMode,
   GameSettings,
-  GameStatus,
   GameStateUpdate,
   Trail,
   GameHistoryEntry,
-  EndGameReason,
-} from '@shared/types/game';
+} from '../../../shared/types/game.js';
 import { randomUUID } from 'node:crypto';
-import { PiecesSequence } from './PiecesSequence';
-import { Piece } from './Piece';
-import { Logger } from '../utils/helpers';
-import { TETROMINO_DICTIONARY } from '../pieces/TetrominoFactory';
+import { PiecesSequence } from './PiecesSequence.js';
+import { Piece } from './Piece.js';
+import { Logger } from '../utils/helpers.js';
+import { TETROMINO_DICTIONARY } from '../pieces/TetrominoFactory.js';
 import { EventEmitter } from 'node:events';
-import { PieceState } from '@shared/types/piece';
+import type { PieceState } from '../../../shared/types/piece.js';
 
 export type GameRoomContext = {
   id: string;

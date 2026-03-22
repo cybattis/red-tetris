@@ -2,13 +2,8 @@ import { parentPort } from 'node:worker_threads';
 import { Player } from '../classes/Player.js';
 import { Game } from '../classes/Game.js';
 import { Logger } from '../utils/helpers.js';
-import type {
-  MainToWorkerMessage,
-  WorkerToMainMessage,
-  WorkerPlayer,
-  StartAssignment,
-} from './types.js';
-import type { GameSettings } from '@shared/types/game';
+import type { MainToWorkerMessage, WorkerToMainMessage, WorkerPlayer, StartAssignment } from './types.js';
+import type { GameSettings } from '../../../shared/types/game.js';
 
 if (!parentPort) {
   throw new Error('room.worker.ts must run in worker_threads context');
@@ -159,4 +154,3 @@ parentPort.on('message', (msg: MainToWorkerMessage) => {
     });
   }
 });
-

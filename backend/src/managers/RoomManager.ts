@@ -1,11 +1,12 @@
-import { Room } from '../classes/Room';
-import { Player } from '../classes/Player';
-import { Logger } from '../utils/helpers';
-import { DEFAULT_SETTINGS, GameAction, GameSettings } from '@shared/types/game';
-import { RoomErrorEvent, RoomResults, RoomInfo } from '@shared/types/room';
+import { Room } from '../classes/Room.js';
+import { Player } from '../classes/Player.js';
+import { Logger } from '../utils/helpers.js';
+import { DEFAULT_SETTINGS, GameAction } from '../../../shared/types/game.js';
+import type { GameSettings } from '../../../shared/types/game.js';
+import type { RoomErrorEvent, RoomResults, RoomInfo } from '../../../shared/types/room.js';
 import { Socket } from 'socket.io';
-import { PlayerJoinedEvent, RoomLeaveEvent } from '@shared/types/socket';
-import { RoomWorkerManager } from './RoomWorkerManager';
+import type { PlayerJoinedEvent, RoomLeaveEvent } from '../../../shared/types/socket.js';
+import { RoomWorkerManager } from './RoomWorkerManager.js';
 import { randomUUID } from 'node:crypto';
 
 export class RoomManager {

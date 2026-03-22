@@ -7,11 +7,11 @@ Sockets
 Fix bugs room settings / dependencies des states -->
 Clean des rooms
 
-- Enregistrer l'historique des games et des scores
+- Enregistrer l'historique des games et des scores --> DONE
 
-- Mode 2 joueurs
+- Mode 2 joueurs 
 - [x] Envoi des deux boards
-Check spectateur (?)
+Check spectateur (?) 
 Gestion des events (ligne cleared / Penalty)
 Game over
 

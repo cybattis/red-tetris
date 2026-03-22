@@ -9,7 +9,7 @@ import {
   setReconnecting,
   setConnectionError,
   updateLatency,
-} from "../slices/connectionSlice.js";
+} from "../slices/connectionSlice";
 import {
   joinRoomError,
   updateGameMode,
@@ -23,10 +23,10 @@ import {
   hostTransferred,
   roomError,
   setCurrentPlayerId,
-} from "../slices/gameRoomSlice.js";
-import { showToast } from "../slices/uiSlice.js";
-import type { RoomErrorEvent, RoomInfo } from "@shared/types/room.js";
-import { EndGameReason, type GameStateUpdate } from "@shared/types/game.js";
+} from "../slices/gameRoomSlice";
+import { showToast } from "../slices/uiSlice";
+import type { RoomErrorEvent, RoomInfo } from "@shared/types/room";
+import { EndGameReason, type GameStateUpdate } from "@shared/types/game";
 import type {
   GameModeUpdateEvent,
   GameOverEvent,

@@ -1,4 +1,5 @@
-import { PieceDefinition, PieceType } from '@shared/types/piece';
+import { PieceType } from '../../../shared/types/piece.js';
+import type { PieceDefinition } from '../../../shared/types/piece.js';
 
 export const T_PIECE: PieceDefinition = {
   type: PieceType.T,

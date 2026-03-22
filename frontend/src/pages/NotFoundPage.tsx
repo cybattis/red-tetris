@@ -1,6 +1,6 @@
-import { Link } from 'react-router-dom';
-import { TetrisBackground } from '@/components/UI';
-import styles from './NotFoundPage.module.css';
+import { Link } from "react-router-dom";
+import { TetrisBackground } from "@/components/UI";
+import styles from "./NotFoundPage.module.css";
 
 const FOUR_SHAPE = [
   [1, 0, 0, 1],
@@ -24,14 +24,16 @@ interface BlockGridProps {
   delay?: number;
 }
 
-function BlockGrid({ shape, color, delay = 0 }: BlockGridProps) {
+function BlockGrid({ shape, color, delay = 0 }: Readonly<BlockGridProps>) {
   return (
-    <div 
+    <div
       className={styles.blockGrid}
-      style={{ 
-        '--block-color': color,
-        '--animation-delay': `${delay}s`,
-      } as React.CSSProperties}
+      style={
+        {
+          "--block-color": color,
+          "--animation-delay": `${delay}s`,
+        } as React.CSSProperties
+      }
     >
       {shape.map((row, rowIndex) => (
         <div key={rowIndex} className={styles.blockRow}>
@@ -51,7 +53,7 @@ export function NotFoundPage() {
   return (
     <div className={styles.container}>
       <TetrisBackground pieceCount={40} />
-      
+
       <main className={styles.content}>
         <div className={styles.errorCode}>
           <BlockGrid shape={FOUR_SHAPE} color="#00f0f0" delay={0} />
