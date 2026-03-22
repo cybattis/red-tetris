@@ -1,5 +1,6 @@
 node_modules
 
+.github
 .idea
 .vscode
 .env
@@ -7,7 +8,9 @@ node_modules
 .gitignore
 .git
 npm-debug.log
+.prettierignore
 
 Dockerfile
 .dockerignore
-docker-compose.yml
+docker-compose*.yml
+docs

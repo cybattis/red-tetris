@@ -7,12 +7,9 @@
     "outDir": "dist",
     "rootDir": "..",
     "ignoreDeprecations": "5.0",
-    "baseUrl": "..",
-    "paths": {
-      "@shared/*": [
-        "shared/*"
-      ]
-    },
+    "moduleDetection": "force",
+    "verbatimModuleSyntax": true,
+    "noEmitOnError": true,
     "typeRoots": [
       "./env.d.ts",
       "./node_modules/@types"
