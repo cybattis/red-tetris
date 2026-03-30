@@ -12,6 +12,7 @@ import {
 } from "../slices/connectionSlice";
 import {
   joinRoomError,
+  startCountdown,
   updateGameMode,
   updateSettings,
   cancelCountdown,
@@ -35,7 +36,7 @@ import type {
   PlayerJoinedEvent,
   PlayerLeftEvent,
 } from "@shared/types/socket.ts";
-import { resetGame } from "@store/slices/gameSlice.ts";
+import { resetGame, updateOpponentSpectrum } from "@store/slices/gameSlice.ts";
 import { historyFailed, historyReceived } from "../slices/historySlice.js";
 
 export const createSocketMiddleware = (
@@ -52,6 +53,21 @@ export const createSocketMiddleware = (
   // Track if START_GAME has been emitted for current countdown to prevent duplicates
   let startGameEmitted = false;
 
+  const buildSpectrumFromBoard = (board: number[][]): number[] => {
+    const height = board.length;
+    const width = board[0]?.length ?? 0;
+
+    return Array.from({ length: width }, (_, colIndex) => {
+      for (let rowIndex = 0; rowIndex < height; rowIndex += 1) {
+        if ((board[rowIndex]?.[colIndex] ?? 0) !== 0) {
+          return height - rowIndex;
+        }
+      }
+
+      return 0;
+    });
+  };
+
   return (store) => (next) => (rawAction: unknown) => {
     const action = rawAction as MiddlewareAction;
     // Get state BEFORE action is processed for certain checks
@@ -60,7 +76,6 @@ export const createSocketMiddleware = (
     const result = next(rawAction);
     const state = store.getState();
     const dispatch = store.dispatch as AppDispatch;
-    const isSpectator = state.gameRoom.isSpectator;
 
     switch (action.type) {
       case "connection/initSocket": {
@@ -236,6 +251,14 @@ export const createSocketMiddleware = (
           );
         });
 
+        socket.on("GAME_COUNTDOWN_STARTED", () => {
+          const socketAction = {
+            ...startCountdown(),
+            meta: { fromSocket: true },
+          };
+          dispatch(socketAction);
+        });
+
         socket.on("GAME_STARTED", (data) => {
           console.log("[DEBUG] GAME_STARTED received:", data);
           // Reset game state before starting a new game to clear any leftover state
@@ -255,13 +278,42 @@ export const createSocketMiddleware = (
             data,
           );
 
-          const playerId = store.getState().gameRoom.currentPlayerId;
+          const currentState = store.getState();
+          const playerId = currentState.gameRoom.currentPlayerId;
+          const isSpectator = currentState.gameRoom.isSpectator;
 
           console.log(
             `[GAME_STATE_UPDATE] Current player ID: ${playerId}, Incoming game state player ID: ${data.player?.id}`,
           );
 
-          if (data.player?.id === playerId || isSpectator) {
+          if (isSpectator) {
+            const primaryPlayerId = currentState.game.currentBoardPlayer?.id;
+            const opponentPlayerId = currentState.game.opponent?.player.id;
+
+            if (!primaryPlayerId || primaryPlayerId === data.player.id) {
+              dispatch({ type: "game/updateGameState", payload: data });
+              return;
+            }
+
+            if (!opponentPlayerId || opponentPlayerId === data.player.id) {
+              dispatch(
+                updateOpponentSpectrum({
+                  player: data.player,
+                  board: data.board,
+                  currentPiece: data.currentPiece,
+                  nextPieces: data.nextPieces,
+                  score: data.score,
+                  isEliminated: data.isGameOver,
+                  spectrum: buildSpectrumFromBoard(data.board),
+                }),
+              );
+              return;
+            }
+
+            return;
+          }
+
+          if (data.player?.id === playerId) {
             console.log(
               "[GAME_STATE_UPDATE] Updating game state for current player",
             );
@@ -424,6 +476,15 @@ export const createSocketMiddleware = (
       case "gameRoom/startCountdown": {
         // Reset the startGameEmitted flag when a new countdown starts
         startGameEmitted = false;
+        // Broadcast countdown start to other players when triggered locally by the host
+        if (!action.meta?.fromSocket && state.gameRoom.isHost) {
+          const socket = state.connection.socket;
+          if (socket?.connected && state.gameRoom.roomId) {
+            socket.emit("START_COUNTDOWN", {
+              roomId: state.gameRoom.roomId,
+            });
+          }
+        }
         // Don't emit START_GAME immediately - wait for countdown to finish
         // The countdown will trigger START_GAME when it reaches 0
         break;
@@ -442,6 +503,7 @@ export const createSocketMiddleware = (
           socket &&
           socket.connected &&
           countdown === 0 &&
+          state.gameRoom.isHost &&
           !prevState.gameRoom.gameStarted &&
           !startGameEmitted
         ) {

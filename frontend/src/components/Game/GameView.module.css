@@ -83,6 +83,21 @@
   opacity: 0.85;
 }
 
+.spectatorDualLayout .playerBoardWrapper {
+  display: flex;
+  align-items: flex-start;
+  gap: 2rem;
+}
+
+.spectatorDualLayout .opponentBoardWrapper {
+  position: static;
+  transform: none;
+  margin-left: 0;
+  padding-left: 0;
+  border-left: none;
+  opacity: 1;
+}
+
 /* ── Footer ────────────────────────────────────────────── */
 
 .footer {
@@ -125,6 +140,11 @@
     border-left: none;
     padding-top: 1rem;
     border-top: 1px solid rgba(0, 229, 255, 0.12);
+  }
+
+  .spectatorDualLayout .opponentBoardWrapper {
+    padding-top: 0;
+    border-top: none;
   }
 }
 

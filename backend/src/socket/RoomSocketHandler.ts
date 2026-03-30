@@ -3,7 +3,12 @@ import { RoomManager } from '../managers/RoomManager.js';
 import { Logger } from '../utils/helpers.js';
 import { Socket } from 'socket.io';
 import { wsManager } from '../server.js';
-import type { JoinRoomEvent, LeaveRoomEvent, StartGameEvent } from '../../../shared/types/socket.js';
+import type {
+  JoinRoomEvent,
+  LeaveRoomEvent,
+  StartCountdownEvent,
+  StartGameEvent,
+} from '../../../shared/types/socket.js';
 
 export function wsRoomHandler(playerSocket: Socket) {
   const roomManager = RoomManager.getInstance();
@@ -66,6 +71,31 @@ export function wsRoomHandler(playerSocket: Socket) {
 
     // Confirm to the leaving player
     playerSocket.emit('LEFT_ROOM', { roomId });
+  });
+
+  playerSocket.on('START_COUNTDOWN', (payload: StartCountdownEvent) => {
+    const { roomId } = payload;
+    const room = roomManager.getRoom(roomId);
+
+    if (!room) {
+      playerSocket.emit('ROOM_ERROR', {
+        roomId,
+        reason: 'Room not found',
+        code: 'ROOM_NOT_FOUND',
+      });
+      return;
+    }
+
+    if (!room.isHost(playerSocket.id)) {
+      playerSocket.emit('ROOM_ERROR', {
+        roomId,
+        reason: 'Only host can start the countdown',
+        code: 'NOT_HOST',
+      });
+      return;
+    }
+
+    playerSocket.to(roomId).emit('GAME_COUNTDOWN_STARTED', { roomId });
   });
 
   playerSocket.on('START_GAME', async (payload: StartGameEvent) => {

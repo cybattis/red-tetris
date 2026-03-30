@@ -155,10 +155,13 @@ export class RoomManager {
 
     let result: RoomLeaveEvent = {
       roomInfo: room.toRoomInfo(),
-      playerLeft: {
-        playerId,
-      },
     };
+
+    if (removeResult.removedFromPlayers) {
+      result.playerLeft = {
+        playerId,
+      };
+    }
 
     // Handle host transfer
     if (removeResult.wasHost && removeResult.newHost) {

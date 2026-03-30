@@ -15,7 +15,7 @@ import {
   type LockedCell,
   type Trail,
 } from "@shared/types/game";
-import type { OpponentsGameState } from "@shared/types/player.ts";
+import type { IPlayer, OpponentsGameState } from "@shared/types/player.ts";
 import type { PieceState } from "@shared/types/piece.ts";
 
 /**
@@ -60,6 +60,7 @@ export interface GameState {
   lastAnimationTimestamp: { [key: string]: number };
 
   // Multiplayer - other players' states
+  currentBoardPlayer: IPlayer | null;
   opponent: OpponentsGameState | null;
 }
 
@@ -94,6 +95,7 @@ const initialState: GameState = {
   hardDropTrail: [],
   lastAnimationTimestamp: {}, // Animation deduplication
 
+  currentBoardPlayer: null,
   opponent: null,
 };
 
@@ -148,6 +150,7 @@ const gameSlice = createSlice({
         state.linesCleared = update.linesCleared;
       if (update.totalLinesCleared !== undefined)
         state.totalLinesCleared = update.totalLinesCleared;
+      if (update.player !== undefined) state.currentBoardPlayer = update.player;
 
       const gameSettings = update.gameSettings;
       if (gameSettings) {
@@ -396,6 +399,8 @@ export const selectGameOverReason = (state: { game: GameState }) =>
   state.game.endGameState;
 export const selectOpponent = (state: { game: GameState }) =>
   state.game.opponent;
+export const selectCurrentBoardPlayer = (state: { game: GameState }) =>
+  state.game.currentBoardPlayer;
 export const selectPendingPenaltyLines = (state: { game: GameState }) =>
   state.game.pendingPenaltyLines;
 

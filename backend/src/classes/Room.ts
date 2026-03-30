@@ -149,7 +149,11 @@ export class Room {
     return { success: true, isSpectator: true };
   }
 
-  public removePlayer(playerId: string): { wasHost: boolean; newHost?: Player } {
+  public removePlayer(playerId: string): {
+    wasHost: boolean;
+    newHost?: Player;
+    removedFromPlayers: boolean;
+  } {
     const wasHost = this._hostId === playerId;
     let newHost: Player | undefined;
 
@@ -158,13 +162,15 @@ export class Room {
     const removedFromSpectators = this._spectators.delete(playerId);
 
     if (!removedFromPlayers && !removedFromSpectators) {
-      return { wasHost: false };
+      return { wasHost: false, removedFromPlayers: false };
     }
 
     // Clean up any associated games through GameManager
-    const stoppedGames = this._games.get(playerId)?.stopGame();
-    if (stoppedGames) {
-      Logger.info(`Stopped ${stoppedGames} game(s) for player ${playerId} leaving room ${this.id}`);
+    if (removedFromPlayers) {
+      const stoppedGames = this._games.get(playerId)?.stopGame();
+      if (stoppedGames) {
+        Logger.info(`Stopped ${stoppedGames} game(s) for player ${playerId} leaving room ${this.id}`);
+      }
     }
 
     // Handle host transfer
@@ -181,12 +187,12 @@ export class Room {
     }
 
     // Handle room state transitions
-    if (this._state === 'playing' && this._players.size === 0) {
+    if (removedFromPlayers && this._state === 'playing' && this._players.size === 0) {
       // No players left during a game - end the game and stop all associated games
       this._state = 'ended';
       this.cleanupGames();
       Logger.info(`Room ${this.id} ended - no players remaining during game`);
-    } else if (this._state === 'playing' && this._players.size === 1) {
+    } else if (removedFromPlayers && this._state === 'playing' && this._players.size === 1) {
       // Only one player left during a game - transition back to waiting and stop games
       this._state = 'waiting';
       this._gameStartedAt = undefined;
@@ -198,7 +204,7 @@ export class Room {
       `Player ${playerId} left room ${this.id}. Players: ${this._players.size}, Spectators: ${this._spectators.size}`,
     );
 
-    return { wasHost, newHost };
+    return { wasHost, newHost, removedFromPlayers };
   }
 
   public isHost(playerId: string): boolean {

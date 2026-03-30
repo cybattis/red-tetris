@@ -14,6 +14,7 @@ import {
   selectIsPaused,
   selectIsGameOver,
   selectOpponent,
+  selectCurrentBoardPlayer,
   selectBoardDimensions,
   selectClearingRows,
   selectPenaltyRows,
@@ -32,6 +33,8 @@ import {
 import {
   selectGameSettings,
   selectGameMode,
+  selectCurrentPlayerId,
+  selectIsSpectator,
 } from "@store/slices/gameRoomSlice.ts";
 import { EndGameReason } from "@shared/types/game";
 import type { OpponentsGameState } from "@shared/types/player.ts";
@@ -64,11 +67,14 @@ export function GameView({
   const isGameOver = useAppSelector(selectIsGameOver);
   const gameOverReason = useAppSelector(selectGameOverReason);
   const opponent = useAppSelector(selectOpponent);
+  const currentBoardPlayer = useAppSelector(selectCurrentBoardPlayer);
   const { width, height } = useAppSelector(selectBoardDimensions);
   const clearingRows = useAppSelector(selectClearingRows);
   const penaltyRows = useAppSelector(selectPenaltyRows);
   const gameSettings = useAppSelector(selectGameSettings);
   const gameMode = useAppSelector(selectGameMode);
+  const currentPlayerId = useAppSelector(selectCurrentPlayerId);
+  const isSpectator = useAppSelector(selectIsSpectator);
 
   // Animation data from server
   const lockedCells = useAppSelector(selectLockedCells);
@@ -202,8 +208,11 @@ export function GameView({
 
   // Determine if invisible mode is active
   const isInvisible = gameMode === "invisible";
+  const isViewingOwnBoard =
+    currentBoardPlayer?.id != null && currentBoardPlayer.id === currentPlayerId;
   // Determine game mode based on opponent
   const isSoloGame = opponent === null;
+  const isSpectatorDualView = isSpectator && opponent != null;
 
   if (!isSoloGame && !opponent) {
     console.error("GameView: Multiplayer mode but opponent data is missing");
@@ -266,12 +275,12 @@ export function GameView({
       </header>
 
       <main
-        className={`${styles.gameArea} ${isSoloGame ? styles.soloLayout : styles.multiplayerLayout}`}
+        className={`${styles.gameArea} ${isSoloGame ? styles.soloLayout : styles.multiplayerLayout} ${isSpectatorDualView ? styles.spectatorDualLayout : ""}`}
       >
         <div className={styles.playerBoardWrapper}>
           <PlayerBoard
-            playerName={playerName}
-            isCurrentPlayer={true}
+            playerName={currentBoardPlayer?.name ?? playerName}
+            isCurrentPlayer={isViewingOwnBoard}
             isHost={isHost}
             board={board}
             width={width}
@@ -300,9 +309,10 @@ export function GameView({
             <div className={styles.opponentBoardWrapper}>
               <OpponentBoard
                 opponent={opponent}
+                boardWidth={width}
                 boardHeight={height}
                 maxNextDisplay={1}
-                size="small"
+                size={isSpectatorDualView ? "normal" : "small"}
               />
             </div>
           )}
@@ -337,6 +347,7 @@ export function GameView({
 
 interface OpponentBoardProps {
   opponent: OpponentsGameState;
+  boardWidth: number;
   boardHeight: number;
   maxNextDisplay: number;
   size?: "normal" | "small";
@@ -344,18 +355,23 @@ interface OpponentBoardProps {
 
 function OpponentBoard({
   opponent,
+  boardWidth,
   boardHeight,
   maxNextDisplay,
   size = "normal",
 }: Readonly<OpponentBoardProps>) {
+  const resolvedBoardWidth =
+    (opponent.board?.[0]?.length ?? opponent.spectrum.length) || boardWidth;
+  const resolvedBoardHeight = opponent.board?.length ?? boardHeight;
+
   if (opponent.board) {
     return (
       <PlayerBoard
         playerName={opponent.player.name}
         isCurrentPlayer={false}
         board={opponent.board}
-        width={10}
-        height={boardHeight}
+        width={resolvedBoardWidth}
+        height={resolvedBoardHeight}
         currentPiece={opponent.currentPiece || null}
         nextPieces={opponent.nextPieces}
         maxNextDisplay={maxNextDisplay}
@@ -366,15 +382,19 @@ function OpponentBoard({
     );
   }
 
-  const spectrumBoard = createBoardFromSpectrum(opponent.spectrum, boardHeight);
+  const spectrumBoard = createBoardFromSpectrum(
+    opponent.spectrum,
+    resolvedBoardHeight,
+    resolvedBoardWidth,
+  );
 
   return (
     <PlayerBoard
       playerName={opponent.player.name}
       isCurrentPlayer={false}
       board={spectrumBoard}
-      width={10}
-      height={boardHeight}
+      width={resolvedBoardWidth}
+      height={resolvedBoardHeight}
       score={opponent.score}
       isGameOver={opponent.isEliminated}
       size={size}
@@ -385,8 +405,9 @@ function OpponentBoard({
 function createBoardFromSpectrum(
   spectrum: number[],
   height: number,
+  fallbackWidth: number,
 ): number[][] {
-  const width = spectrum.length || 10;
+  const width = spectrum.length || fallbackWidth;
   const board: number[][] = Array.from({ length: height }, () =>
     new Array(width).fill(0),
   );

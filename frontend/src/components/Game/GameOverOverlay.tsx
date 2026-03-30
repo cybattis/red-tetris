@@ -83,7 +83,7 @@ export const GameOverOverlay = memo(function GameOverOverlay({
         </div>
 
         <div className={`${styles.buttonsContainer} ${showButtons ? styles.visible : ''}`}>
-          {onReturnToLobby && (
+          {!isSpectator && onReturnToLobby && (
             <button className={styles.primaryButton} onClick={onReturnToLobby}>
               Return to Lobby
             </button>

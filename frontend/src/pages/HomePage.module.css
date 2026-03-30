@@ -120,9 +120,11 @@
   list-style: none;
   margin: 0;
   padding: 0;
+  max-height: clamp(240px, 42vh, 420px);
   flex: 1;
   overflow-y: auto;
   min-height: 0;
+  scrollbar-gutter: stable;
 }
 
 .matchList::-webkit-scrollbar,
@@ -205,9 +207,11 @@
   margin: 0;
   padding: 0;
   counter-reset: none;
+  max-height: clamp(240px, 42vh, 420px);
   flex: 1;
   overflow-y: auto;
   min-height: 0;
+  scrollbar-gutter: stable;
 }
 
 .leaderboardItem {

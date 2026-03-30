@@ -305,6 +305,15 @@ const gameRoomSlice = createSlice({
     // Helper action to set current player ID
     setCurrentPlayerId: (state, action: PayloadAction<string>) => {
       state.currentPlayerId = action.payload;
+
+      const currentPlayer = [...state.players, ...state.spectators].find(
+        (player) => player.id === action.payload,
+      );
+
+      if (currentPlayer) {
+        state.isHost = currentPlayer.isHost;
+        state.isSpectator = currentPlayer.isSpectator;
+      }
     },
   },
 });
@@ -360,6 +369,8 @@ export const selectCurrentPlayer = (state: { gameRoom: GameRoomState }) => {
     ) || null
   );
 };
+export const selectCurrentPlayerId = (state: { gameRoom: GameRoomState }) =>
+  state.gameRoom.currentPlayerId;
 export const selectIsHost = (state: { gameRoom: GameRoomState }) => {
   return state.gameRoom.isHost;
 };

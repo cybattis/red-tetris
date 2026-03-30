@@ -28,6 +28,10 @@ export interface StartGameEvent {
   gameSettings?: Partial<GameSettings>;
 }
 
+export interface StartCountdownEvent {
+  roomId: string;
+}
+
 export interface HostTransferEvent {
   newHostId: string;
 }
