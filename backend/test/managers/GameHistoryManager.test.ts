@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { GameHistoryManager } from '../../src/managers/GameHistoryManager';
-import { EndGameReason, GameHistory, GameHistoryEntry, GameMode, GameType } from '../../../shared/types/game';
+import { EndGameReason, type GameHistory, type GameHistoryEntry, GameMode, GameType } from '../../../shared/types/game';
 
 function makeEntry(score: number, suffix: string): GameHistoryEntry {
   return {
@@ -19,7 +19,7 @@ function makeEntry(score: number, suffix: string): GameHistoryEntry {
   };
 }
 
-function makeHistory(index: number, entries: readonly GameHistoryEntry[]): GameHistory {
+function makeHistory(index: number, entries: GameHistoryEntry[]): GameHistory {
   return {
     roomId: `room-${index}`,
     type: GameType.Singleplayer,

@@ -1,7 +1,7 @@
 import { describe, expect, test } from '@jest/globals';
 // @ts-ignore
 import request from 'supertest';
-import { app } from '../src/server.js';
+import { app } from '../../src/server.js';
 
 describe('server routes', () => {
   test('GET /debug serves debug page', async () => {

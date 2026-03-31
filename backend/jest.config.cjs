@@ -13,6 +13,7 @@ module.exports = {
       'ts-jest',
       {
         useESM: true,
+        tsconfig: 'tsconfig.test.json' // <-- Tell ts-jest to use the test config
       },
     ],
   },

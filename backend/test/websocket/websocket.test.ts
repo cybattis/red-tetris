@@ -1,11 +1,11 @@
 import { afterAll, afterEach, beforeAll, describe, expect, jest, test } from '@jest/globals';
-import { AddressInfo } from 'net';
+import { type AddressInfo } from 'net';
 import { io as Client, Socket as ClientSocket } from 'socket.io-client';
-import { server, wsManager } from '../src/server.js';
-import { GameAction, GameMode, GameSettings } from '../../shared/types/game.js';
-import { ROOM_CONFIG } from '../../shared/types/room.js';
-import { RoomManager } from '../src/managers/RoomManager.js';
-import { Logger } from '../src/utils/helpers.js';
+import { server, wsManager } from '../../src/server';
+import { GameAction, GameMode, type GameSettings } from '../../../shared/types/game';
+import { ROOM_CONFIG } from '../../../shared/types/room';
+import { RoomManager } from '../../src/managers/RoomManager';
+import { Logger } from '../../src/utils/helpers';
 
 describe('WebSocketManager Class', () => {
   let clientSocket: ClientSocket;

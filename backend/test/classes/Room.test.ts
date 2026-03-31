@@ -44,7 +44,7 @@ describe('Room', () => {
 
     expect(room.io).toBeDefined();
     expect(room.isSpectator(spectator.id)).toBe(true);
-    expect(room.removePlayer('missing-id')).toEqual({ wasHost: false });
+    expect(room.removePlayer('missing-id')).toEqual({ wasHost: false, removedFromPlayers: false });
 
     room.destroy();
   });
