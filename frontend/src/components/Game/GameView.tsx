@@ -264,10 +264,10 @@ export function GameView({
         {onLeave && (
           <Button
             variant="ghost"
-            onClick={onLeave}
+            onClick={onReturnHome}
             className={styles.leaveButton}
           >
-            ← Leave Room
+            ← Leave Game
           </Button>
         )}
         {roomName && <h1 className={styles.roomName}>{roomName}</h1>}
