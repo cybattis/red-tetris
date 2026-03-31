@@ -58,10 +58,6 @@ export class Room {
     return Array.from(this._spectators.values());
   }
 
-  get playerCount(): number {
-    return this._players.size;
-  }
-
   get spectatorCount(): number {
     return this._spectators.size;
   }
@@ -177,7 +173,7 @@ export class Room {
     if (wasHost && this._players.size > 0) {
       const playersIterator = this._players.values();
       const nextPlayer = playersIterator.next().value;
-      if (nextPlayer) {
+      if (nextPlayer && nextPlayer instanceof Player) {
         this._hostId = nextPlayer.id;
         newHost = nextPlayer;
         Logger.info(`Host transferred from ${playerId} to ${nextPlayer.name} in room ${this.id}`);
@@ -315,7 +311,8 @@ export class Room {
           Logger.info(`Game ended in room ${this.id} for player ${player.name}`);
 
           const payload: GameOverEvent = { looserId: data.playerId };
-          if (!this.io.to(this?.id).emit('GAME_ENDED', payload)) {
+          const roomId = this.id;
+          if (!this.io.to(roomId).emit('GAME_ENDED', payload)) {
             Logger.warn(`Failed to broadcast game state for game ${this.id} in room ${this?.id}`);
           }
 

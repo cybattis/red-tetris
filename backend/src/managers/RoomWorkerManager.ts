@@ -14,7 +14,7 @@ import { Logger } from '../utils/helpers.js';
 type PendingRequest = {
   resolve: () => void;
   reject: (error: Error) => void;
-  timeout: NodeJS.Timeout;
+  timeout: number;
   roomId: string;
 };
 
@@ -90,7 +90,7 @@ export class RoomWorkerManager {
         reject(new Error(`Worker timeout for ${message.type} in room ${roomId}`));
       }, RoomWorkerManager.REQUEST_TIMEOUT_MS);
 
-      this.pending.set(requestId, { resolve, reject, timeout, roomId });
+      this.pending.set(requestId, <PendingRequest>{resolve, reject, timeout, roomId});
       worker.postMessage(payload);
     });
   }

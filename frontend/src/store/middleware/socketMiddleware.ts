@@ -369,6 +369,9 @@ export const createSocketMiddleware = (
             }),
           );
 
+          socket.emit("LEAVE_ROOM", {
+            roomId: prevState.gameRoom.roomId,
+          });
           // Don't automatically end the game room - let the user choose via Game Over overlay buttons
         });
 
