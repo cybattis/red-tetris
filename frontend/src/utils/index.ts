@@ -6,3 +6,4 @@
 export * from './colors';
 export * from './keyBindings';
 export * from './pieceShapes';
+export * from './routing';
