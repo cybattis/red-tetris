@@ -29,7 +29,7 @@ export const store = configureStore({
         ignoredPaths: ["connection.socket"],
       },
     }).concat(socketMiddleware),
-  devTools: import.meta.env.DEV,
+    devTools: import.meta.env.DEV,
 });
 
 export type RootState = {
