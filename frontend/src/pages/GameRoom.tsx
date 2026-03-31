@@ -161,10 +161,6 @@ export function GameRoom() {
   // MUST be memoized to prevent useGameInput from re-registering event listeners on every render
   const handleGameAction = useCallback(
     (action: GameAction) => {
-      console.log("Handling game action:", socket?.id, action, {
-        gameStarted,
-        gameId,
-      });
       if (socket && socket.connected && gameStarted && gameId) {
         socket.emit("PLAYER_INPUT", {
           gameId: gameId,
