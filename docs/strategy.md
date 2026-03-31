@@ -162,7 +162,7 @@ Reference types: `shared/types/socket.ts` and runtime handlers in backend/fronte
 ### Backend
 
 - Test suites are broad across classes/managers/socket (`backend/test/**`).
-- Coverage thresholds configured at 70/70/70 and branch 50 (`backend/jest.config.ts`).
+- Coverage thresholds configured at 70/70/70 and branch 50 (`backend/jest.config.cjs`).
 - Current generated report (2026-03-21):
   - Statements: 92.61%
   - Branches: 91.85%

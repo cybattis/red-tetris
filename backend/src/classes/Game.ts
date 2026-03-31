@@ -1,5 +1,11 @@
 import { Player } from './Player.js';
-import { AnimationType, GameAction, GameMode, GameStatus, EndGameReason } from '../../../shared/types/game.js';
+import {
+  AnimationType,
+  GameAction,
+  GameMode,
+  GameStatus,
+  EndGameReason,
+} from '../../../shared/types/game.js';
 import type {
   GameAnimationData,
   GameSettings,
@@ -547,6 +553,8 @@ export class Game extends EventEmitter {
       count,
       timestamp: Date.now(),
     });
+
+    this.broadcastGameState();
 
     // Check if penalty lines pushed existing content into spawn area causing game over
     if (this._currentPiece && !this._currentPiece.isLocked) {

@@ -4,6 +4,7 @@ node_modules
 .idea
 .vscode
 .env
+sample.env
 *.md
 .gitignore
 .git

@@ -2,6 +2,6 @@ coverage
 .vscode
 .prettierrc
 public
-jest.config.ts
+backend/jest.config.cjs
 *.json
 *.md
