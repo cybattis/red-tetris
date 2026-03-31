@@ -1,2 +1,3 @@
-export { useSocket } from "./useSocket";
-export { useGameInput } from "./useGameInput";
+export * from "./useSocket";
+export * from "./useGameInput";
+export * from "./useSingleTab";
