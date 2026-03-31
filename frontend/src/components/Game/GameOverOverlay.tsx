@@ -24,7 +24,6 @@ export const GameOverOverlay = memo(function GameOverOverlay({
   reason = 'Game Over',
   stats,
   isWinner = false,
-  onReturnToLobby,
   onReturnHome,
 }: GameOverOverlayProps) {
   const [showStats, setShowStats] = useState(false);
@@ -32,12 +31,6 @@ export const GameOverOverlay = memo(function GameOverOverlay({
 
   // Game state from Redux (received from server)
   const isSpectator = useAppSelector(selectIsSpectator);
-
-  console.log('GameOverOverlay visibility changed:', isVisible);
-  console.log('Stats:', stats);
-  console.log('Is Winner:', isWinner);
-  console.log('Reason:', reason);
-  console.log('Is Spectator:', isSpectator);
 
   useEffect(() => {
     if (isVisible) {

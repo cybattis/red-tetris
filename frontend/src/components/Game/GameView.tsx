@@ -164,25 +164,6 @@ export function GameView({
   const isVictory =
     allOpponentsEliminated && gameOverReason === EndGameReason.Victory;
 
-  // Debug log game over state
-  console.log(" GameView render - Game Over State:", {
-    isGameOver,
-    gameOverReason,
-    isPaused,
-  });
-
-  console.log(" GameView render - Multiplayer State:", {
-    isSoloGame,
-    opponent,
-  });
-
-  console.log(" GameView - Victory Logic:", {
-    allOpponentsEliminated,
-    showGameOverOverlay,
-    gameOverReason,
-    opponentsStatus: opponent ?? "N/A",
-  });
-
   return (
     <div className={styles.container}>
       <GameOverOverlay

@@ -144,7 +144,6 @@ const gameSlice = createSlice({
      */
     updateGameState: (state, action: PayloadAction<GameStateUpdate>) => {
       const update = action.payload;
-      console.log(" Redux updateGameState called with:", update);
 
       if (update.board !== undefined) state.board = update.board;
       if (update.currentPiece !== undefined)
@@ -168,27 +167,17 @@ const gameSlice = createSlice({
       }
 
       if (update.isGameOver !== undefined) {
-        console.log(" Setting isGameOver to:", update.isGameOver);
         state.isGameOver = update.isGameOver;
       }
       if (update.gameOverReason !== undefined) {
         state.endGameState = update.gameOverReason as EndGameReason;
       }
       if (update.isPaused !== undefined) {
-        console.log("⏸ Setting isPaused to:", update.isPaused);
         state.isPaused = update.isPaused;
       }
       if (update.opponent !== undefined) {
-        console.log(" Setting opponent to:", update.opponent);
         state.opponent = update.opponent;
       }
-
-      console.log(" Final Redux state after updateGameState:", {
-        isGameOver: state.isGameOver,
-        gameOverReason: state.endGameState,
-        isPaused: state.isPaused,
-        opponent: state.opponent,
-      });
     },
 
     /**

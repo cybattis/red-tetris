@@ -222,7 +222,6 @@ const gameRoomSlice = createSlice({
     // New room management actions
     updateRoomState: (state, action: PayloadAction<RoomInfo>) => {
       const roomInfo = action.payload;
-      console.log("Updating room state:", roomInfo);
 
       state.roomId = roomInfo.id;
       state.backendRoomState = roomInfo.state;
@@ -241,12 +240,6 @@ const gameRoomSlice = createSlice({
         if (currentRoomPlayer) {
           state.isHost = currentRoomPlayer.isHost;
           state.isSpectator = currentRoomPlayer.isSpectator;
-          console.log(
-            "Updated current player status: isHost=",
-            state.isHost,
-            "isSpectator=",
-            state.isSpectator,
-          );
         }
       }
 

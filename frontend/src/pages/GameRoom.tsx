@@ -134,7 +134,6 @@ export function GameRoom() {
     if (!isHost || !canStartGameNow) return;
 
     if (gameCreationData) {
-      console.log("Game Creation Data:", gameCreationData);
       dispatch(startCountdown());
     }
   };
