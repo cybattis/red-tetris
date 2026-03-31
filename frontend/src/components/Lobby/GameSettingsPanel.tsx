@@ -3,7 +3,7 @@ import { Slider } from "../UI/Slider";
 import { Toggle } from "../UI/Toggle";
 import { Button } from "../UI/Button";
 import styles from "./GameSettingsPanel.module.css";
-import type { GameSettings } from "@shared/types/game.ts";
+import { GameMode, type GameSettings } from "@shared/types/game.ts";
 
 export interface GameSettingsConfig {
   boardWidth: { min: number; max: number; step: number };
@@ -39,6 +39,7 @@ export function GameSettingsPanel({
   className = "",
 }: GameSettingsPanelProps) {
   const mergedConfig = { ...DEFAULT_CONFIG, ...config };
+  const isInvisibleMode = settings.gameMode === GameMode.Invisible;
 
   const panelClassName = [styles.settingsPanel, className]
     .filter(Boolean)
@@ -101,9 +102,9 @@ export function GameSettingsPanel({
         <div className={styles.settingCard}>
           <Toggle
             label="Ghost Piece"
-            value={settings.ghostPiece}
+            value={isInvisibleMode ? true : settings.ghostPiece}
             onChange={(value) => onSettingChange("ghostPiece", value)}
-            disabled={disabled}
+            disabled={disabled || isInvisibleMode}
           />
         </div>
 

@@ -315,13 +315,18 @@ describe('gameRoomSlice', () => {
         const stateWithMode = { 
           ...initialState, 
           gameMode: GameMode.Classic,
-          settings: { ...DEFAULT_SETTINGS, gameMode: GameMode.Classic }
+          settings: {
+            ...DEFAULT_SETTINGS,
+            gameMode: GameMode.Classic,
+            ghostPiece: false,
+          }
         };
         
         const result = gameRoomSlice(stateWithMode, updateGameMode(GameMode.Invisible));
         
         expect(result.gameMode).toBe(GameMode.Invisible);
         expect(result.settings.gameMode).toBe(GameMode.Invisible);
+        expect(result.settings.ghostPiece).toBe(true);
       });
     });
 
@@ -351,6 +356,24 @@ describe('gameRoomSlice', () => {
         expect(result.settings.gravity).toBe(1);
         expect(result.settings.ghostPiece).toBe(true);
       });
+
+      it('should force ghost piece on in invisible mode', () => {
+        const stateInInvisibleMode = {
+          ...initialState,
+          gameMode: GameMode.Invisible,
+          settings: {
+            ...DEFAULT_SETTINGS,
+            gameMode: GameMode.Invisible,
+            ghostPiece: true,
+          },
+        };
+
+        const result = gameRoomSlice(stateInInvisibleMode, updateSettings({
+          ghostPiece: false,
+        }));
+
+        expect(result.settings.ghostPiece).toBe(true);
+      });
     });
 
     describe('updateSetting', () => {
@@ -370,6 +393,25 @@ describe('gameRoomSlice', () => {
         }));
         
         expect(result.settings.ghostPiece).toBe(false);
+      });
+
+      it('should keep ghost piece enabled in invisible mode', () => {
+        const stateInInvisibleMode = {
+          ...initialState,
+          gameMode: GameMode.Invisible,
+          settings: {
+            ...DEFAULT_SETTINGS,
+            gameMode: GameMode.Invisible,
+            ghostPiece: true,
+          },
+        };
+
+        const result = gameRoomSlice(stateInInvisibleMode, updateSetting({
+          key: 'ghostPiece',
+          value: false,
+        }));
+
+        expect(result.settings.ghostPiece).toBe(true);
       });
 
       it('should preserve other settings', () => {

@@ -144,10 +144,25 @@ const gameRoomSlice = createSlice({
       state.gameMode = action.payload;
       // Also update the settings so it's sent to the backend correctly
       state.settings.gameMode = action.payload;
+
+      // Invisible mode always requires ghost piece
+      if (action.payload === GameMode.Invisible) {
+        state.settings.ghostPiece = true;
+      }
     },
 
     updateSettings: (state, action: PayloadAction<Partial<GameSettings>>) => {
       state.settings = { ...state.settings, ...action.payload };
+
+      // Keep slice-level game mode in sync if settings include it
+      if (action.payload.gameMode !== undefined) {
+        state.gameMode = action.payload.gameMode;
+      }
+
+      // Invisible mode always requires ghost piece
+      if (state.gameMode === GameMode.Invisible) {
+        state.settings.ghostPiece = true;
+      }
     },
 
     updateSetting: (
@@ -158,6 +173,22 @@ const gameRoomSlice = createSlice({
       }>,
     ) => {
       const { key, value } = action.payload;
+
+      if (key === "gameMode") {
+        const mode = value as unknown as GameMode;
+        state.gameMode = mode;
+        state.settings.gameMode = mode;
+        if (mode === GameMode.Invisible) {
+          state.settings.ghostPiece = true;
+        }
+        return;
+      }
+
+      if (key === "ghostPiece" && state.gameMode === GameMode.Invisible) {
+        state.settings.ghostPiece = true;
+        return;
+      }
+
       state.settings[key] = value as never;
     },
 
