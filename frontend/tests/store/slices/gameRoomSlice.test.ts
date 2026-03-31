@@ -45,24 +45,14 @@ import gameRoomSlice, {
   GameRoomState,
   GameRoomStatus,
 } from '../../../src/store/slices/gameRoomSlice';
-import { GameMode } from '@shared/types/game';
-import type { 
-  Player, 
-  GameSettings 
-} from '@types/game.ts';
-import { 
-  DEFAULT_SETTINGS, 
-  ROOM_CONFIG 
-} from '@types/game.ts';
+import { GameMode, DEFAULT_SETTINGS, type GameSettings } from '@shared/types/game';
+import type { IPlayer } from '@shared/types/player';
+import { ROOM_CONFIG, type RoomInfo, type RoomState as BackendRoomState, type RoomErrorEvent } from '@shared/types/room';
 import type {
-  RoomInfo,
-  RoomState as BackendRoomState,
   PlayerJoinedEvent,
   PlayerLeftEvent,
   HostTransferEvent,
-  RoomErrorEvent,
-  RoomPlayer
-} from '@shared/types/room';
+} from '@shared/types/socket';
 
 // Mock console.log to avoid test output noise
 const originalConsole = console.log;
@@ -77,25 +67,25 @@ afterAll(() => {
 const mockConsoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
 
 // Test data
-const mockPlayer1: Player = {
+const mockPlayer1: IPlayer = {
   id: 'player-1',
   name: 'Alice',
   isHost: true,
-  isReady: true,
+  isSpectator: false,
 };
 
-const mockPlayer2: Player = {
+const mockPlayer2: IPlayer = {
   id: 'player-2',
   name: 'Bob',
   isHost: false,
-  isReady: false,
+  isSpectator: false,
 };
 
-const mockPlayer3: Player = {
+const mockPlayer3: IPlayer = {
   id: 'player-3',
   name: 'Charlie',
   isHost: false,
-  isReady: true,
+  isSpectator: false,
 };
 
 const mockSettings: GameSettings = {
@@ -107,27 +97,24 @@ const mockSettings: GameSettings = {
   nextPieceCount: 5,
 };
 
-const mockRoomPlayer1: RoomPlayer = {
+const mockRoomPlayer1: IPlayer = {
   id: 'player-1',
   name: 'Alice',
   isHost: true,
-  isReady: true,
   isSpectator: false,
 };
 
-const mockRoomPlayer2: RoomPlayer = {
+const mockRoomPlayer2: IPlayer = {
   id: 'player-2',
   name: 'Bob',
   isHost: false,
-  isReady: false,
   isSpectator: false,
 };
 
-const mockSpectator: RoomPlayer = {
+const mockSpectator: IPlayer = {
   id: 'spectator-1',
   name: 'Spectator',
   isHost: false,
-  isReady: false,
   isSpectator: true,
 };
 
@@ -313,52 +300,6 @@ describe('gameRoomSlice', () => {
       it('should handle empty player list', () => {
         const result = gameRoomSlice(initialState, removePlayer('player-1'));
         expect(result.players).toEqual([]);
-      });
-    });
-
-    describe('updatePlayerReady', () => {
-      it('should update player ready status', () => {
-        const stateWithPlayers = { 
-          ...initialState, 
-          players: [mockPlayer1, mockPlayer2] 
-        };
-        
-        const result = gameRoomSlice(stateWithPlayers, updatePlayerReady({
-          playerId: 'player-2',
-          isReady: true,
-        }));
-        
-        const updatedPlayer = result.players.find(p => p.id === 'player-2');
-        expect(updatedPlayer?.isReady).toBe(true);
-      });
-
-      it('should handle non-existent player', () => {
-        const stateWithPlayers = { 
-          ...initialState, 
-          players: [mockPlayer1] 
-        };
-        
-        const result = gameRoomSlice(stateWithPlayers, updatePlayerReady({
-          playerId: 'non-existent',
-          isReady: true,
-        }));
-        
-        expect(result.players).toEqual([mockPlayer1]);
-      });
-
-      it('should toggle ready status', () => {
-        const stateWithPlayers = { 
-          ...initialState, 
-          players: [{ ...mockPlayer2, isReady: true }] 
-        };
-        
-        const result = gameRoomSlice(stateWithPlayers, updatePlayerReady({
-          playerId: 'player-2',
-          isReady: false,
-        }));
-        
-        const updatedPlayer = result.players.find(p => p.id === 'player-2');
-        expect(updatedPlayer?.isReady).toBe(false);
       });
     });
 
@@ -554,9 +495,9 @@ describe('gameRoomSlice', () => {
             countdown: null,
             roomStatus: 'playing' as GameRoomStatus,
             players: [
-              { ...mockPlayer1, isReady: true }, // host
-              { ...mockPlayer2, isReady: true }, // non-host
-              { ...mockPlayer3, isReady: true }, // non-host
+              { ...mockPlayer1 },
+              { ...mockPlayer2 },
+              { ...mockPlayer3 },
             ]
           };
           
@@ -565,14 +506,6 @@ describe('gameRoomSlice', () => {
           expect(result.gameStarted).toBe(false);
           expect(result.countdown).toBeNull();
           expect(result.roomStatus).toBe('finished');
-          
-          const hostPlayer = result.players.find(p => p.isHost);
-          const nonHostPlayers = result.players.filter(p => !p.isHost);
-          
-          expect(hostPlayer?.isReady).toBe(true); // host stays ready
-          nonHostPlayers.forEach(player => {
-            expect(player.isReady).toBe(false); // non-hosts reset to not ready
-          });
         });
       });
 
@@ -674,13 +607,13 @@ describe('gameRoomSlice', () => {
             id: 'player-1',
             name: 'Alice',
             isHost: true,
-            isReady: true,
+            isSpectator: false,
           });
           expect(result.players[1]).toEqual({
             id: 'player-2',
             name: 'Bob',
             isHost: false,
-            isReady: false,
+            isSpectator: false,
           });
         });
 
@@ -692,7 +625,7 @@ describe('gameRoomSlice', () => {
             id: 'spectator-1',
             name: 'Spectator',
             isHost: false,
-            isReady: false,
+            isSpectator: true,
           });
         });
 
@@ -724,9 +657,7 @@ describe('gameRoomSlice', () => {
       describe('playerJoined', () => {
         it('should add player to players list', () => {
           const joinEvent: PlayerJoinedEvent = {
-            roomId: 'room-123',
             player: mockRoomPlayer2,
-            isSpectator: false,
           };
           
           const result = gameRoomSlice(initialState, playerJoined(joinEvent));
@@ -736,15 +667,13 @@ describe('gameRoomSlice', () => {
             id: 'player-2',
             name: 'Bob',
             isHost: false,
-            isReady: false,
+            isSpectator: false,
           });
         });
 
         it('should add spectator to spectators list', () => {
           const joinEvent: PlayerJoinedEvent = {
-            roomId: 'room-123',
             player: mockSpectator,
-            isSpectator: true,
           };
           
           const result = gameRoomSlice(initialState, playerJoined(joinEvent));
@@ -754,20 +683,18 @@ describe('gameRoomSlice', () => {
             id: 'spectator-1',
             name: 'Spectator',
             isHost: false,
-            isReady: false,
+            isSpectator: true,
           });
         });
 
         it('should not add duplicate player', () => {
           const stateWithPlayer = {
             ...initialState,
-            players: [{ id: 'player-2', name: 'Bob', isHost: false, isReady: false }],
+            players: [{ id: 'player-2', name: 'Bob', isHost: false, isSpectator: false }],
           };
           
           const joinEvent: PlayerJoinedEvent = {
-            roomId: 'room-123',
             player: mockRoomPlayer2,
-            isSpectator: false,
           };
           
           const result = gameRoomSlice(stateWithPlayer, playerJoined(joinEvent));
@@ -781,13 +708,12 @@ describe('gameRoomSlice', () => {
           const stateWithPlayers = {
             ...initialState,
             players: [
-              { id: 'player-1', name: 'Alice', isHost: true, isReady: true },
-              { id: 'player-2', name: 'Bob', isHost: false, isReady: false },
+              { id: 'player-1', name: 'Alice', isHost: true, isSpectator: false },
+              { id: 'player-2', name: 'Bob', isHost: false, isSpectator: false },
             ],
           };
           
           const leftEvent: PlayerLeftEvent = {
-            roomId: 'room-123',
             playerId: 'player-2',
           };
           
@@ -801,13 +727,12 @@ describe('gameRoomSlice', () => {
           const stateWithSpectators = {
             ...initialState,
             spectators: [
-              { id: 'spectator-1', name: 'Spec1', isHost: false, isReady: false },
-              { id: 'spectator-2', name: 'Spec2', isHost: false, isReady: false },
+              { id: 'spectator-1', name: 'Spec1', isHost: false, isSpectator: true },
+              { id: 'spectator-2', name: 'Spec2', isHost: false, isSpectator: true },
             ],
           };
           
           const leftEvent: PlayerLeftEvent = {
-            roomId: 'room-123',
             playerId: 'spectator-1',
           };
           
@@ -823,14 +748,13 @@ describe('gameRoomSlice', () => {
           const stateWithPlayers = {
             ...initialState,
             players: [
-              { id: 'player-1', name: 'Alice', isHost: true, isReady: true },
-              { id: 'player-2', name: 'Bob', isHost: false, isReady: false },
+              { id: 'player-1', name: 'Alice', isHost: true, isSpectator: false },
+              { id: 'player-2', name: 'Bob', isHost: false, isSpectator: false },
             ],
             currentPlayerId: 'player-2',
           };
           
           const transferEvent: HostTransferEvent = {
-            roomId: 'room-123',
             newHostId: 'player-2',
           };
           
@@ -853,7 +777,7 @@ describe('gameRoomSlice', () => {
           
           const errorEvent: RoomErrorEvent = {
             roomId: 'room-123',
-            error: 'Room is full',
+            reason: 'Room is full',
             code: 'ROOM_FULL',
           };
           
@@ -880,7 +804,7 @@ describe('gameRoomSlice', () => {
         ...initialState,
         roomId: 'room-123',
         players: [mockPlayer1, mockPlayer2],
-        spectators: [{ id: 'spectator-1', name: 'Spectator', isHost: false, isReady: false }],
+        spectators: [{ id: 'spectator-1', name: 'Spectator', isHost: false, isSpectator: true }],
         currentPlayerId: 'player-1',
         hostId: 'player-1',
         isHost: true,
@@ -976,8 +900,8 @@ describe('gameRoomSlice', () => {
             ...initialState,
             isHost: true,
             players: [
-              { ...mockPlayer1, isReady: true },
-              { ...mockPlayer2, isReady: true },
+              { ...mockPlayer1 },
+              { ...mockPlayer2 },
             ],
           },
         };

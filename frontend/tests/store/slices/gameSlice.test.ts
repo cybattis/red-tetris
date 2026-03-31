@@ -36,10 +36,11 @@ import gameSlice, {
   selectLockedCells,
   selectHardDropTrail,
   GameState,
-  PieceState,
-  PlayerGameState,
-  GameStateUpdate,
 } from "../../../src/store/slices/gameSlice";
+import type { PieceState } from "@shared/types/piece";
+import type { IPlayer, OpponentsGameState } from "@shared/types/player";
+import type { GameStateUpdate } from "@shared/types/game";
+import { AnimationType, EndGameReason } from "@shared/types/game";
 
 // Mock console.log to avoid test output noise
 const originalConsole = console.log;
@@ -65,17 +66,29 @@ const mockGhostPiece: PieceState = {
   rotation: 0,
 };
 
-const mockOpponent1: PlayerGameState = {
-  playerId: "player-2",
-  playerName: "Alice",
+const mockOpponentPlayer1: IPlayer = {
+  id: "player-2",
+  name: "Alice",
+  isHost: false,
+  isSpectator: false,
+};
+
+const mockOpponentPlayer2: IPlayer = {
+  id: "player-3",
+  name: "Bob",
+  isHost: false,
+  isSpectator: false,
+};
+
+const mockOpponent1: OpponentsGameState = {
+  player: mockOpponentPlayer1,
   spectrum: [5, 3, 7, 2, 8, 1, 6, 4, 9, 0],
   score: 1500,
   isEliminated: false,
 };
 
-const mockOpponent2: PlayerGameState = {
-  playerId: "player-3",
-  playerName: "Bob",
+const mockOpponent2: OpponentsGameState = {
+  player: mockOpponentPlayer2,
   spectrum: [2, 4, 1, 8, 3, 9, 5, 7, 0, 6],
   score: 2000,
   isEliminated: false,
@@ -106,8 +119,9 @@ describe("gameSlice", () => {
     totalLinesCleared: 0,
     isPaused: false,
     isGameOver: false,
-    gameOverReason: null,
-    opponent: [],
+    endGameState: null,
+    currentBoardPlayer: null,
+    opponent: null,
     pendingPenaltyLines: 0,
     clearingRows: [],
     penaltyRows: [],
@@ -180,8 +194,9 @@ describe("gameSlice", () => {
           totalLinesCleared: 25,
           isPaused: true,
           isGameOver: true,
-          gameOverReason: "Game Over",
-          opponents: [mockOpponent1],
+          endGameState: EndGameReason.Defeat,
+          currentBoardPlayer: mockOpponentPlayer1,
+          opponent: mockOpponent1,
           pendingPenaltyLines: 3,
         };
 
@@ -201,8 +216,9 @@ describe("gameSlice", () => {
         expect(result.totalLinesCleared).toBe(0);
         expect(result.isPaused).toBe(false);
         expect(result.isGameOver).toBe(false);
-        expect(result.gameOverReason).toBeNull();
-        expect(result.opponents).toEqual([]);
+        expect(result.endGameState).toBeNull();
+        expect(result.currentBoardPlayer).toBeNull();
+        expect(result.opponent).toBeNull();
         expect(result.pendingPenaltyLines).toBe(0);
       });
 
@@ -225,27 +241,27 @@ describe("gameSlice", () => {
 
     describe("updateGameState", () => {
       it("should update board state", () => {
-        const update: GameStateUpdate = {
+        const update = {
           board: mockBoard,
-        };
+        } as GameStateUpdate;
 
         const result = gameSlice(initialState, updateGameState(update));
         expect(result.board).toBe(mockBoard);
       });
 
       it("should update current piece", () => {
-        const update: GameStateUpdate = {
+        const update = {
           currentPiece: mockPiece,
-        };
+        } as GameStateUpdate;
 
         const result = gameSlice(initialState, updateGameState(update));
         expect(result.currentPiece).toEqual(mockPiece);
       });
 
       it("should update ghost piece", () => {
-        const update: GameStateUpdate = {
+        const update = {
           ghostPiece: mockGhostPiece,
-        };
+        } as GameStateUpdate;
 
         const result = gameSlice(initialState, updateGameState(update));
         expect(result.ghostPiece).toEqual(mockGhostPiece);
@@ -253,19 +269,19 @@ describe("gameSlice", () => {
 
       it("should update next pieces queue", () => {
         const nextPieces = [2, 4, 1, 3];
-        const update: GameStateUpdate = {
+        const update = {
           nextPieces,
-        };
+        } as GameStateUpdate;
 
         const result = gameSlice(initialState, updateGameState(update));
         expect(result.nextPieces).toEqual(nextPieces);
       });
 
       it("should update score and level", () => {
-        const update: GameStateUpdate = {
+        const update = {
           score: 12500,
           level: 8,
-        };
+        } as GameStateUpdate;
 
         const result = gameSlice(initialState, updateGameState(update));
         expect(result.score).toBe(12500);
@@ -273,10 +289,10 @@ describe("gameSlice", () => {
       });
 
       it("should update lines cleared", () => {
-        const update: GameStateUpdate = {
+        const update = {
           linesCleared: 4,
           totalLinesCleared: 50,
-        };
+        } as GameStateUpdate;
 
         const result = gameSlice(initialState, updateGameState(update));
         expect(result.linesCleared).toBe(4);
@@ -284,10 +300,12 @@ describe("gameSlice", () => {
       });
 
       it("should update board dimensions", () => {
-        const update: GameStateUpdate = {
-          boardWidth: 12,
-          boardHeight: 25,
-        };
+        const update = {
+          gameSettings: {
+            boardWidth: 12,
+            boardHeight: 25,
+          },
+        } as unknown as GameStateUpdate;
 
         const result = gameSlice(initialState, updateGameState(update));
         expect(result.boardWidth).toBe(12);
@@ -295,20 +313,20 @@ describe("gameSlice", () => {
       });
 
       it("should update game over state", () => {
-        const update: GameStateUpdate = {
+        const update = {
           isGameOver: true,
-          gameOverReason: "Top out",
-        };
+          gameOverReason: EndGameReason.BoardOverflow,
+        } as GameStateUpdate;
 
         const result = gameSlice(initialState, updateGameState(update));
         expect(result.isGameOver).toBe(true);
-        expect(result.gameOverReason).toBe("Top out");
+        expect(result.endGameState).toBe(EndGameReason.BoardOverflow);
       });
 
       it("should update pause state", () => {
-        const update: GameStateUpdate = {
+        const update = {
           isPaused: true,
-        };
+        } as GameStateUpdate;
 
         const result = gameSlice(initialState, updateGameState(update));
         expect(result.isPaused).toBe(true);
@@ -322,9 +340,9 @@ describe("gameSlice", () => {
           board: mockBoard,
         };
 
-        const update: GameStateUpdate = {
+        const update = {
           score: 1500, // Only update score
-        };
+        } as GameStateUpdate;
 
         const result = gameSlice(stateWithData, updateGameState(update));
         expect(result.score).toBe(1500);
@@ -333,11 +351,11 @@ describe("gameSlice", () => {
       });
 
       it("should handle undefined values correctly", () => {
-        const update: GameStateUpdate = {
+        const update = {
           currentPiece: undefined,
           score: undefined,
           isPaused: undefined,
-        };
+        } as unknown as GameStateUpdate;
 
         const result = gameSlice(initialState, updateGameState(update));
         // State should remain unchanged for undefined values
@@ -346,9 +364,9 @@ describe("gameSlice", () => {
 
       it("should handle null values correctly", () => {
         const stateWithPiece = { ...initialState, currentPiece: mockPiece };
-        const update: GameStateUpdate = {
+        const update = {
           currentPiece: null,
-        };
+        } as unknown as GameStateUpdate;
 
         const result = gameSlice(stateWithPiece, updateGameState(update));
         expect(result.currentPiece).toBeNull();
@@ -360,17 +378,15 @@ describe("gameSlice", () => {
         const result = gameSlice(
           initialState,
           updateOpponentSpectrum({
-            playerId: "player-2",
-            playerName: "Alice",
+            player: mockOpponentPlayer1,
             spectrum: [1, 2, 3],
             score: 500,
+            isEliminated: false,
           }),
         );
 
-        expect(result.opponents).toHaveLength(1);
-        expect(result.opponents[0]).toEqual({
-          playerId: "player-2",
-          playerName: "Alice",
+        expect(result.opponent).toEqual({
+          player: mockOpponentPlayer1,
           spectrum: [1, 2, 3],
           score: 500,
           isEliminated: false,
@@ -380,97 +396,58 @@ describe("gameSlice", () => {
       it("should update existing opponent", () => {
         const stateWithOpponent = {
           ...initialState,
-          opponents: [mockOpponent1],
+          opponent: mockOpponent1,
         };
 
         const result = gameSlice(
           stateWithOpponent,
           updateOpponentSpectrum({
-            playerId: "player-2",
-            playerName: "Alice Updated", // Name won't be updated for existing opponents
+            player: mockOpponentPlayer1,
             spectrum: [5, 5, 5],
             score: 2500,
+            isEliminated: false,
           }),
         );
 
-        expect(result.opponents).toHaveLength(1);
-        expect(result.opponents[0].spectrum).toEqual([5, 5, 5]);
-        expect(result.opponents[0].score).toBe(2500);
-        expect(result.opponents[0].playerName).toBe("Alice"); // Name should remain unchanged
-      });
-
-      it("should handle multiple opponents", () => {
-        let state = gameSlice(
-          initialState,
-          updateOpponentSpectrum({
-            playerId: "player-2",
-            playerName: "Alice",
-            spectrum: [1, 2, 3],
-            score: 500,
-          }),
-        );
-
-        state = gameSlice(
-          state,
-          updateOpponentSpectrum({
-            playerId: "player-3",
-            playerName: "Bob",
-            spectrum: [4, 5, 6],
-            score: 750,
-          }),
-        );
-
-        expect(state.opponents).toHaveLength(2);
-        expect(
-          state.opponents.find((o) => o.playerId === "player-2"),
-        ).toBeDefined();
-        expect(
-          state.opponents.find((o) => o.playerId === "player-3"),
-        ).toBeDefined();
+        expect(result.opponent?.spectrum).toEqual([5, 5, 5]);
+        expect(result.opponent?.score).toBe(2500);
+        expect(result.opponent?.player.name).toBe("Alice");
       });
     });
 
     describe("eliminateOpponent", () => {
       it("should eliminate existing opponent", () => {
-        const stateWithOpponents = {
+        const stateWithOpponent = {
           ...initialState,
-          opponents: [mockOpponent1, mockOpponent2],
+          opponent: mockOpponent1,
         };
 
         const result = gameSlice(
-          stateWithOpponents,
+          stateWithOpponent,
           eliminateOpponent("player-2"),
         );
 
-        const eliminatedOpponent = result.opponents.find(
-          (o) => o.playerId === "player-2",
-        );
-        const otherOpponent = result.opponents.find(
-          (o) => o.playerId === "player-3",
-        );
-
-        expect(eliminatedOpponent?.isEliminated).toBe(true);
-        expect(otherOpponent?.isEliminated).toBe(false);
+        expect(result.opponent?.isEliminated).toBe(true);
       });
 
       it("should handle non-existent opponent", () => {
-        const stateWithOpponents = {
+        const stateWithOpponent = {
           ...initialState,
-          opponents: [mockOpponent1],
+          opponent: mockOpponent1,
         };
 
         const result = gameSlice(
-          stateWithOpponents,
+          stateWithOpponent,
           eliminateOpponent("non-existent"),
         );
 
-        expect(result.opponents).toEqual([mockOpponent1]);
-        expect(result.opponents[0].isEliminated).toBe(false);
+        expect(result.opponent).toEqual(mockOpponent1);
+        expect(result.opponent?.isEliminated).toBe(false);
       });
 
-      it("should work with empty opponents list", () => {
+      it("should work with empty opponent", () => {
         const result = gameSlice(initialState, eliminateOpponent("player-2"));
-        expect(result.opponents).toEqual([]);
+        expect(result.opponent).toBeNull();
       });
     });
 
@@ -552,28 +529,11 @@ describe("gameSlice", () => {
         it("should set game over with reason", () => {
           const result = gameSlice(
             initialState,
-            gameOver({ reason: "Top out" }),
+            gameOver({ reason: EndGameReason.BoardOverflow }),
           );
 
           expect(result.isGameOver).toBe(true);
-          expect(result.gameOverReason).toBe("Top out");
-        });
-
-        it("should use default reason when not provided", () => {
-          const result = gameSlice(initialState, gameOver({}));
-
-          expect(result.isGameOver).toBe(true);
-          expect(result.gameOverReason).toBe("Game Over");
-        });
-
-        it("should handle undefined reason", () => {
-          const result = gameSlice(
-            initialState,
-            gameOver({ reason: undefined }),
-          );
-
-          expect(result.isGameOver).toBe(true);
-          expect(result.gameOverReason).toBe("Game Over");
+          expect(result.endGameState).toBe(EndGameReason.BoardOverflow);
         });
       });
 
@@ -582,13 +542,12 @@ describe("gameSlice", () => {
           const result = gameSlice(
             initialState,
             gameEnded({
-              gameId: "game-123",
-              reason: "Player disconnected",
+              reason: EndGameReason.Defeat,
             }),
           );
 
           expect(result.isGameOver).toBe(true);
-          expect(result.gameOverReason).toBe("Player disconnected");
+          expect(result.endGameState).toBe(EndGameReason.Defeat);
           expect(result.isPaused).toBe(true);
         });
 
@@ -596,12 +555,11 @@ describe("gameSlice", () => {
           const result = gameSlice(
             initialState,
             gameEnded({
-              gameId: "game-456",
-              reason: "Server error",
+              reason: EndGameReason.Victory,
             }),
           );
 
-          expect(result.gameOverReason).toBe("Server error");
+          expect(result.endGameState).toBe(EndGameReason.Victory);
         });
       });
     });
@@ -664,7 +622,7 @@ describe("gameSlice", () => {
 
         it("should handle PIECE_LOCK animation", () => {
           const animationData = {
-            type: "PIECE_LOCK",
+            type: AnimationType.LOCK_PIECE,
             data: {
               timestamp: mockTimestamp,
               cells: [
@@ -692,17 +650,17 @@ describe("gameSlice", () => {
             type: 1,
             id: `lock-${mockTimestamp}-1`,
           });
-          expect(result.lastAnimationTimestamp["PIECE_LOCK"]).toBe(
+          expect(result.lastAnimationTimestamp[AnimationType.LOCK_PIECE]).toBe(
             mockTimestamp,
           );
         });
 
         it("should handle HARD_DROP animation", () => {
           const animationData = {
-            type: "HARD_DROP",
+            type: AnimationType.HARD_DROP,
             data: {
               timestamp: mockTimestamp,
-              trail: [{ x: 4, startY: 2, endY: 18, type: 1 }],
+              trails: [{ x: 4, startY: 2, endY: 18, type: 1 }],
             },
           };
 
@@ -719,14 +677,14 @@ describe("gameSlice", () => {
             type: 1,
             id: `trail-${mockTimestamp}-0`,
           });
-          expect(result.lastAnimationTimestamp["HARD_DROP"]).toBe(
+          expect(result.lastAnimationTimestamp[AnimationType.HARD_DROP]).toBe(
             mockTimestamp,
           );
         });
 
         it("should handle LINE_CLEAR animation", () => {
           const animationData = {
-            type: "LINE_CLEAR",
+            type: AnimationType.LINE_CLEAR,
             data: {
               timestamp: mockTimestamp,
               rows: [18, 19],
@@ -739,14 +697,14 @@ describe("gameSlice", () => {
           );
 
           expect(result.clearingRows).toEqual([18, 19]);
-          expect(result.lastAnimationTimestamp["LINE_CLEAR"]).toBe(
+          expect(result.lastAnimationTimestamp[AnimationType.LINE_CLEAR]).toBe(
             mockTimestamp,
           );
         });
 
         it("should prevent duplicate animations", () => {
           const animationData = {
-            type: "PIECE_LOCK",
+            type: AnimationType.LOCK_PIECE,
             data: {
               timestamp: mockTimestamp,
               cells: [{ x: 4, y: 18, type: 1 }],
@@ -769,7 +727,7 @@ describe("gameSlice", () => {
           };
 
           const animationData = {
-            type: "PIECE_LOCK",
+            type: AnimationType.LOCK_PIECE,
             data: {
               timestamp: mockTimestamp,
               cells: [{ x: 4, y: 18, type: 1 }],
@@ -788,18 +746,18 @@ describe("gameSlice", () => {
 
         it("should use Date.now() when timestamp not provided", () => {
           const animationData = {
-            type: "PIECE_LOCK",
+            type: AnimationType.LOCK_PIECE,
             data: {
               cells: [{ x: 4, y: 18, type: 1 }],
             },
-          };
+          } as unknown as { type: string; data: any };
 
           const result = gameSlice(
             initialState,
             handleAnimation(animationData),
           );
 
-          expect(result.lastAnimationTimestamp["PIECE_LOCK"]).toBe(
+          expect(result.lastAnimationTimestamp[AnimationType.LOCK_PIECE]).toBe(
             mockTimestamp,
           );
         });
@@ -850,14 +808,15 @@ describe("gameSlice", () => {
           totalLinesCleared: 100,
           isPaused: true,
           isGameOver: true,
-          gameOverReason: "Top out",
-          opponent: [mockOpponent1],
+          endGameState: EndGameReason.BoardOverflow,
+          currentBoardPlayer: mockOpponentPlayer1,
+          opponent: mockOpponent1,
           pendingPenaltyLines: 5,
           clearingRows: [18, 19],
           penaltyRows: [17],
           lockedCells: [{ x: 1, y: 1, type: 1 }],
           hardDropTrail: [{ x: 2, startY: 0, endY: 10, type: 2 }],
-          lastAnimationTimestamp: { PIECE_LOCK: 123456 },
+          lastAnimationTimestamp: { [AnimationType.LOCK_PIECE]: 123456 },
         };
 
         const result = gameSlice(modifiedState, resetGame());
@@ -881,8 +840,9 @@ describe("gameSlice", () => {
         totalLinesCleared: 75,
         isPaused: true,
         isGameOver: true,
-        gameOverReason: "Time up",
-        opponents: [mockOpponent1, mockOpponent2],
+        endGameState: EndGameReason.Defeat,
+        currentBoardPlayer: mockOpponentPlayer1,
+        opponent: mockOpponent2,
         pendingPenaltyLines: 2,
         clearingRows: [18, 19],
         penaltyRows: [17],
@@ -933,11 +893,11 @@ describe("gameSlice", () => {
     });
 
     it("should select game over reason", () => {
-      expect(selectGameOverReason(mockState)).toBe("Time up");
+      expect(selectGameOverReason(mockState)).toBe(EndGameReason.Defeat);
     });
 
-    it("should select opponents", () => {
-      expect(selectOpponent(mockState)).toEqual([mockOpponent1, mockOpponent2]);
+    it("should select opponent", () => {
+      expect(selectOpponent(mockState)).toEqual(mockOpponent2);
     });
 
     it("should select pending penalty lines", () => {
@@ -1011,34 +971,44 @@ describe("gameSlice", () => {
       // Update game state during play
       state = gameSlice(
         state,
-        updateGameState({
-          currentPiece: mockPiece,
-          score: 1000,
-          level: 2,
-        }),
+        updateGameState(
+          {
+            currentPiece: mockPiece,
+            score: 1000,
+            level: 2,
+          } as GameStateUpdate,
+        ),
       );
 
       expect(state.currentPiece).toEqual(mockPiece);
       expect(state.score).toBe(1000);
 
-      // Add opponents
+      // Add opponent
       state = gameSlice(
         state,
         updateOpponentSpectrum({
-          playerId: "player-2",
-          playerName: "Alice",
+          player: mockOpponentPlayer1,
           spectrum: [1, 2, 3],
           score: 500,
+          isEliminated: false,
         }),
       );
 
-      expect(state.opponent).toHaveLength(1);
+      expect(state.opponent).toEqual({
+        player: mockOpponentPlayer1,
+        spectrum: [1, 2, 3],
+        score: 500,
+        isEliminated: false,
+      });
 
       // Game over
-      state = gameSlice(state, gameOver({ reason: "Top out" }));
+      state = gameSlice(
+        state,
+        gameOver({ reason: EndGameReason.BoardOverflow }),
+      );
 
       expect(state.isGameOver).toBe(true);
-      expect(state.gameOverReason).toBe("Top out");
+      expect(state.endGameState).toBe(EndGameReason.BoardOverflow);
     });
 
     it("should handle animation sequence correctly", () => {
@@ -1052,7 +1022,7 @@ describe("gameSlice", () => {
       state = gameSlice(
         state,
         handleAnimation({
-          type: "PIECE_LOCK",
+          type: AnimationType.LOCK_PIECE,
           data: {
             timestamp: 123456,
             cells: [{ x: 4, y: 18, type: 1 }],
@@ -1072,7 +1042,10 @@ describe("gameSlice", () => {
 
     it("should maintain immutability", () => {
       const state = { ...initialState };
-      const newState = gameSlice(state, updateGameState({ score: 1000 }));
+      const newState = gameSlice(
+        state,
+        updateGameState({ score: 1000 } as GameStateUpdate),
+      );
 
       expect(newState).not.toBe(state);
       expect(state.score).toBe(0); // original unchanged

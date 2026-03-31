@@ -36,7 +36,7 @@ import type {
   PlayerJoinedEvent,
   PlayerLeftEvent,
 } from "@shared/types/socket.ts";
-import { resetGame, updateOpponentSpectrum } from "@store/slices/gameSlice.ts";
+import { resetGame, updateOpponentSpectrum } from "@/store/slices/gameSlice.ts";
 import { historyFailed, historyReceived } from "../slices/historySlice.js";
 
 export const createSocketMiddleware = (

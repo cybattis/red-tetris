@@ -2,12 +2,14 @@
 
 ## Active
 
+- [ ] Fix frontend tests
+- [ ] Bouton leave room : transformer en return to home 
 - [ ] Remove log in frontend
-- [ ] Fix backend tests in container
 - [ ] Mode spectateur : Quand le spectateur "return to home" les autres joueurs sont direct remis dans le lobby (n'importe qui)
 
 ### Done
 
+- [x] Fix backend tests in container
 - [x] Spectate view issue of Solo game : 
 -> En solo : on voit 2 boards au lieu d'une, la premiere est vide
 -> Spectate duo : On voit 2 boards, mais la premiere est vide (elle correspond au spectateur)

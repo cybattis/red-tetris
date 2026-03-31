@@ -161,12 +161,10 @@ describe('socketMiddleware', () => {
         'ROOM_ERROR',
         'LEFT_ROOM',
         'HISTORY_RESPONSE',
-        'GAME_CREATED',
-        'PLAYER_READY_STATUS',
         'SETTINGS_UPDATED',
         'GAME_MODE_UPDATED',
-        'GAME_STARTING',
         'GAME_START_CANCELED',
+        'GAME_COUNTDOWN_STARTED',
         'GAME_STARTED',
         'GAME_STATE_UPDATE',
         'GAME_ANIMATION',
@@ -243,13 +241,13 @@ describe('socketMiddleware', () => {
 
     it('should handle ROOM_STATE_UPDATE event', () => {
       const roomData = {
-        room: {
-          id: 'test-room',
-          players: [{ id: 'player1', name: 'Player 1', isReady: false, isHost: true }],
-          spectators: [],
-          gameMode: 'classic',
-          settings: { level: 1 },
-        }
+        id: 'test-room',
+        state: 'waiting',
+        players: [{ id: 'player1', name: 'Player 1', isHost: true, isSpectator: false }],
+        spectators: [],
+        hostId: 'player1',
+        maxPlayers: 2,
+        createdAt: '2026-01-01T00:00:00.000Z' as unknown as Date,
       };
 
       eventHandlers.ROOM_STATE_UPDATE(roomData);
@@ -261,11 +259,13 @@ describe('socketMiddleware', () => {
 
     it('should set current player ID when ROOM_STATE_UPDATE includes socket ID', () => {
       const roomData = {
-        room: {
-          id: 'test-room',
-          players: [{ id: 'mock-socket-id', name: 'Me', isReady: false, isHost: true }],
-          spectators: [],
-        }
+        id: 'test-room',
+        state: 'waiting',
+        players: [{ id: 'mock-socket-id', name: 'Me', isHost: true, isSpectator: false }],
+        spectators: [],
+        hostId: 'mock-socket-id',
+        maxPlayers: 2,
+        createdAt: '2026-01-01T00:00:00.000Z' as unknown as Date,
       };
 
       eventHandlers.ROOM_STATE_UPDATE(roomData);
@@ -288,8 +288,7 @@ describe('socketMiddleware', () => {
 
     it('should handle PLAYER_JOINED event for spectator', () => {
       const data = {
-        player: { id: 'spectator1', name: 'Spectator 1' },
-        isSpectator: true
+        player: { id: 'spectator1', name: 'Spectator 1', isHost: false, isSpectator: true },
       };
 
       eventHandlers.PLAYER_JOINED(data);
@@ -315,7 +314,7 @@ describe('socketMiddleware', () => {
     });
 
     it('should handle ROOM_ERROR event', () => {
-      const data = { error: 'Room is full' };
+      const data = { roomId: 'room-1', reason: 'Room is full', code: 'ROOM_FULL' };
       eventHandlers.ROOM_ERROR(data);
 
       const state = store.getState();
@@ -330,41 +329,6 @@ describe('socketMiddleware', () => {
       expect(state.ui.toast?.message).toBe('Left the room');
     });
 
-    it('should handle GAME_CREATED success event', () => {
-      const data = {
-        success: true,
-        players: [{ id: 'p1', name: 'Player 1' }],
-        currentPlayerId: 'p1',
-        gameMode: 'classic',
-        settings: { level: 1 }
-      };
-
-      eventHandlers.GAME_CREATED(data);
-
-      const state = store.getState();
-      expect(state.gameRoom.players).toHaveLength(1);
-    });
-
-    it('should handle GAME_CREATED error event', () => {
-      const data = {
-        success: false,
-        error: 'Failed to create room'
-      };
-
-      eventHandlers.GAME_CREATED(data);
-
-      const state = store.getState();
-      expect(state.gameRoom.error).toBe('Failed to create room');
-    });
-
-    it('should handle PLAYER_READY_STATUS event', () => {
-      const data = { playerId: 'player1', isReady: true };
-      eventHandlers.PLAYER_READY_STATUS(data);
-
-      // This should dispatch the action to update player ready status
-      // We can't easily test the exact state change without setting up the full room state
-      expect(true).toBe(true); // Basic test that handler executes without error
-    });
 
     it('should handle SETTINGS_UPDATED event', () => {
       const data = { settings: { gravity: 5, boardWidth: 10 } };
@@ -382,14 +346,6 @@ describe('socketMiddleware', () => {
       expect(state.gameRoom.gameMode).toBe('sprint');
     });
 
-    it('should handle GAME_STARTING event', () => {
-      const data = { countdown: 3 };
-      eventHandlers.GAME_STARTING(data);
-
-      const state = store.getState();
-      expect(state.gameRoom.roomStatus).toBe('countdown');
-      expect(state.gameRoom.countdown).toBe(3);
-    });
 
     it('should handle GAME_START_CANCELED event', () => {
       eventHandlers.GAME_START_CANCELED();
@@ -410,7 +366,15 @@ describe('socketMiddleware', () => {
     });
 
     it('should handle GAME_STATE_UPDATE event', () => {
-      const data = { board: [[0, 1], [1, 0]], score: 1000 };
+      const data = {
+        player: { id: 'player1', name: 'Player 1', isHost: true, isSpectator: false },
+        board: [[0, 1], [1, 0]],
+        currentPiece: null,
+        nextPieces: [],
+        score: 1000,
+        linesCleared: 0,
+        isGameOver: false,
+      };
       eventHandlers.GAME_STATE_UPDATE(data);
 
       // This dispatches a game action, we can verify it doesn't throw
@@ -426,11 +390,12 @@ describe('socketMiddleware', () => {
     });
 
     it('should handle GAME_ENDED event', () => {
-      const data = { gameId: 'game123', playerId: 'player1', reason: 'Game Over' };
+      store.dispatch({ type: 'gameRoom/setCurrentPlayerId', payload: 'player1' });
+      const data = { looserId: 'player1' };
       eventHandlers.GAME_ENDED(data);
 
       const state = store.getState();
-      expect(state.ui.toast?.message).toBe('Game ended: Game Over');
+      expect(state.ui.toast?.message).toBe('Game ended: defeat');
     });
 
     it('should handle ROOM_NOT_FOUND event', () => {
@@ -458,8 +423,8 @@ describe('socketMiddleware', () => {
               type: 'multiplayer',
               gameMode: 'classic',
               games: [],
-              startedAt: new Date(),
-              endedAt: new Date(),
+              startedAt: '2026-01-01T00:00:00.000Z' as unknown as Date,
+              endedAt: '2026-01-01T00:05:00.000Z' as unknown as Date,
             },
           ],
           topScores: [
@@ -589,21 +554,6 @@ describe('socketMiddleware', () => {
       }]);
     });
 
-    it('should handle updatePlayerReady action', () => {
-      const action = {
-        type: 'gameRoom/updatePlayerReady',
-        payload: { playerId: 'player1', isReady: true }
-      };
-
-      store.dispatch(action);
-
-      expect(emittedEvents.PLAYER_READY).toEqual([{
-        roomId: 'test-room',
-        playerId: 'player1',
-        isReady: true
-      }]);
-    });
-
     it('should handle startCountdown action', () => {
       store.dispatch({ type: 'gameRoom/startCountdown' });
 
@@ -612,6 +562,19 @@ describe('socketMiddleware', () => {
     });
 
     it('should handle updateCountdown action and emit START_GAME when countdown reaches 0', () => {
+      store.dispatch({ type: 'gameRoom/setCurrentPlayerId', payload: 'test-host' });
+      store.dispatch({
+        type: 'gameRoom/updateRoomState',
+        payload: {
+          id: 'test-room',
+          state: 'waiting',
+          players: [{ id: 'test-host', name: 'Host', isHost: true, isSpectator: false }],
+          spectators: [],
+          hostId: 'test-host',
+          maxPlayers: 2,
+          createdAt: '2026-01-01T00:00:00.000Z' as unknown as Date,
+        },
+      });
       // First start countdown to reset the flag
       store.dispatch({ type: 'gameRoom/startCountdown' });
       
@@ -625,6 +588,19 @@ describe('socketMiddleware', () => {
     });
 
     it('should not emit START_GAME if already emitted', () => {
+      store.dispatch({ type: 'gameRoom/setCurrentPlayerId', payload: 'test-host' });
+      store.dispatch({
+        type: 'gameRoom/updateRoomState',
+        payload: {
+          id: 'test-room',
+          state: 'waiting',
+          players: [{ id: 'test-host', name: 'Host', isHost: true, isSpectator: false }],
+          spectators: [],
+          hostId: 'test-host',
+          maxPlayers: 2,
+          createdAt: '2026-01-01T00:00:00.000Z' as unknown as Date,
+        },
+      });
       // First countdown
       store.dispatch({ type: 'gameRoom/startCountdown' });
       store.dispatch({ type: 'gameRoom/updateCountdown', payload: 0 });
@@ -636,6 +612,19 @@ describe('socketMiddleware', () => {
     });
 
     it('should not emit START_GAME if game already started', () => {
+      store.dispatch({ type: 'gameRoom/setCurrentPlayerId', payload: 'test-host' });
+      store.dispatch({
+        type: 'gameRoom/updateRoomState',
+        payload: {
+          id: 'test-room',
+          state: 'waiting',
+          players: [{ id: 'test-host', name: 'Host', isHost: true, isSpectator: false }],
+          spectators: [],
+          hostId: 'test-host',
+          maxPlayers: 2,
+          createdAt: '2026-01-01T00:00:00.000Z' as unknown as Date,
+        },
+      });
       // Set game as already started
       store.dispatch({ type: 'gameRoom/startGame', payload: { gameId: 'existing-game' } });
       
@@ -701,25 +690,17 @@ describe('socketMiddleware', () => {
       expect(emittedEvents.JOIN_ROOM).toBeUndefined();
     });
 
-    it('should handle GAME_CREATED with missing data', () => {
-      store.dispatch({ type: 'connection/initSocket' });
-      
-      const data = { success: false };
-      eventHandlers.GAME_CREATED(data);
-
-      const state = store.getState();
-      expect(state.gameRoom.error).toBe('Failed to create game');
-    });
-
     it('should handle ROOM_STATE_UPDATE without current player match', () => {
       store.dispatch({ type: 'connection/initSocket' });
       
       const roomData = {
-        room: {
-          id: 'test-room',
-          players: [{ id: 'other-player', name: 'Other Player' }],
-          spectators: [],
-        }
+        id: 'test-room',
+        state: 'waiting',
+        players: [{ id: 'other-player', name: 'Other Player', isHost: false, isSpectator: false }],
+        spectators: [],
+        hostId: 'other-player',
+        maxPlayers: 2,
+        createdAt: '2026-01-01T00:00:00.000Z' as unknown as Date,
       };
 
       expect(() => eventHandlers.ROOM_STATE_UPDATE(roomData)).not.toThrow();
@@ -781,12 +762,14 @@ describe('socketMiddleware', () => {
       });
 
       // Simulate server response
-      eventHandlers.GAME_CREATED({
-        success: true,
-        players: [{ id: 'player1', name: 'Player1', isReady: false }],
-        currentPlayerId: 'player1',
-        gameMode: 'classic',
-        settings: { level: 1 }
+      eventHandlers.ROOM_STATE_UPDATE({
+        id: 'room123',
+        state: 'waiting',
+        players: [{ id: 'player1', name: 'Player1', isHost: true, isSpectator: false }],
+        spectators: [],
+        hostId: 'player1',
+        maxPlayers: 2,
+        createdAt: '2026-01-01T00:00:00.000Z' as unknown as Date,
       });
 
       const state = store.getState();
@@ -800,9 +783,23 @@ describe('socketMiddleware', () => {
         type: 'gameRoom/joinRoomSuccess',
         payload: {
           roomId: 'room123',
-          players: [{ id: 'p1', name: 'P1', isReady: true }],
+          players: [{ id: 'p1', name: 'P1', isHost: true, isSpectator: false }],
           settings: { level: 1 }
         }
+      });
+
+      store.dispatch({ type: 'gameRoom/setCurrentPlayerId', payload: 'p1' });
+      store.dispatch({
+        type: 'gameRoom/updateRoomState',
+        payload: {
+          id: 'room123',
+          state: 'waiting',
+          players: [{ id: 'p1', name: 'P1', isHost: true, isSpectator: false }],
+          spectators: [],
+          hostId: 'p1',
+          maxPlayers: 2,
+          createdAt: '2026-01-01T00:00:00.000Z' as unknown as Date,
+        },
       });
 
       // Start countdown
