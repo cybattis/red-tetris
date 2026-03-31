@@ -1,11 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { Game } from '../../src/classes/Game';
-import { Player } from '../../src/classes/Player';
-import { Piece } from '../../src/classes/Piece';
-import { GameAction, GameMode, type GameSettings, GameStatus } from '../../../shared/types/game';
-import { TETROMINO_DICTIONARY } from '../../src/pieces/TetrominoFactory';
-import { Logger } from '../../src/utils/helpers';
-import { PieceType } from '../../../shared/types/piece';
+import {afterEach, beforeEach, describe, expect, it, jest} from '@jest/globals';
+import {Game} from '../../src/classes/Game';
+import {Player} from '../../src/classes/Player';
+import {Piece} from '../../src/classes/Piece';
+import {GameAction, GameMode, type GameSettings, GameStatus} from '../../../shared/types/game';
+import {TETROMINO_DICTIONARY} from '../../src/pieces/TetrominoFactory';
+import {Logger} from '../../src/utils/helpers';
+import {PieceType} from '../../../shared/types/piece';
 
 const settings: GameSettings = {
   gravity: 1,
@@ -186,10 +186,8 @@ describe('Game', () => {
     const game = createGame();
     const emit = jest.fn();
     (game as any)._socket = { emit };
-
     // Set up a mock room so the penalty event is emitted
-    const mockRoom = { id: 'test-room' };
-    (game as any).room = mockRoom;
+    (game as any).room = {id: 'test-room'};
 
     const eventSpy = jest.fn();
     game.on('penaltyLines', eventSpy);
@@ -211,9 +209,7 @@ describe('Game', () => {
     const game = createGame();
     const emit = jest.fn();
     (game as any)._socket = { emit };
-
-    const mockRoom = { id: 'test-room' };
-    (game as any).room = mockRoom;
+    (game as any).room = {id: 'test-room'};
 
     const eventSpy = jest.fn();
     game.on('penaltyLines', eventSpy);

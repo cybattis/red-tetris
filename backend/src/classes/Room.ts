@@ -1,5 +1,5 @@
 import { Player } from './Player.js';
-import { Game } from './Game.js';
+import { Game, type GameRoomContext} from './Game.js';
 import { Logger } from '../utils/helpers.js';
 import { AnimationType, GameAction, GameMode, GameType } from '../../../shared/types/game.js';
 import type {
@@ -226,7 +226,7 @@ export class Room {
   /**
    * Create a new game instance for a player.
    */
-  private createGame(player: Player, settings: GameSettings, seed: number, room: Room): Game {
+  private createGame(player: Player, settings: GameSettings, seed: number, room: GameRoomContext): Game {
     const game = new Game(player, seed, settings, room);
     Logger.info(`GameManager: Created game ${game.id} for player ${player.name}.`);
     return game;
@@ -278,6 +278,11 @@ export class Room {
     // Generate a seed for the game (could be room-based for synchronized pieces in multiplayer)
     const seed = Date.now() + Math.random();
 
+    const roomContext: GameRoomContext = {
+      id: this.id,
+      playerCount: this._players.size,
+    };
+
     // Create games for each player using GameManager
     for (const player of this._players.values()) {
       try {
@@ -286,7 +291,7 @@ export class Room {
           player,
           gameSettings,
           seed,
-          this, // Room reference for multiplayer interactions
+          roomContext
         );
 
         // Store game in Room's map for tracking

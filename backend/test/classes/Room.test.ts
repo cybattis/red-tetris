@@ -1,8 +1,6 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { Room } from '../../src/classes/Room';
 import { Player } from '../../src/classes/Player';
-import { ROOM_CONFIG } from '../../../shared/types/room';
-import { Logger } from '../../src/utils/helpers';
 
 function makePlayer(id: string, name: string): Player {
   const player = new Player(id, `socket-${id}`);
