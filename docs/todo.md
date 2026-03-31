@@ -3,7 +3,7 @@
 ## Active
 
 - [ ] Fix frontend tests
-- [ ] Bouton leave room : transformer en return to home 
+- [x] Bouton leave room : transformer en return to home 
 - [ ] Remove log in frontend
 - [ ] Mode spectateur : Quand le spectateur "return to home" les autres joueurs sont direct remis dans le lobby (n'importe qui)
 

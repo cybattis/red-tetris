@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import styles from "./GameView.module.css";
 import { PlayerBoard } from "./PlayerBoard";
 import { GameOverOverlay } from "./GameOverOverlay";
@@ -21,14 +21,9 @@ import {
   selectGameOverReason,
   selectLockedCells,
   selectHardDropTrail,
-  setClearingRows,
   clearClearingRows,
-  setPenaltyRows,
-  clearPenaltyRows,
   clearLockedCells,
   clearHardDropTrail,
-  gameOver,
-  resetGame,
 } from "@store/slices/gameSlice.ts";
 import {
   selectGameSettings,
@@ -79,14 +74,6 @@ export function GameView({
   // Animation data from server
   const lockedCells = useAppSelector(selectLockedCells);
   const hardDropTrail = useAppSelector(selectHardDropTrail);
-
-  // Local state for debug animations (keep for debugging)
-  const [debugLockedCells, setDebugLockedCells] = useState<
-    { x: number; y: number; type: number }[]
-  >([]);
-  const [debugHardDropTrail, setDebugHardDropTrail] = useState<
-    { x: number; startY: number; endY: number; type: number }[]
-  >([]);
 
   // Use refs to prevent multiple overlapping animations
   const lockedCellsTimeoutRef = useRef<number | null>(null);
@@ -156,55 +143,6 @@ export function GameView({
       };
     }
   }, [clearingRows, dispatch]);
-
-  // === DEBUG HANDLERS ===
-  const handleDebugLineClear = () => {
-    // Simulate clearing bottom 2 rows with shake + firework particles
-    dispatch(setClearingRows([height - 1, height - 2]));
-    setTimeout(() => dispatch(clearClearingRows()), 1100);
-  };
-
-  const handleDebugPenaltyLines = () => {
-    // Simulate 2 penalty lines at the bottom with warning flash
-    dispatch(setPenaltyRows([height - 1, height - 2]));
-    setTimeout(() => dispatch(clearPenaltyRows()), 600);
-  };
-
-  const handleDebugGameOver = () => {
-    dispatch(gameOver({ reason: EndGameReason.BoardOverflow }));
-  };
-
-  const handleDebugWin = () => {
-    dispatch(gameOver({ reason: EndGameReason.Victory }));
-  };
-
-  const handleDebugReset = () => {
-    dispatch(resetGame());
-  };
-
-  const handleDebugLockPiece = () => {
-    // Simulate a T-piece locking in the middle of the board
-    const lockedCells = [
-      { x: 4, y: height - 3, type: 6 }, // T-piece type
-      { x: 3, y: height - 2, type: 6 },
-      { x: 4, y: height - 2, type: 6 },
-      { x: 5, y: height - 2, type: 6 },
-    ];
-    setDebugLockedCells(lockedCells);
-    setTimeout(() => setDebugLockedCells([]), 400);
-  };
-
-  const handleDebugHardDrop = () => {
-    // Simulate hard drop trail from top to near bottom
-    const trails = [
-      { x: 4, startY: 0, endY: height - 4, type: 1 }, // I-piece columns
-      { x: 5, startY: 0, endY: height - 4, type: 1 },
-      { x: 6, startY: 0, endY: height - 4, type: 1 },
-      { x: 7, startY: 0, endY: height - 4, type: 1 },
-    ];
-    setDebugHardDropTrail(trails);
-    setTimeout(() => setDebugHardDropTrail([]), 500);
-  };
 
   // Determine if invisible mode is active
   const isInvisible = gameMode === "invisible";
@@ -296,12 +234,8 @@ export function GameView({
             isInvisible={isInvisible}
             clearingRows={clearingRows}
             penaltyRows={penaltyRows}
-            lockedCells={
-              lockedCells.length > 0 ? lockedCells : debugLockedCells
-            }
-            hardDropTrail={
-              hardDropTrail.length > 0 ? hardDropTrail : debugHardDropTrail
-            }
+            lockedCells={lockedCells}
+            hardDropTrail={hardDropTrail}
             size="normal"
           />
 
@@ -328,19 +262,6 @@ export function GameView({
         </div>
       </footer>
 
-      {/* Debug panel - only show in development */}
-      {import.meta.env.DEV && (
-        <div className={styles.debugPanel}>
-          <span className={styles.debugTitle}>Debug</span>
-          <button onClick={handleDebugLineClear}>Line Clear</button>
-          <button onClick={handleDebugPenaltyLines}>Penalty Lines</button>
-          <button onClick={handleDebugLockPiece}>Lock Piece</button>
-          <button onClick={handleDebugHardDrop}>Hard Drop</button>
-          <button onClick={handleDebugGameOver}>Game Over</button>
-          <button onClick={handleDebugWin}>Win</button>
-          <button onClick={handleDebugReset}>Reset</button>
-        </div>
-      )}
     </div>
   );
 }

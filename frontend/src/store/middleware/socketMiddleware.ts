@@ -81,18 +81,15 @@ export const createSocketMiddleware = (
       case "connection/initSocket": {
         // Prevent duplicate socket initialization
         if (socketInitialized && state.connection.socket) {
-          console.log("[DEBUG] Socket already initialized, skipping");
           break;
         }
 
         if (state.connection.socket) {
-          console.log("[DEBUG] Disconnecting existing socket");
           state.connection.socket.removeAllListeners();
           state.connection.socket.disconnect();
         }
 
         socketInitialized = true;
-        console.log("[DEBUG] Initializing new socket");
 
         dispatch(setConnecting());
 
@@ -107,7 +104,6 @@ export const createSocketMiddleware = (
         dispatch(setSocket(socket));
 
         socket.on("connect", () => {
-          console.log("Connected to server");
           dispatch(setConnected());
 
           if (store.getState().history.isLoading) {
@@ -119,8 +115,7 @@ export const createSocketMiddleware = (
           );
         });
 
-        socket.on("disconnect", (reason) => {
-          console.log("Disconnected from server:", reason);
+        socket.on("disconnect", (_reason) => {
           dispatch(setDisconnected());
           dispatch(
             showToast({ message: "Disconnected from server", type: "warning" }),
@@ -133,13 +128,11 @@ export const createSocketMiddleware = (
           dispatch(showToast({ message: "Connection failed", type: "error" }));
         });
 
-        socket.on("reconnect_attempt", (attemptNumber) => {
-          console.log("Reconnection attempt:", attemptNumber);
+        socket.on("reconnect_attempt", () => {
           dispatch(setReconnecting());
         });
 
-        socket.on("reconnect", (attemptNumber) => {
-          console.log("Reconnected after", attemptNumber, "attempts");
+        socket.on("reconnect", () => {
           dispatch(setConnected());
           dispatch(
             showToast({ message: "Reconnected to server", type: "success" }),
@@ -153,10 +146,6 @@ export const createSocketMiddleware = (
           // Set current player ID if not already set (when first joining)
           const currentState = store.getState();
           if (!currentState.gameRoom.currentPlayerId && socket.id) {
-            console.log(
-              "[DEBUG] Setting current player ID from socket ID:",
-              socket.id,
-            );
             // Find the player in the room data that matches our socket ID
             const currentPlayer = [
               ...roomInfo.players,
@@ -169,7 +158,6 @@ export const createSocketMiddleware = (
         });
 
         socket.on("PLAYER_JOINED", (payload: PlayerJoinedEvent) => {
-          console.log("Player joined:", payload);
           dispatch(playerJoined(payload));
           const player = payload.player;
           dispatch(
@@ -260,7 +248,6 @@ export const createSocketMiddleware = (
         });
 
         socket.on("GAME_STARTED", (data) => {
-          console.log("[DEBUG] GAME_STARTED received:", data);
           // Reset game state before starting a new game to clear any leftover state
           dispatch(resetGame());
           dispatch(startGame({ gameId: data.gameId }));
@@ -273,18 +260,10 @@ export const createSocketMiddleware = (
         });
 
         socket.on("GAME_STATE_UPDATE", (data: GameStateUpdate) => {
-          console.log(
-            "[GAME_STATE_UPDATE] Frontend received GAME_STATE_UPDATE:",
-            data,
-          );
 
           const currentState = store.getState();
           const playerId = currentState.gameRoom.currentPlayerId;
           const isSpectator = currentState.gameRoom.isSpectator;
-
-          console.log(
-            `[GAME_STATE_UPDATE] Current player ID: ${playerId}, Incoming game state player ID: ${data.player?.id}`,
-          );
 
           if (isSpectator) {
             const primaryPlayerId = currentState.game.currentBoardPlayer?.id;
@@ -314,12 +293,8 @@ export const createSocketMiddleware = (
           }
 
           if (data.player?.id === playerId) {
-            console.log(
-              "[GAME_STATE_UPDATE] Updating game state for current player",
-            );
             dispatch({ type: "game/updateGameState", payload: data });
           } else {
-            console.log("[GAME_STATE_UPDATE] Updating game state for opponent");
             dispatch({
               type: "game/updateGameState",
               payload: {
@@ -344,9 +319,6 @@ export const createSocketMiddleware = (
 
         socket.on("GAME_ENDED", (payload: GameOverEvent) => {
           const currentPlayerId = store.getState().gameRoom.currentPlayerId;
-          console.log(
-            `[DEBUG] Current player ID: ${currentPlayerId}, Game ended player ID: ${payload.looserId}`,
-          );
 
           const reason =
             payload.looserId === currentPlayerId
@@ -406,7 +378,6 @@ export const createSocketMiddleware = (
       case "connection/disconnectSocket": {
         const socket = state.connection.socket;
         if (socket) {
-          console.log("[DEBUG] Disconnecting socket and removing listeners");
           socket.removeAllListeners();
           socket.disconnect();
           dispatch(setSocket(null));
@@ -498,9 +469,6 @@ export const createSocketMiddleware = (
         // Only emit START_GAME when countdown reaches exactly 0
         // Use prevState to check gameStarted BEFORE the reducer updated it
         // Also use startGameEmitted flag to prevent duplicate emissions
-        console.log(
-          `[DEBUG] updateCountdown: payload=${action.payload as number}, prevGameStarted=${prevState.gameRoom.gameStarted}, startGameEmitted=${startGameEmitted}`,
-        );
         const countdown = action.payload as number;
         if (
           socket &&
@@ -511,10 +479,6 @@ export const createSocketMiddleware = (
           !startGameEmitted
         ) {
           startGameEmitted = true;
-          console.log(
-            "[DEBUG] Countdown reached 0, emitting START_GAME with settings:",
-            state.gameRoom.settings,
-          );
           // Countdown finished - now start the game on the server
           socket.emit("START_GAME", {
             roomId: state.gameRoom.roomId,

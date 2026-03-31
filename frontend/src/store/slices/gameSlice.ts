@@ -129,6 +129,13 @@ const gameSlice = createSlice({
       state.isGameOver = false;
       state.endGameState = null;
       state.pendingPenaltyLines = 0;
+      state.currentBoardPlayer = null;
+      state.opponent = null;
+      state.clearingRows = [];
+      state.penaltyRows = [];
+      state.lockedCells = [];
+      state.hardDropTrail = [];
+      state.lastAnimationTimestamp = {};
     },
 
     /**
@@ -163,6 +170,9 @@ const gameSlice = createSlice({
       if (update.isGameOver !== undefined) {
         console.log(" Setting isGameOver to:", update.isGameOver);
         state.isGameOver = update.isGameOver;
+      }
+      if (update.gameOverReason !== undefined) {
+        state.endGameState = update.gameOverReason as EndGameReason;
       }
       if (update.isPaused !== undefined) {
         console.log("⏸ Setting isPaused to:", update.isPaused);
