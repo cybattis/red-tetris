@@ -113,6 +113,11 @@ export class Room {
       return { success: false, reason: 'Player already in room' };
     }
 
+    // Check if player name already exists in room
+    if (this.isPlayerNameTaken(player.name)) {
+      return { success: false, reason: 'Player name already in room' };
+    }
+
     // Check if game is in progress or room is full - add as spectator
     if (this._state === 'playing' || this.isFull) {
       return this.addSpectator(player);
@@ -135,6 +140,10 @@ export class Room {
   }
 
   private addSpectator(player: Player): { success: boolean; reason?: string; isSpectator?: boolean } {
+    if (this.isPlayerNameTaken(player.name)) {
+      return { success: false, reason: 'Player name already in room' };
+    }
+
     if (this._spectators.size >= ROOM_CONFIG.MAX_SPECTATORS) {
       return { success: false, reason: 'Too many spectators' };
     }
@@ -143,6 +152,24 @@ export class Room {
     Logger.info(`Player ${player.name} joined room ${this.id} as spectator`);
 
     return { success: true, isSpectator: true };
+  }
+
+  private isPlayerNameTaken(playerName: string): boolean {
+    const normalizedName = playerName.trim().toLowerCase();
+
+    for (const existingPlayer of this._players.values()) {
+      if (existingPlayer.name.trim().toLowerCase() === normalizedName) {
+        return true;
+      }
+    }
+
+    for (const existingSpectator of this._spectators.values()) {
+      if (existingSpectator.name.trim().toLowerCase() === normalizedName) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   public removePlayer(playerId: string): {

@@ -23,7 +23,6 @@ RED-TETRIS is a competitive Tetris implementation designed for real-time multipl
 
 - `backend/` - Node.js server source code
 - `frontend/` - React application source code
-- `docs/` - Project documentation (`strategy.md`, `subject.md`)
 - `docker-compose.yml` - Development orchestration
 - `docker-compose-prod.yml` - Production orchestration
 
@@ -69,6 +68,11 @@ npm install
 npm run dev
 ```
 
-## Documentation
-
-detailed project requirements and implementation strategy can be found in the `docs/` directory.
+**Tests**
+Run tests from inside each container :
+```bash
+docker exec -it red-tetris-backend npm test --coverage
+```
+```bash
+docker exec -it red-tetris-frontend npm test --coverage
+```

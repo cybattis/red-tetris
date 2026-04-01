@@ -30,6 +30,20 @@ describe('Room', () => {
     room.destroy();
   });
 
+  it('rejects duplicate player names in the same room', () => {
+    const room = new Room('room-duplicate-name');
+    const playerOne = makePlayer('p1', 'Alpha');
+    const playerTwo = makePlayer('p2', 'alpha');
+
+    expect(room.addPlayer(playerOne).success).toBe(true);
+
+    const duplicateNameResult = room.addPlayer(playerTwo);
+    expect(duplicateNameResult.success).toBe(false);
+    expect(duplicateNameResult.reason).toBe('Player name already in room');
+
+    room.destroy();
+  });
+
   it('exposes io instance and handles unknown removal/spectator checks', () => {
     const room = new Room('room-basics');
     const host = makePlayer('p1', 'Host');

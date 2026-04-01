@@ -99,6 +99,22 @@ describe('RoomManager', () => {
     expect(overflow.error.code).toBe('ROOM_FULL');
   });
 
+  it('rejects joining with a duplicate player name in the same room', () => {
+    const roomId = 'room-duplicate-name';
+    const socket = makeSocket();
+
+    const firstJoin = manager.joinRoom(roomId, makePlayer('p1', 'Alpha'), socket);
+    expect(firstJoin.success).toBe(true);
+
+    const duplicateJoin = manager.joinRoom(roomId, makePlayer('p2', 'alpha'), socket);
+    expect(duplicateJoin.success).toBe(false);
+    if (duplicateJoin.success) {
+      throw new Error('expected duplicateJoin error');
+    }
+    expect(duplicateJoin.error.reason).toBe('Player name already in room');
+    expect(duplicateJoin.error.code).toBe('PLAYER_EXISTS');
+  });
+
   it('enforces host rules for start', async () => {
     const roomId = 'room-host';
     const socket = makeSocket();
